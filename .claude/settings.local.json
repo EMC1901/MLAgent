@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile app/modules/task_interpretation/enums.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/exceptions.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/model.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/repository.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/schemas.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/task_spec_adapter.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/prompt_builder.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/llm_client.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/parser.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/validator.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/service.py)",
+      "Bash(python -m py_compile app/modules/task_interpretation/api.py)",
+      "Bash(python -c \"from app.modules.task_interpretation.api import router; print\\('Import OK'\\)\")",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

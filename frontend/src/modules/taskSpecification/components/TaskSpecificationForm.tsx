@@ -12,6 +12,7 @@ import {
 } from '../constants';
 import TaskFieldGroup from './TaskFieldGroup';
 import { createTask, TaskSpecificationResponse } from '../../../api/taskApi';
+import TaskInterpretationPanel from '../../taskInterpretation/components/TaskInterpretationPanel';
 
 interface TaskSpecificationFormProps {
   onSubmitSuccess?: (result: TaskSpecificationResponse) => void;
@@ -407,6 +408,10 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
             <pre style={styles.pre}>{JSON.stringify(result, null, 2)}</pre>
           </div>
         </div>
+      )}
+
+      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
+        <TaskInterpretationPanel taskId={result.task_id} />
       )}
     </div>
   );
