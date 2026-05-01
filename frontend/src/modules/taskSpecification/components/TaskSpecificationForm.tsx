@@ -13,6 +13,7 @@ import {
 import TaskFieldGroup from './TaskFieldGroup';
 import { createTask, TaskSpecificationResponse } from '../../../api/taskApi';
 import TaskInterpretationPanel from '../../taskInterpretation/components/TaskInterpretationPanel';
+import DatasetProfilePanel from '../../datasetProfile/components/DatasetProfilePanel';
 
 interface TaskSpecificationFormProps {
   onSubmitSuccess?: (result: TaskSpecificationResponse) => void;
@@ -412,6 +413,10 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
 
       {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
         <TaskInterpretationPanel taskId={result.task_id} />
+      )}
+
+      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
+        <DatasetProfilePanel taskId={result.task_id} />
       )}
     </div>
   );

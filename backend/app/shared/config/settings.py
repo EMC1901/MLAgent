@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     LLM_MAX_RETRIES: int = 2
     LLM_TEMPERATURE: float = 0.0
 
+    # Dataset upload configuration
+    DATASET_UPLOAD_DIR: str = "/app/uploads"
+    DATASET_MAX_FILE_SIZE_MB: int = 100
+    DATASET_ALLOWED_EXTENSIONS: str = "csv,xlsx,xls"
+    DATASET_PREVIEW_ROWS: int = 20
+
     class Config:
         env_file = ".env"
 
