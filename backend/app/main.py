@@ -10,6 +10,8 @@ from app.modules.task_specification.api import router as task_spec_router
 from app.modules.task_interpretation.api import router as task_interp_router
 from app.modules.dataset_profile.api import router as dataset_profile_router
 from app.modules.workflow_planning.api import router as workflow_planning_router
+from app.modules.feature_engineering.api import router as feature_engineering_router
+from app.modules.feature_engineering.registry_api import registry_router
 
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
@@ -38,6 +40,8 @@ app.include_router(task_spec_router)
 app.include_router(task_interp_router)
 app.include_router(dataset_profile_router)
 app.include_router(workflow_planning_router)
+app.include_router(feature_engineering_router)
+app.include_router(registry_router)
 
 
 @app.exception_handler(BusinessException)

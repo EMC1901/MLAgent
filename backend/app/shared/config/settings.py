@@ -24,6 +24,28 @@ class Settings(BaseSettings):
     DATASET_ALLOWED_EXTENSIONS: str = "csv,xlsx,xls"
     DATASET_PREVIEW_ROWS: int = 20
 
+    # Feature engineering configuration
+    FEATURE_ARTIFACT_DIR: str = "/app/artifacts/features"
+    FEATURE_ARTIFACT_FORMAT: str = "parquet"
+    FEATURE_PREVIEW_ROWS: int = 20
+    FEATURE_MAX_FAILED_SAMPLE_RATIO: float = 0.2
+    ENABLE_COMPOSITION_FEATURIZER: bool = True
+    ENABLE_DESCRIPTOR_FEATURIZER: bool = True
+    ENABLE_STRUCTURE_FEATURIZER: bool = False
+
+    # External feature library configuration
+    ENABLE_PYMATGEN: bool = True
+    ENABLE_MATMINER: bool = True
+    ENABLE_MATMINER_MAGPIE: bool = True
+    ENABLE_MATMINER_STOICHIOMETRY: bool = True
+    ENABLE_MATMINER_ELEMENT_PROPERTY: bool = True
+    ENABLE_MATMINER_VALENCE_ORBITAL: bool = True
+    ENABLE_STRUCTURE_FEATURIZER_FULL: bool = False
+    MAX_FEATURE_DIMENSION: int = 2000
+    MAX_FEATURE_MISSING_RATIO: float = 0.5
+    FEATURE_GROUP_PREFIX_ENABLED: bool = True
+    FEATURE_EXTERNAL_LIBRARY_TIMEOUT: int = 300
+
     class Config:
         env_file = ".env"
 

@@ -38,6 +38,9 @@ class DataStrategy(BaseModel):
 
 class FeatureStrategy(BaseModel):
     feature_type: Optional[str] = None
+    executable_featurizers: List[str] = []
+    semantic_featurizers: List[str] = []
+    unsupported_future_featurizers: List[str] = []
     recommended_featurizers: List[str] = []
     requires_structure_features: bool = False
     feature_selection_required: bool = False

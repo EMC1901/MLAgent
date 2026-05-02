@@ -144,11 +144,35 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId }) => {
           {result.feature_strategy && (
             <Section title="Feature Strategy">
               <div>Feature Type: {result.feature_strategy.feature_type}</div>
+              {result.feature_strategy.executable_featurizers && result.feature_strategy.executable_featurizers.length > 0 && (
+                <div>
+                  Executable Featurizers:{' '}
+                  {result.feature_strategy.executable_featurizers.map((f, i) => (
+                    <Badge key={i} label={f} color="#2e7d32" />
+                  ))}
+                </div>
+              )}
+              {result.feature_strategy.semantic_featurizers && result.feature_strategy.semantic_featurizers.length > 0 && (
+                <div>
+                  Semantic Featurizers:{' '}
+                  {result.feature_strategy.semantic_featurizers.map((f, i) => (
+                    <Badge key={i} label={f} color="#1565c0" />
+                  ))}
+                </div>
+              )}
+              {result.feature_strategy.unsupported_future_featurizers && result.feature_strategy.unsupported_future_featurizers.length > 0 && (
+                <div>
+                  Future/Unsupported:{' '}
+                  {result.feature_strategy.unsupported_future_featurizers.map((f, i) => (
+                    <Badge key={i} label={f} color="#9e9e9e" />
+                  ))}
+                </div>
+              )}
               {result.feature_strategy.recommended_featurizers && result.feature_strategy.recommended_featurizers.length > 0 && (
                 <div>
-                  Recommended Featurizers:{' '}
+                  Recommended Featurizers (legacy):{' '}
                   {result.feature_strategy.recommended_featurizers.map((f, i) => (
-                    <Badge key={i} label={f} color="#2e7d32" />
+                    <Badge key={i} label={f} color="#6a1b9a" />
                   ))}
                 </div>
               )}

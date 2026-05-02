@@ -22,6 +22,9 @@ export interface DataStrategy {
 
 export interface FeatureStrategy {
   feature_type?: string;
+  executable_featurizers?: string[];
+  semantic_featurizers?: string[];
+  unsupported_future_featurizers?: string[];
   recommended_featurizers?: string[];
   requires_structure_features?: boolean;
   feature_selection_required?: boolean;

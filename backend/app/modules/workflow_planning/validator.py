@@ -1,4 +1,5 @@
 from typing import Dict, Any, List
+from app.shared.registry.featurizer_registry import resolve, get_default_fallback, get_available_featurizers
 
 
 REQUIRED_TOP_LEVEL_FIELDS = [
@@ -11,7 +12,7 @@ REQUIRED_TOP_LEVEL_FIELDS = [
 
 TASK_SUMMARY_FIELDS = ["task_type", "input_modality", "prediction_target", "material_domain", "primary_goal"]
 DATA_STRATEGY_FIELDS = ["input_columns", "target_column", "required_cleaning_steps", "target_handling", "duplicate_handling", "missing_value_strategy"]
-FEATURE_STRATEGY_FIELDS = ["feature_type", "recommended_featurizers", "requires_structure_features", "feature_selection_required", "feature_scaling_required"]
+FEATURE_STRATEGY_FIELDS = ["feature_type", "executable_featurizers", "recommended_featurizers", "requires_structure_features", "feature_selection_required", "feature_scaling_required"]
 MODEL_STRATEGY_FIELDS = ["candidate_model_families", "baseline_models", "preferred_model_bias", "excluded_model_families"]
 VALIDATION_STRATEGY_FIELDS = ["split_strategy", "n_splits", "random_state", "stratification_required"]
 EVALUATION_STRATEGY_FIELDS = ["primary_metric", "secondary_metrics", "metric_direction"]
@@ -74,6 +75,7 @@ def validate_workflow_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
     _check_confidence_score(plan, errors)
     _check_arrays(plan, errors)
     _check_forbidden_content(plan, errors)
+    _check_featurizer_registry(plan, errors)
 
     return {"is_valid": len(errors) == 0, "errors": errors}
 
@@ -145,4 +147,90 @@ def _check_forbidden_content(plan: Dict[str, Any], errors: List[str]):
             errors.append(
                 f"Forbidden content detected: '{forbidden}'. "
                 "Workflow Plan must not contain executable code, training results, or fabricated metrics."
+            )
+
+
+def _check_featurizer_registry(plan: Dict[str, Any], errors: List[str]):
+    """Validate that executable_featurizers (or legacy recommended_featurizers)
+    are valid featurizer IDs from the Registry."""
+    feature_strategy = plan.get("feature_strategy") or {}
+    task_summary = plan.get("task_summary") or {}
+    input_modality = task_summary.get("input_modality", "")
+    task_type = task_summary.get("task_type")
+
+    executable = feature_strategy.get("executable_featurizers")
+    recommended = feature_strategy.get("recommended_featurizers")
+
+    # Priority 1: executable_featurizers
+    if executable is not None:
+        if not isinstance(executable, list):
+            errors.append("'feature_strategy.executable_featurizers' must be an array.")
+            return
+
+        for name in executable:
+            result = resolve(name)
+            if result.resolved_id is None:
+                errors.append(
+                    f"Executable featurizer '{name}' is not registered in the Featurizer Registry."
+                )
+                continue
+
+            if result.status == "planned":
+                errors.append(
+                    f"Featurizer '{name}' (resolved to '{result.resolved_id}') has status 'planned' "
+                    "and cannot be used as an executable featurizer."
+                )
+            elif result.status not in ("available",):
+                errors.append(
+                    f"Featurizer '{name}' (resolved to '{result.resolved_id}') has status "
+                    f"'{result.status}', not 'available'."
+                )
+
+        if len(executable) == 0 and input_modality:
+            fallback = get_default_fallback(input_modality, task_type)
+            if fallback.fallback_featurizer_id:
+                errors.append(
+                    f"'executable_featurizers' is empty for modality '{input_modality}'. "
+                    f"Consider using fallback '{fallback.fallback_featurizer_id}'."
+                )
+            else:
+                errors.append(
+                    f"'executable_featurizers' is empty and no fallback available for '{input_modality}'."
+                )
+
+        return
+
+    # Priority 2: legacy recommended_featurizers
+    if recommended is not None and isinstance(recommended, list) and len(recommended) > 0:
+        resolvable_count = 0
+        for name in recommended:
+            result = resolve(name)
+            if result.resolved_id is not None and result.status == "available":
+                resolvable_count += 1
+
+        if resolvable_count == 0 and input_modality:
+            fallback = get_default_fallback(input_modality, task_type)
+            if fallback.fallback_featurizer_id:
+                errors.append(
+                    f"No recommended_featurizers resolve to available featurizers. "
+                    f"Fallback '{fallback.fallback_featurizer_id}' is available."
+                )
+            else:
+                errors.append(
+                    f"No recommended_featurizers resolve to available featurizers for '{input_modality}'."
+                )
+
+        return
+
+    # Priority 3: neither field present or both empty — try fallback
+    if input_modality:
+        fallback = get_default_fallback(input_modality, task_type)
+        if fallback.fallback_featurizer_id:
+            errors.append(
+                f"No executable_featurizers or recommended_featurizers provided. "
+                f"Fallback '{fallback.fallback_featurizer_id}' is available for '{input_modality}'."
+            )
+        else:
+            errors.append(
+                f"No featurizers specified and no fallback available for '{input_modality}'."
             )

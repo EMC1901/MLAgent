@@ -1,5 +1,6 @@
 import json
 from typing import Tuple
+from app.shared.registry.featurizer_registry import get_available_featurizers, get_planned_featurizers
 
 
 OUTPUT_JSON_SCHEMA = {
@@ -51,10 +52,13 @@ OUTPUT_JSON_SCHEMA = {
         },
         "feature_strategy": {
             "type": "object",
-            "required": ["feature_type", "recommended_featurizers", "requires_structure_features", "feature_selection_required", "feature_scaling_required"],
+            "required": ["feature_type", "executable_featurizers", "recommended_featurizers", "requires_structure_features", "feature_selection_required", "feature_scaling_required"],
             "properties": {
                 "feature_type": {"type": "string"},
-                "recommended_featurizers": {"type": "array", "items": {"type": "string"}},
+                "executable_featurizers": {"type": "array", "items": {"type": "string"}, "description": "Must be valid featurizer IDs from available_featurizers list only."},
+                "semantic_featurizers": {"type": "array", "items": {"type": "string"}, "description": "Scientific/semantic concept names for human readability."},
+                "unsupported_future_featurizers": {"type": "array", "items": {"type": "string"}, "description": "Featurizers from planned list that could be useful but are not yet available."},
+                "recommended_featurizers": {"type": "array", "items": {"type": "string"}, "description": "DEPRECATED: legacy field for backwards compatibility."},
                 "requires_structure_features": {"type": "boolean"},
                 "feature_selection_required": {"type": "boolean"},
                 "feature_scaling_required": {"type": "boolean"},
@@ -164,10 +168,19 @@ Your planning should cover:
 - **LLM Reasoning Summary**: A brief paragraph explaining the key planning decisions.
 - **Confidence Score**: A number between 0 and 1 indicating your confidence in this plan.
 
+**Featurizer Selection Rules (CRITICAL):**
+
+- You MUST select executable_featurizers ONLY from the available_featurizers list provided in the prompt.
+- Use the exact featurizer "id" values from available_featurizers — do NOT invent new IDs.
+- If you want to mention scientific or semantic feature concepts, put them into semantic_featurizers.
+- If a planned featurizer (like matminer_magpie) might be useful but is not yet available, put it in unsupported_future_featurizers.
+- Only executable_featurizers will be consumed by the Feature Engineering module.
+- recommended_featurizers is a DEPRECATED legacy field; always provide executable_featurizers.
+
 For materials science tasks:
 
-- **composition** input modality -> recommend composition-based featurizers (elemental property statistics, stoichiometric features, Magpie descriptors)
-- **structure** input modality -> recommend structure-based featurizers (density, symmetry, local environment, graph-based)
+- **composition** input modality -> recommend composition-based featurizers from available_featurizers
+- **structure** input modality -> recommend structure-based featurizers if available, otherwise use descriptor fallback
 - **descriptor** input modality -> use existing numeric descriptors with scaling and feature selection
 - **regression** tasks -> recommend MAE/RMSE/R2 metrics, tree-based + linear models
 - **classification** tasks -> recommend Accuracy/F1/ROC-AUC metrics, tree-based + linear models
@@ -177,6 +190,39 @@ For materials science tasks:
 
 
 def build_prompt(context: dict) -> Tuple[str, str]:
+    # Gather available and planned featurizers from the Registry
+    data_ctx = context.get("data_context") or {}
+    input_modality = data_ctx.get("input_modality")
+    task_type = (context.get("task_context") or {}).get("task_type")
+
+    available_featurizers = get_available_featurizers(
+        input_modality=input_modality,
+        task_type=task_type,
+    )
+    planned_featurizers = get_planned_featurizers(input_modality=input_modality)
+
+    available_for_prompt = [
+        {
+            "id": s.id,
+            "display_name": s.display_name,
+            "feature_type": s.feature_type,
+            "input_modalities": s.input_modalities,
+            "description": s.description,
+            "estimated_feature_count": s.estimated_feature_count,
+        }
+        for s in available_featurizers
+    ]
+
+    planned_for_prompt = [
+        {
+            "id": s.id,
+            "display_name": s.display_name,
+            "description": s.description,
+            "why_not_available": "Requires: " + ", ".join(s.requires_dependencies),
+        }
+        for s in planned_featurizers
+    ]
+
     user_message_parts = [
         "## Task Context",
         json.dumps(context.get("task_context", {}), indent=2, ensure_ascii=False),
@@ -186,6 +232,12 @@ def build_prompt(context: dict) -> Tuple[str, str]:
         "",
         "## Data Context",
         json.dumps(context.get("data_context", {}), indent=2, ensure_ascii=False),
+        "",
+        "## Available Featurizers (you MUST select executable_featurizers ONLY from this list)",
+        json.dumps(available_for_prompt, indent=2, ensure_ascii=False),
+        "",
+        "## Planned / Future Featurizers (not yet executable — put in unsupported_future_featurizers if relevant)",
+        json.dumps(planned_for_prompt, indent=2, ensure_ascii=False),
         "",
         "## Output JSON Schema",
         "You MUST output a single JSON object that strictly follows this schema:",

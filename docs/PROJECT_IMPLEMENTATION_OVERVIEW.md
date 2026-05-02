@@ -1,7 +1,7 @@
 # 项目已实现部分说明文档
 
-> 文档生成日期：2026-05-02
-> 项目名称：MLAgent - AI-driven Automated Machine Learning Framework for Materials Science
+> 文档生成日期：2026-05-02（全面更新版）
+> 项目名称：MLAgent — AI-driven Automated Machine Learning Framework for Materials Science
 > 文档用途：帮助后续 AI Coding 大模型和开发者快速理解当前项目已经完成的部分
 
 ---
@@ -10,174 +10,258 @@
 
 ### 1.1 项目定位
 
-MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框架。其核心目标是让用户通过结构化表单提交材料机器学习任务需求，系统自动完成从任务理解、数据加载、工作流规划到 Pipeline 生成的全流程自动化。
+MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框架。其核心目标是让用户通过结构化表单提交材料机器学习任务需求，系统自动完成从**任务理解 → 数据加载 → 工作流规划 → 特征工程**的全流程自动化。当前尚未实现 Pipeline Generation 及后续阶段。
 
 ### 1.2 当前实现阶段
 
-当前项目已完成 **四个核心业务模块** 的端到端实现：
+当前项目已完成 **五个核心业务模块** 的端到端实现：
 
 | 模块 | 阶段 | 完成度 |
 |------|------|--------|
-| **模块一：Task Specification（任务规格录入）** | MVP 已完成 | ~95% |
+| **模块一：Task Specification（任务规格录入与校验）** | MVP 已完成 | ~95% |
 | **模块二：LLM-based Task Interpretation（基于大模型的任务理解）** | MVP 已完成 | ~90% |
 | **模块三：Dataset Loading, Checking, and Profiling（数据集加载与画像）** | MVP 已完成 | ~90% |
-| **模块四：Workflow Planning（工作流规划）** | MVP 已完成 | ~90% |
+| **模块四：Workflow Planning（LLM 驱动的工作流规划）** | MVP 已完成 | ~90% |
+| **模块五：Feature Engineering（特征工程）** | MVP 已完成 | ~85% |
+| **Featurizer Registry（共享能力注册表）** | MVP 已完成 | ~90% |
 
-当前尚未实现的后续模块包括：Pipeline Generation、Pipeline Execution、Metric Evaluation、Result Diagnosis、Report Generation 等。
+当前**尚未实现**的后续模块包括：Pipeline Generation、Pipeline Execution、Metric Evaluation、Result Diagnosis、Report Generation 等。
 
 ### 1.3 项目整体架构
 
 ```
-用户浏览器 (React SPA)
-    ↓ HTTP
-FastAPI 后端 (Python)
-    ↓
-PostgreSQL 数据库
-    ↓
-外部 LLM API (OpenAI / Qwen / DeepSeek 等)
-    ↓
-外部数据集 (Matbench / 用户上传文件)
+用户浏览器 (React SPA — 单一 TaskSpecificationPage)
+    | HTTP (axios)
+FastAPI 后端 (Python, port 8000)
+    | SQLModel
+PostgreSQL 数据库 (port 5432)
+    |
+    ├── 外部 LLM API (OpenAI 兼容接口 — GPT-4.1 等)
+    ├── 外部数据集 (Matbench / 用户上传 CSV/XLSX 文件)
+    │       ↓
+    │   Data Loaders (MatbenchLoader / FileLoader)
+    │
+    ├── Featurizer Registry (静态定义 + 依赖检测)
+    │       ↓
+    └── Featurizers (Composition / Descriptor / Structure + pymatgen + matminer)
+            ↓
+        Feature Artifact (parquet/csv 存储到 /app/artifacts/features/)
 ```
+
+### 1.4 核心设计原则（根据当前代码分析）
+
+1. **管道式架构**：五个模块严格按序依赖。每个下游模块的 `context_builder.py` 会校验所有上游模块的输出状态，状态不符则抛出专用异常。
+2. **统一异常体系**：所有业务异常继承自 `BusinessException`，每个模块有自己的异常子类，附带有语义化的 `error_code`。
+3. **LLM 输出强约束**：模块二和模块四均定义了严格的 JSON Schema，LLM 响应经过解析（`parser.py`）+ 校验（`validator.py`）两步才被认为有效。
+4. **Featurizer Registry 作为共享契约**：Workflow Planning 的 Prompt 和 Validator、Feature Engineering 的 Strategy Resolver 都向 Registry 查询，而非各自维护硬编码列表。
+5. **失败状态持久化**：所有模块在失败时都会将失败记录（含错误信息）写入数据库，不会静默丢失。
 
 ---
 
 ## 2. 当前目录结构说明
 
+### 2.1 完整目录树（实际文件）
+
 ```
 c:\projects\MLAgent/
-├── backend/                              # 后端 FastAPI 项目
+├── backend/                                # 后端 FastAPI 项目
 │   ├── app/
 │   │   ├── __init__.py
-│   │   ├── main.py                       # FastAPI 应用入口，路由注册、全局异常处理、CORS、启动事件
-│   │   ├── modules/                      # 业务模块目录
-│   │   │   ├── __init__.py
-│   │   │   ├── task_specification/       # 模块一：任务规格录入与规范化
+│   │   ├── main.py                        # FastAPI 入口，路由注册，CORS，异常处理，启动时建表
+│   │   ├── modules/                       # 业务模块（五个模块 + Featurizer Registry API）
+│   │   │   ├── __init__.py                # 空文件
+│   │   │   ├── task_specification/        # 模块一：任务规格
 │   │   │   │   ├── __init__.py
-│   │   │   │   ├── api.py                # API 路由层（4 个接口）
-│   │   │   │   ├── schemas.py            # Pydantic 请求/响应模型
-│   │   │   │   ├── service.py            # 业务编排中枢
-│   │   │   │   ├── model.py              # SQLModel 数据库表定义
-│   │   │   │   ├── repository.py         # 数据访问层（CRUD）
-│   │   │   │   ├── normalizer.py         # 字段标准化（task_type/input_type/evaluation_metric 映射）
-│   │   │   │   ├── validator.py          # 字段完整性与合法性校验
-│   │   │   │   └── builder.py            # Task Specification Object 构建器
-│   │   │   ├── task_interpretation/      # 模块二：LLM 任务理解
+│   │   │   │   ├── api.py                # 4 个接口（POST, GET, PUT, POST:/validate）
+│   │   │   │   ├── schemas.py            # Create/Update/Response/ValidationResult
+│   │   │   │   ├── service.py            # 业务编排：create → normalize → validate → build → persist
+│   │   │   │   ├── model.py              # TaskSpecification (SQLModel, table=True, JSONB)
+│   │   │   │   ├── repository.py         # CRUD (create/get_by_id/update/exists/list)
+│   │   │   │   ├── normalizer.py         # 字段标准化映射（task_type/input_type/metric/priority）
+│   │   │   │   ├── validator.py          # 必填字段校验、指标兼容性、输入一致性、警告生成
+│   │   │   │   └── builder.py            # 构建 task_spec JSON dict
+│   │   │   │
+│   │   │   ├── task_interpretation/       # 模块二：LLM 任务理解
 │   │   │   │   ├── __init__.py
-│   │   │   │   ├── api.py                # API 路由层（4 个接口）
-│   │   │   │   ├── schemas.py            # Pydantic 请求/响应模型
-│   │   │   │   ├── service.py            # 业务编排中枢
-│   │   │   │   ├── model.py              # SQLModel 数据库表定义
-│   │   │   │   ├── repository.py         # 数据访问层（CRUD）
-│   │   │   │   ├── task_spec_adapter.py  # 适配 Task Specification 模块输出
-│   │   │   │   ├── prompt_builder.py     # LLM Prompt 构建
-│   │   │   │   ├── llm_client.py         # LLM API 调用封装（httpx）
-│   │   │   │   ├── parser.py             # LLM 响应解析（JSON 提取）
-│   │   │   │   ├── validator.py          # LLM 输出校验
-│   │   │   │   ├── builder.py            # Task Interpretation Object 构建器
-│   │   │   │   ├── enums.py              # 枚举定义
-│   │   │   │   └── exceptions.py         # 模块专用异常
-│   │   │   └── dataset_profile/          # 模块三：数据集加载、检查与画像
+│   │   │   │   ├── api.py                # 4 个接口（POST, GET by id, GET by task, POST:/rerun）
+│   │   │   │   ├── schemas.py            # InterpretedPredictionTarget, ModelingIntent 等 10+ 个子对象
+│   │   │   │   ├── service.py            # 核心流程：adapt → build_prompt → LLM → parse → validate → build → persist
+│   │   │   │   ├── model.py              # TaskInterpretation (JSONB + indexed status/task_id)
+│   │   │   │   ├── repository.py         # CRUD + get_latest_by_task_id + list_by_task_id
+│   │   │   │   ├── task_spec_adapter.py  # 将 TaskSpecification DB model 转为 LLM context dict
+│   │   │   │   ├── prompt_builder.py     # 构建 system/user prompt（含严格 JSON Schema）
+│   │   │   │   ├── llm_client.py         # httpx 调用 OpenAI 兼容 API（含重试逻辑）
+│   │   │   │   ├── parser.py             # LLM 响应 JSON 提取（正则去除 markdown 代码块）
+│   │   │   │   ├── validator.py          # 对 LLM 输出进行结构/枚举值/置信度范围校验
+│   │   │   │   ├── builder.py            # 构建 interpretation JSON dict
+│   │   │   │   ├── enums.py              # InterpretationStatus / TargetCategory / ModelingGoal / InputModality
+│   │   │   │   └── exceptions.py         # 5 个专用异常（TaskNotReady/LLMCall/Parse/Validation/NotFound）
+│   │   │   │
+│   │   │   ├── dataset_profile/           # 模块三：数据集加载与画像
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── api.py                # 5 个接口（POST upload, POST profile, GET by id, GET by task, POST rerun, GET preview）
+│   │   │   │   ├── schemas.py            # ColumnInfo, DatasetSource, Schema, ModalityCheck, TargetProfile, DataQuality 等
+│   │   │   │   ├── service.py            # 编排：build_context → resolve_source → load → check_schema/modality/quality/target → build → persist
+│   │   │   │   ├── model.py              # DatasetProfile (JSONB + profile_json + preview_json)
+│   │   │   │   ├── repository.py         # CRUD + get_latest_by_task_id
+│   │   │   │   ├── context_builder.py    # 跨库构建 context（校验 task/interpretation 状态）
+│   │   │   │   ├── source_resolver.py    # 数据源识别（matbench / uploaded_file / unknown），含启发式规则
+│   │   │   │   ├── profiler.py           # 质量评级 + 样本量等级 + 推荐下一步 + workflow_planning_input 构建
+│   │   │   │   ├── builder.py            # 构建完整的 Dataset Profile JSON dict
+│   │   │   │   ├── enums.py              # DatasetProfileStatus / DatasetSourceType 等
+│   │   │   │   ├── exceptions.py         # DatasetProfileNotFound / SourceUnresolved / Load 等异常
+│   │   │   │   ├── loaders/              # 数据加载器（策略模式）
+│   │   │   │   │   ├── __init__.py
+│   │   │   │   │   ├── base_loader.py    # 抽象基类 BaseLoader
+│   │   │   │   │   ├── matbench_loader.py# Matbench 加载（含 fallback 样本数据）
+│   │   │   │   │   └── file_loader.py    # 用户上传文件加载（CSV/XLSX/XLS）
+│   │   │   │   └── checkers/             # 数据检查器
+│   │   │   │       ├── __init__.py
+│   │   │   │       ├── schema_checker.py  # 列名检查、大小写匹配、全空列检测
+│   │   │   │       ├── modality_checker.py# 输入模态检测与一致性校验（composition/structure/descriptor/text/mixed）
+│   │   │   │       ├── quality_checker.py # 缺失值/重复行/无效值/常量列/高缺失率列/小样本
+│   │   │   │       └── target_checker.py  # 回归（极值/均值/标准差/偏度/离群值）/分类（类别分布/不平衡）
+│   │   │   │
+│   │   │   ├── workflow_planning/         # 模块四：LLM 工作流规划
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── api.py                # 4 个接口（POST, GET by id, GET by task, POST:/rerun）
+│   │   │   │   ├── schemas.py            # TaskSummary/DataStrategy/FeatureStrategy/ModelStrategy 等 15+ 个子对象
+│   │   │   │   ├── service.py            # 编排：build_context → build_prompt → LLM → parse → validate → build → persist
+│   │   │   │   ├── model.py              # WorkflowPlan (JSONB + 多个索引列)
+│   │   │   │   ├── repository.py         # CRUD + get_latest_by_task_id
+│   │   │   │   ├── context_builder.py    # 跨4个上游模块构建context（校验 task/interpretation/profile 状态）
+│   │   │   │   ├── prompt_builder.py     # 构建超长 system prompt（10 条 CRITICAL 规则 + 8 个策略维度）
+│   │   │   │   ├── llm_client_adapter.py # 复用模块二的 LLMClient
+│   │   │   │   ├── parser.py             # LLM 响应 JSON 提取
+│   │   │   │   ├── validator.py          # 250 行严格校验：必填字段/枚举值/禁止代码/Featurizer Registry 校验
+│   │   │   │   ├── builder.py            # 构建 Workflow Plan JSON dict
+│   │   │   │   ├── enums.py              # WorkflowPlanStatus/SplitStrategy/HPOSearchMethod 等枚举工具类
+│   │   │   │   └── exceptions.py         # WorkflowPlanNotFound/UpstreamNotReady/LLMCall/Parse/Validation
+│   │   │   │
+│   │   │   └── feature_engineering/       # 模块五：特征工程
 │   │   │       ├── __init__.py
-│   │   │       ├── api.py                # API 路由层（5 个接口 + 文件上传）
-│   │   │       ├── schemas.py            # Pydantic 请求/响应模型
-│   │   │       ├── service.py            # 业务编排中枢
-│   │   │       ├── model.py              # SQLModel 数据库表定义
-│   │   │       ├── repository.py         # 数据访问层（CRUD）
-│   │   │       ├── context_builder.py    # 构建 Dataset Loading Context
-│   │   │       ├── source_resolver.py    # 数据源识别
-│   │   │       ├── profiler.py           # 数据画像汇总
-│   │   │       ├── builder.py            # Dataset Profile Object 构建器
-│   │   │       ├── enums.py              # 枚举定义
-│   │   │       ├── exceptions.py         # 模块专用异常
-│   │   │       ├── loaders/              # 数据加载器
+│   │   │       ├── api.py                # 5 个接口（POST, GET by id, GET by task, POST:/rerun, GET preview）
+│   │   │       ├── registry_api.py       # Featurizer Registry 查询 API（GET list/detail/dependencies/validate）
+│   │   │       ├── schemas.py            # FeatureGeneration/FeatureMatrixInfo/FeatureQuality/DownstreamInput 等
+│   │   │       ├── service.py            # 编排：build_context → reload_data → resolve_strategy → run_featurizers → build_matrix → check_quality → save_artifact → persist
+│   │   │       ├── model.py              # FeatureEngineering (JSONB + artifact_id/path)
+│   │   │       ├── repository.py         # CRUD + get_latest_by_task_id
+│   │   │       ├── context_builder.py    # 跨5个上游模块构建context（校验全部前置模块状态）
+│   │   │       ├── data_loader_adapter.py# 复用 Dataset Profile 的 MatbenchLoader / FileLoader 重新加载原始数据
+│   │   │       ├── strategy_resolver.py  # 特征策略解析：优先级1 executable → 2 legacy recommended → 3 Registry fallback
+│   │   │       ├── feature_matrix_builder.py # 构建特征矩阵（sample_id + features + target）
+│   │   │       ├── artifact_manager.py   # 特征矩阵持久化（parquet/csv）+ metadata.json + 预览生成
+│   │   │       ├── builder.py            # 构建 FeatureEngineering Object
+│   │   │       ├── enums.py              # FeatureEngineeringStatus/FeatureType/InputModality
+│   │   │       ├── exceptions.py         # 20 个细分异常类型
+│   │   │       ├── featurizers/          # 特征化器实现
 │   │   │       │   ├── __init__.py
-│   │   │       │   ├── base_loader.py    # 抽象基类
-│   │   │       │   ├── matbench_loader.py# Matbench 数据集加载器
-│   │   │       │   └── file_loader.py    # 用户上传文件加载器
-│   │   │       └── checkers/             # 数据检查器
+│   │   │       │   ├── base_featurizer.py           # 抽象基类 BaseFeaturizer
+│   │   │       │   ├── featurizer_router.py         # 注册表 ID → 可执行 Featurizer 实例的路由桥接
+│   │   │       │   ├── composition_featurizer.py    # 内置轻量级 16 维元素属性描述符（103 种元素）
+│   │   │       │   ├── descriptor_featurizer.py     # 已有数值描述符直通
+│   │   │       │   ├── descriptor_cleaner.py        # 增强版描述符清洗器（含特征分组元数据）
+│   │   │       │   ├── structure_featurizer.py      # 结构特征化器（占位符）
+│   │   │       │   ├── pymatgen_composition_parser.py # pymatgen 配方解析器
+│   │   │       │   ├── matminer_featurizers.py      # matminer 四大 Featurizer（Stoichiometry/ElementProperty/Magpie/ValenceOrbital）
+│   │   │       │   └── matminer_structure_basic.py  # matminer 结构基本特征（planned）
+│   │   │       └── checkers/            # 特征检查器
 │   │   │           ├── __init__.py
-│   │   │           ├── schema_checker.py # Schema 检查
-│   │   │           ├── modality_checker.py# 模态一致性检查
-│   │   │           ├── quality_checker.py# 数据质量检查
-│   │   │           └── target_checker.py # 目标变量画像
-│   │   │   └── workflow_planning/        # 模块四：工作流规划
-│   │   │       ├── __init__.py
-│   │   │       ├── api.py                # API 路由层（4 个接口）
-│   │   │       ├── schemas.py            # Pydantic 请求/响应模型
-│   │   │       ├── service.py            # 业务编排中枢
-│   │   │       ├── model.py              # SQLModel 数据库表定义
-│   │   │       ├── repository.py         # 数据访问层（CRUD）
-│   │   │       ├── context_builder.py    # 构建上游上下文（Task + Interpretation + Profile）
-│   │   │       ├── prompt_builder.py     # LLM Prompt 构建
-│   │   │       ├── llm_client_adapter.py # LLM 调用适配器（复用模块二的 LLMClient）
-│   │   │       ├── parser.py             # LLM 响应解析（JSON 提取）
-│   │   │       ├── validator.py          # LLM 输出校验（含禁止内容检测）
-│   │   │       ├── builder.py            # Workflow Plan Object 构建器
-│   │   │       ├── enums.py              # 枚举定义（WorkflowPlanStatus）
-│   │   │       └── exceptions.py         # 模块专用异常
-│   │   └── shared/                       # 公共能力
+│   │   │           └── feature_quality_checker.py   # 特征质量检查：缺失值/常量特征/无效特征/高缺失率
+│   │   │
+│   │   └── shared/                      # 公共能力
 │   │       ├── __init__.py
 │   │       ├── common/
 │   │       │   ├── __init__.py
-│   │       │   ├── response.py           # 统一 API 响应格式（success_response/error_response）
-│   │       │   ├── exceptions.py         # 通用异常（BusinessException/NotFoundException 等）
-│   │       │   └── enums.py              # 公共枚举（当前为空）
+│   │       │   ├── response.py          # 统一响应格式：success_response / error_response / APIResponse
+│   │       │   ├── exceptions.py        # 4 个基础异常（BusinessException / ValidationException / NotFoundException / DatabaseException）
+│   │       │   └── enums.py             # 公共枚举：TaskStatus / TaskType / InputType / EvaluationMetric / UserPriority
 │   │       ├── config/
 │   │       │   ├── __init__.py
-│   │       │   └── settings.py           # 环境变量配置（pydantic-settings）
-│   │       └── database/
+│   │       │   └── settings.py          # pydantic-settings：数据库/LLM/数据上传/特征工程/外部库 配置
+│   │       ├── database/
+│   │       │   ├── __init__.py
+│   │       │   ├── connection.py        # SQLModel Engine 创建（单行，基于 DATABASE_URL）
+│   │       │   └── session.py           # FastAPI Depends get_session 依赖注入（generator）
+│   │       └── registry/               # Featurizer Registry（共享核心）
 │   │           ├── __init__.py
-│   │           ├── connection.py         # 数据库 Engine 创建
-│   │           └── session.py            # Session 依赖注入
-│   ├── .env.example                      # 环境变量模板
-│   ├── requirements.txt                  # Python 依赖
-│   └── Dockerfile                        # 后端容器化
-├── frontend/                             # 前端 React 项目
+│   │           ├── featurizer_registry.py # 12 个 FeaturizerSpec 静态定义 + 依赖检测 + ID/Alias 索引 + 查询 API + 回退逻辑
+│   │           ├── schemas.py           # FeaturizerSpec / FeaturizerResolveResult / FallbackResult / DependencyCheckResult
+│   │           └── exceptions.py        # 5 个 Registry 异常
+│   │
+│   ├── .env.example                     # 环境变量模板
+│   ├── requirements.txt                 # 16 个 Python 依赖
+│   └── Dockerfile                       # 后端容器化
+│
+├── frontend/                            # 前端 React 项目（CRA + TypeScript）
 │   ├── public/
-│   │   └── index.html                    # HTML 入口
+│   │   └── index.html
 │   ├── src/
-│   │   ├── index.tsx                     # React 应用入口，渲染 TaskSpecificationPage
-│   │   ├── api/
-│   │   │   ├── taskApi.ts                # Task Specification 模块 API 客户端（axios）
-│   │   │   ├── taskInterpretationApi.ts  # Task Interpretation 模块 API 客户端
-│   │   │   ├── datasetProfileApi.ts      # Dataset Profile 模块 API 客户端
-│   │   │   └── workflowPlanningApi.ts    # Workflow Planning 模块 API 客户端
+│   │   ├── index.tsx                    # ReactDOM 入口，渲染 <TaskSpecificationPage />
+│   │   ├── api/                         # API 客户端层（axios）
+│   │   │   ├── taskApi.ts               # Task Specification API + axios 单例配置（含 request/response 拦截器，超时 120s）
+│   │   │   ├── taskInterpretationApi.ts  # Task Interpretation API
+│   │   │   ├── datasetProfileApi.ts     # Dataset Profile API（含文件上传）
+│   │   │   ├── workflowPlanningApi.ts   # Workflow Planning API
+│   │   │   └── featureEngineeringApi.ts # Feature Engineering API（超时 600s）+ Featurizer Registry API
 │   │   └── modules/
-│   │       ├── taskSpecification/        # 前端任务规格模块
+│   │       ├── taskSpecification/
 │   │       │   ├── pages/
-│   │       │   │   └── TaskSpecificationPage.tsx  # 页面组件
+│   │       │   │   └── TaskSpecificationPage.tsx  # 页面组件（蓝色 Header + 白色表单）
 │   │       │   ├── components/
-│   │       │   │   ├── TaskSpecificationForm.tsx  # 任务表单（含 Zod 校验、提交、结果展示）
-│   │       │   │   └── TaskFieldGroup.tsx         # 表单字段分组容器
-│   │       │   └── constants.ts          # 表单选项常量 + Zod Schema
-│   │       ├── taskInterpretation/       # 前端任务理解模块
+│   │       │   │   ├── TaskSpecificationForm.tsx  # 主表单组件（react-hook-form + Zod 校验，5 个面板嵌入）
+│   │       │   │   └── TaskFieldGroup.tsx         # 表单分节容器
+│   │       │   └── constants.ts          # Zod Schema + 5 组选项常量（共 35 个选项）
+│   │       ├── taskInterpretation/
 │   │       │   ├── components/
-│   │       │   │   └── TaskInterpretationPanel.tsx # LLM 结果展示面板
-│   │       │   └── types.ts              # TypeScript 类型定义
-│   │       └── datasetProfile/           # 前端数据集画像模块
+│   │       │   │   └── TaskInterpretationPanel.tsx # LLM 结果展示面板（含 Run/Re-run 按钮）
+│   │       │   └── types.ts
+│   │       ├── datasetProfile/
+│   │       │   ├── components/
+│   │       │   │   ├── DatasetProfilePanel.tsx    # 画像结果展示面板（含文件上传控件）
+│   │       │   │   └── FileUpload.tsx              # 拖拽/点击上传组件
+│   │       │   └── types.ts
+│   │       ├── workflowPlanning/
+│   │       │   ├── components/
+│   │       │   │   └── WorkflowPlanPanel.tsx      # 工作流规划展示面板（含 Badge/Section 组件，8 个策略维度全展示）
+│   │       │   └── types.ts
+│   │       └── featureEngineering/
 │   │           ├── components/
-│   │           │   ├── DatasetProfilePanel.tsx     # 画像结果展示面板
-│   │           │   └── FileUpload.tsx              # 文件上传组件（拖拽/点击）
-│   │           └── types.ts              # TypeScript 类型定义
-│   │       └── workflowPlanning/         # 前端工作流规划模块
-│   │           ├── components/
-│   │           │   └── WorkflowPlanPanel.tsx       # 工作流规划结果展示面板
-│   │           └── types.ts              # TypeScript 类型定义
-│   ├── package.json                      # 前端依赖
-│   ├── tsconfig.json                     # TypeScript 配置
-│   └── Dockerfile                        # 前端容器化
-├── docker-compose.yml                    # Docker Compose 编排（db + backend + frontend 三服务）
+│   │           │   └── FeatureEngineeringPanel.tsx  # 特征工程展示面板（含多 featurizer 结果、特征组展示）
+│   │           └── types.ts
+│   ├── package.json                     # 12 个依赖（React 18 + axios + react-hook-form + zod 等）
+│   ├── tsconfig.json
+│   └── Dockerfile
+│
+├── docker-compose.yml                   # 三服务编排（db:postgres-16 + backend + frontend）
 ├── .gitignore
 └── docs/
-    ├── prd-1-mvp.md                      # Task Specification 模块 MVP 需求文档
-    ├── prd-1-技术栈.md                    # 技术栈说明
-    ├── prd-1-架构.md                      # 目录结构与架构设计文档
-    ├── prd-2-技术实现方案.md               # LLM Task Interpretation 模块架构方案
-    ├── prd-2.md                          # LLM Task Interpretation 模块需求文档
-    ├── prd-3-技术实现方案.md               # Dataset Profile 模块架构方案
-    ├── prd-3.md                          # Dataset Profile 模块需求文档
-    └── PROJECT_IMPLEMENTATION_OVERVIEW.md # 本文档
+    ├── PROJECT_IMPLEMENTATION_OVERVIEW.md # 本文档
+    ├── prd-1-mvp.md                      # 模块一 PRD
+    ├── prd-1-技术栈.md
+    ├── prd-1-架构.md
+    ├── prd-2.md / prd-2-技术实现方案.md
+    ├── prd-3.md / prd-3-技术实现方案.md
+    ├── prd-4.md / prd-4-技术实现方案.md
+    ├── prd-5.md / prd-5-技术实现方案.md / prd-5-FeaturizerRegistry.md
+    ├── prd-5-扩展.md / prd-5-扩展技术实现方案.md
 ```
+
+### 2.2 关键文件职责速查表
+
+| 文件路径 | 核心职责 | 行数约 |
+|----------|----------|--------|
+| [main.py](file:///c:/projects/MLAgent/backend/app/main.py) | FastAPI 应用入口，注册 6 个 Router，CORS，全局异常处理，启动建表 | 65 |
+| [settings.py](file:///c:/projects/MLAgent/backend/app/shared/config/settings.py) | 所有环境变量配置（LLM/DB/上传/特征工程/外部库） | 53 |
+| [featurizer_registry.py](file:///c:/projects/MLAgent/backend/app/shared/registry/featurizer_registry.py) | 12 个 FeaturizerSpec 静态定义 + 依赖检测 + ID/Alias 解析 + 查询/回退 API | 500 |
+| [prompt_builder.py (workflow)](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/prompt_builder.py) | 超长 LLM prompt 构建（含完整 JSON Schema 定义 + 10 条 CRITICAL 规则 + 动态 Featurizer 列表注入） | 250 |
+| [validator.py (workflow)](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/validator.py) | 最严格的 LLM 输出校验（12 个维度的必填字段 + 枚举值 + 禁止代码 + Featurizer Registry 校验） | 236 |
+| [service.py (feature_engineering)](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/service.py) | 最复杂业务编排（11 个步骤：context → load → strategy → featurize → matrix → quality → artifact → schema → status → build → persist） | 455 |
+| [strategy_resolver.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/strategy_resolver.py) | 三步优先级策略解析（Featurizer Registry 驱动） | 139 |
+| [featurizer_router.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/featurizers/featurizer_router.py) | Registry ID → 可执行 Featurizer 实例的路由桥接 | 106 |
+| [matminer_featurizers.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/featurizers/matminer_featurizers.py) | 4 个 matminer 特征化器统一实现（依赖检测/配方解析/分组前缀/失败追踪） | ~500 |
+| [composition_featurizer.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/featurizers/composition_featurizer.py) | 内置 103 元素属性表 + 16 维轻量级描述符 | 241 |
+| [TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx) | 前端主表单（react-hook-form + Zod + 5 个下游面板嵌入） | 500 |
 
 ---
 
@@ -187,165 +271,125 @@ c:\projects\MLAgent/
 
 #### 输入一：用户通过前端表单提交任务规格
 
-- **入口**：前端 [TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx)
-- **输入方式**：结构化表单填写
-- **核心字段**：
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| task_name | string | 否 | 任务名称 |
-| task_description | string | 否 | 任务描述 |
-| material_system | string | 否 | 材料体系 |
-| prediction_target | string | **是** | 预测目标 |
-| task_type | string | **是** | 任务类型（regression/classification/ranking） |
-| dataset_description | string | **是** | 数据集描述 |
-| input_type | string | **是** | 输入数据类型 |
-| target_column | string | **是** | 目标列名 |
-| evaluation_metric | string | 否 | 评价指标 |
-| user_priority | string[] | 否 | 用户偏好 |
-| constraints | string[] | 否 | 约束条件 |
+- **入口文件**：[TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx)
+- **触发条件**：用户点击 "Submit Task Specification" 按钮
+- **前端校验**：使用 [Zod Schema](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/constants.ts) 进行表单级校验（5 个必填字段 + 类型校验）
+- **核心字段**（根据 [schemas.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/schemas.py) 中的 `TaskSpecificationCreateRequest`）：
+  - `prediction_target`（**必填**）：预测目标，如 "experimental band gap"
+  - `task_type`（**必填**）：`regression` / `classification` / `ranking`
+  - `dataset_description`（**必填**）：数据集描述
+  - `input_type`（**必填**）：`composition` / `structure` / `descriptor_table` / `text_features`
+  - `target_column`（**必填**）：目标列名
+  - `evaluation_metric`（可选）：支持 9 种指标
+  - `task_name`、`task_description`、`material_system`（可选）
+  - `user_priority`、`constraints`（可选）
 
 #### 输入二：用户触发 LLM 任务理解
 
-- **入口**：前端 [TaskInterpretationPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskInterpretation/components/TaskInterpretationPanel.tsx) 中的 "Run Interpretation" 按钮
-- **输入**：已存在的 task_id（要求 task 状态为 valid 或 valid_with_warning）
-- **外部依赖**：LLM API（OpenAI 兼容接口）
+- **入口**：[TaskInterpretationPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskInterpretation/components/TaskInterpretationPanel.tsx) 中的 "Run Interpretation" 按钮
+- **前提条件**：task_id 对应 task 状态为 `valid` 或 `valid_with_warning`（由 [task_spec_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/task_spec_adapter.py) 中的 `adapt_task_spec` 函数校验）
+- **外部依赖**：LLM API（OpenAI 兼容接口，默认 `gpt-4.1`）
 
 #### 输入三：用户上传数据集文件
 
-- **入口**：前端 [FileUpload.tsx](file:///c:/projects/MLAgent/frontend/src/modules/datasetProfile/components/FileUpload.tsx) 拖拽或点击上传
-- **支持格式**：CSV、XLSX、XLS
-- **限制**：文件大小不超过 `DATASET_MAX_FILE_SIZE_MB`（默认 100MB）
+- **入口**：[FileUpload.tsx](file:///c:/projects/MLAgent/frontend/src/modules/datasetProfile/components/FileUpload.tsx) 拖拽或点击上传
+- **后端处理**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/api.py) 中的 `upload_dataset_file` 接口
+- **支持格式**：CSV（`.csv`）、Excel（`.xlsx`、`.xls`）
+- **限制**：文件 ≤ `DATASET_MAX_FILE_SIZE_MB`（默认 100MB），由 [settings.py](file:///c:/projects/MLAgent/backend/app/shared/config/settings.py) 配置
+- **存储**：文件保存到 `DATASET_UPLOAD_DIR`（默认 `/app/uploads`），命名格式 `file_{uuid8}{ext}`
 
 #### 输入四：用户触发数据集画像
 
-- **入口**：前端 [DatasetProfilePanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/datasetProfile/components/DatasetProfilePanel.tsx) 中的 "Run Dataset Profiling" 按钮
-- **输入**：已存在的 task_id（要求 task 状态为 valid/valid_with_warning，且存在 interpreted/interpreted_with_warning 状态的 interpretation）
-- **可选输入**：uploaded_file_id（用户上传的文件 ID）
+- **入口**：[DatasetProfilePanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/datasetProfile/components/DatasetProfilePanel.tsx) 中的 "Run Dataset Profiling" 按钮
+- **前置条件**（由 [context_builder.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/context_builder.py) 校验）：
+  - Task 状态为 `valid` 或 `valid_with_warning`
+  - Interpretation 状态为 `interpreted` 或 `interpreted_with_warning`
+  - Interpretation 中包含 `dataset_intent` 字段
+- **可选输入**：`uploaded_file_id`（用户上传的文件 ID）
+
+#### 输入五：用户触发特征工程
+
+- **入口**：[FeatureEngineeringPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/featureEngineering/components/FeatureEngineeringPanel.tsx) 中的 "Run Feature Engineering" 按钮
+- **前置条件**（由 [context_builder.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/context_builder.py) 跨 5 个模块校验）：
+  - Task（valid） → Interpretation（interpreted） → Profile（profiled） → Plan（planned）
+  - Profile 的 `is_usable_for_ml` 为 `True`
+  - Plan 的 `plan_json` 中包含 `feature_strategy`
 
 ### 3.2 系统输出
 
 #### 输出一：Task Specification Object
 
+根据 [builder.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/builder.py) 的 `build_task_specification` 函数和 [schemas.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/schemas.py) 的 `TaskSpecificationResponse`：
+
 ```json
 {
-  "task_id": "task_xxxxxxxx",
-  "task_name": "Band gap prediction",
-  "prediction_target": "experimental band gap",
+  "task_id": "task_{uuid8}",
+  "status": "valid | valid_with_warning | incomplete | invalid",
   "task_type": "regression",
-  "dataset_description": "matbench_expt_gap",
+  "prediction_target": "experimental band gap",
   "input_type": "composition",
   "target_column": "band_gap",
   "evaluation_metric": "MAE",
-  "status": "valid",
   "missing_fields": [],
   "validation_messages": [],
-  "created_at": "2026-05-01T...",
-  "updated_at": "2026-05-01T..."
+  "created_at": "...",
+  "updated_at": "..."
 }
 ```
 
 #### 输出二：Task Interpretation Object
 
-```json
-{
-  "interpretation_id": "interp_xxxxxxxx",
-  "task_id": "task_xxxxxxxx",
-  "status": "interpreted",
-  "interpreted_task_type": "regression",
-  "interpreted_input_modality": "composition",
-  "interpreted_material_domain": "inorganic crystals",
-  "interpreted_prediction_target": {
-    "raw_target": "experimental band gap",
-    "normalized_target": "band_gap",
-    "target_category": "electronic_property",
-    "target_unit": "eV",
-    "target_description": "..."
-  },
-  "modeling_intent": { ... },
-  "dataset_intent": { ... },
-  "planning_hint": { ... },
-  "constraint_interpretation": { ... },
-  "recommended_defaults": { ... },
-  "ambiguities": [],
-  "warnings": [],
-  "llm_reasoning_summary": "...",
-  "confidence_score": 0.92
-}
-```
+根据 [builder.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/builder.py) 和 [schemas.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/schemas.py) 的 `TaskInterpretationResponse`，包含以下关键子对象：
+- `interpreted_prediction_target`（raw/normalized/category/unit/description）
+- `modeling_intent`（primary_goal/secondary_goals/optimization_direction/preferred_metric）
+- `dataset_intent`（dataset_reference/expected_input_columns/expected_target_column/requires_structure_file/dataset_loading_hint）
+- `planning_hint`（task_family/input_representation/requires_feature_engineering 等）
+- `constraint_interpretation`（hard_constraints/soft_constraints/potential_conflicts）
+- `recommended_defaults`（evaluation_metric/validation_strategy/baseline_requirement）
+
+状态值：`interpreted`（无警告）或 `interpreted_with_warning`（有 ambiguities 或 warnings）
 
 #### 输出三：Dataset Profile Object
 
-```json
-{
-  "dataset_profile_id": "profile_xxxxxxxx",
-  "task_id": "task_xxxxxxxx",
-  "interpretation_id": "interp_xxxxxxxx",
-  "status": "profiled",
-  "dataset_source": {
-    "source_type": "public_benchmark",
-    "dataset_reference": "matbench_expt_gap",
-    "loader": "matbench"
-  },
-  "dataset_schema": {
-    "n_samples": 4604,
-    "n_columns": 2,
-    "columns": [...],
-    "input_columns": ["composition"],
-    "target_column": "band_gap"
-  },
-  "modality_check": {
-    "expected_input_modality": "composition",
-    "detected_input_modality": "composition",
-    "is_consistent": true,
-    "messages": []
-  },
-  "target_profile": {
-    "target_column": "band_gap",
-    "task_type": "regression",
-    "dtype": "float",
-    "missing_count": 0,
-    "missing_ratio": 0.0,
-    "min": 0.0,
-    "max": 11.7,
-    "mean": 1.82,
-    "std": 1.65,
-    "skewness": 1.21,
-    "outlier_count": 28
-  },
-  "data_quality": {
-    "missing_values": { "total_missing": 0, "columns_with_missing": [] },
-    "duplicates": { "duplicate_rows": 0, "duplicate_input_samples": 0 },
-    "invalid_rows": { "count": 0, "examples": [] },
-    "warnings": [],
-    "errors": []
-  },
-  "profiling_summary": {
-    "is_loadable": true,
-    "is_usable_for_ml": true,
-    "sample_size_level": "medium",
-    "quality_level": "good",
-    "main_issues": [],
-    "recommended_next_step": "ready_for_workflow_planning"
-  },
-  "workflow_planning_input": {
-    "input_modality": "composition",
-    "task_type": "regression",
-    "target_column": "band_gap",
-    "input_columns": ["composition"],
-    "n_samples": 4604,
-    "n_columns": 2,
-    "n_features_raw": 1,
-    "sample_size_level": "medium",
-    "has_missing_values": false,
-    "has_duplicates": false,
-    "requires_cleaning": false,
-    "requires_target_transformation_check": false,
-    "quality_level": "good",
-    "is_usable_for_ml": true
-  }
-}
-```
+根据 [builder.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/builder.py) 的 `build_dataset_profile`（179 行输出的完整 JSON），核心子对象：
+- `dataset_source`（source_type/reference/loader/loaded_from/file_name）
+- `dataset_schema`（n_samples/n_columns/columns/input_columns/target_column）
+- `modality_check`（expected/detected/is_consistent/messages）
+- `target_profile`（回归：min/max/mean/std/skewness/outlier_count；分类：class_count/class_distribution/is_imbalanced）
+- `data_quality`（missing_values/duplicates/invalid_rows/warnings/errors）
+- `profiling_summary`（is_loadable/is_usable_for_ml/sample_size_level/quality_level/recommended_next_step）
+- `workflow_planning_input`（为模块四准备的标准化下游输入）
+- `preview`（前 N 行数据预览）
+
+状态值：`profiled`（完美）/ `profiled_with_warning`（有警告）/ `failed`（不可用）
+
+#### 输出四：Workflow Plan Object
+
+根据 [builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/builder.py) 和 [schemas.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/schemas.py) 的 `WorkflowPlanResponse`，包含 **8 个策略维度** 子对象：
+- `task_summary`（task_type/input_modality/prediction_target/material_domain/primary_goal）
+- `data_strategy`（input_columns/target_column/required_cleaning_steps/target_handling/duplicate_handling/missing_value_strategy）
+- `feature_strategy`（feature_type/executable_featurizers/semantic_featurizers/unsupported_future_featurizers/feature_selection_required/feature_scaling_required）
+- `model_strategy`（candidate_model_families/baseline_models/preferred_model_bias/excluded_model_families）
+- `validation_strategy`（split_strategy/n_splits/test_size/random_state/stratification_required）
+- `evaluation_strategy`（primary_metric/secondary_metrics/metric_direction）
+- `hpo_strategy`（enabled/search_method/budget_level/max_trials）
+- `interpretability_strategy`（enabled/methods/priority）
+- `pipeline_generation_input`（pipeline_steps/required_components：data_cleaner/featurizer/model_trainer/evaluator）
+- `planning_warnings`、`planning_assumptions`、`llm_reasoning_summary`、`confidence_score`
+
+状态值：`planned` / `planned_with_warning` / `failed`
+
+#### 输出五：Feature Engineering Object
+
+根据 [builder.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/builder.py) 和 [schemas.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/schemas.py) 的 `FeatureEngineeringResponse`，核心子对象：
+- `feature_generation`（selected_featurizers/semantic/fallback/skipped/unsupported_future/executed_featurizers 详情）
+- `feature_matrix`（artifact_id/storage_type/file_path/n_samples/n_features/target_column）
+- `feature_schema`（feature_columns/feature_groups/numeric_count/categorical_count/constant_count/all_missing_count）
+- `feature_quality`（missing_values/invalid_features/dropped_features/failed_samples/constant_features/is_valid_feature_matrix）
+- `preprocessing_requirements`（scaling/imputation/feature_selection）
+- `downstream_input`（为 Pipeline Generation 准备的标准化输入，含 `ready_for_pipeline_generation` 标志）
+
+状态值：`completed` / `completed_with_warning` / `failed` / `blocked`
 
 ---
 
@@ -353,944 +397,522 @@ c:\projects\MLAgent/
 
 ### 4.1 后端技术栈
 
-| 技术 | 版本 | 作用 |
-|------|------|------|
-| **FastAPI** | 0.115.6 | Web 框架，提供 RESTful API |
-| **Uvicorn** | 0.34.0 | ASGI 服务器 |
-| **SQLModel** | 0.0.22 | ORM 框架，定义数据库模型和执行查询 |
-| **Pydantic** | 2.10.4 | 数据校验和序列化（请求/响应模型） |
-| **pydantic-settings** | 2.7.1 | 环境变量配置管理 |
-| **psycopg2-binary** | 2.9.10 | PostgreSQL 数据库驱动 |
-| **httpx** | 0.28.1 | HTTP 客户端，用于调用 LLM API |
-| **python-dotenv** | 1.0.1 | .env 文件加载 |
-| **Alembic** | 1.14.1 | 数据库迁移工具（已安装但未启用） |
-| **pandas** | 2.2.3 | 表格数据处理、统计分析 |
-| **numpy** | 2.2.0 | 数值计算、目标变量统计 |
-| **openpyxl** | 3.1.5 | Excel 文件读取支持 |
+| 技术 | 版本 | 承担作用 | 引用文件 |
+|------|------|----------|----------|
+| **FastAPI** | 0.115.6 | Web 框架，路由注册、CORS、异常处理、依赖注入 | [main.py](file:///c:/projects/MLAgent/backend/app/main.py) |
+| **uvicorn** | 0.34.0 | ASGI 服务器 | 启动命令 |
+| **SQLModel** | 0.0.22 | ORM + 数据验证，结合 SQLAlchemy + Pydantic，创建表和数据模型 | [model.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/model.py)（所有模块的 model.py 都使用 SQLModel） |
+| **PostgreSQL** | 16 (Docker) | 永久化存储，使用 JSONB 存储各模块输出的完整 JSON | [docker-compose.yml](file:///c:/projects/MLAgent/docker-compose.yml) line 7 |
+| **psycopg2-binary** | 2.9.10 | PostgreSQL 驱动 | [requirements.txt](file:///c:/projects/MLAgent/backend/requirements.txt) |
+| **pydantic** | 2.10.4 | 请求/响应模型校验 | 所有 schemas.py 文件 |
+| **pydantic-settings** | 2.7.1 | 环境变量管理，支持 .env 文件 | [settings.py](file:///c:/projects/MLAgent/backend/app/shared/config/settings.py) |
+| **httpx** | 0.28.1 | LLM API HTTP 调用（异步支持） | [llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py) |
+| **pandas** | 2.2.3 | 数据处理核心（DataFrame 加载、清洗、特征工程、统计分析） | 所有 loader/checker/featurizer 文件 |
+| **numpy** | 2.2.0 | 数值计算 | [target_checker.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/checkers/target_checker.py) / [composition_featurizer.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/featurizers/composition_featurizer.py) |
+| **openpyxl** | 3.1.5 | Excel 文件解析 | [file_loader.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/file_loader.py) |
+| **pymatgen** | ≥2024.0.0 | 材料学核心库，化学式解析、结构处理 | [matminer_featurizers.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/featurizers/matminer_featurizers.py) |
+| **matminer** | ≥0.9.0 | 材料特征工程库，提供 Stoichiometry/ElementProperty/Magpie/ValenceOrbital | [matminer_featurizers.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/featurizers/matminer_featurizers.py) |
+| **scikit-learn** | ≥1.3.0 | 仅用于依赖声明，当前代码中未实际大规模使用 | requirements.txt |
+| **pyarrow** | ≥14.0.0 | Parquet 格式特征矩阵存储 | [artifact_manager.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/artifact_manager.py) |
+| **alembic** | 1.14.1 | 数据库迁移工具（已安装，但当前项目使用 SQLModel.metadata.create_all 自动建表，未实际使用迁移） | requirements.txt |
 
 ### 4.2 前端技术栈
 
-| 技术 | 版本 | 作用 |
-|------|------|------|
-| **React** | 18.3.1 | UI 框架 |
-| **TypeScript** | 5.7.2 | 类型安全 |
-| **React Hook Form** | 7.54.2 | 表单状态管理 |
-| **Zod** | 3.24.1 | 前端表单校验 Schema |
-| **@hookform/resolvers** | 3.10.0 | React Hook Form + Zod 集成 |
-| **Axios** | 1.7.9 | HTTP 客户端 |
-| **react-scripts** | 5.0.1 | Create React App 构建工具 |
-| **ajv** | 8.20.0 | JSON Schema 校验（预留） |
+| 技术 | 版本 | 承担作用 | 引用文件 |
+|------|------|----------|----------|
+| **React** | 18.3.1 | UI 框架 | [index.tsx](file:///c:/projects/MLAgent/frontend/src/index.tsx) |
+| **TypeScript** | 5.7.2 | 类型安全 | tsconfig.json |
+| **react-hook-form** | 7.54.2 | 表单状态管理 | [TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx) |
+| **zod** | 3.24.1 | 前端表单校验 Schema | [constants.ts](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/constants.ts) |
+| **@hookform/resolvers** | 3.10.0 | react-hook-form 与 zod 的适配器 | TaskSpecificationForm.tsx |
+| **axios** | 1.7.9 | HTTP 客户端，全局拦截器，超时配置 | [taskApi.ts](file:///c:/projects/MLAgent/frontend/src/api/taskApi.ts) |
+| **react-scripts** | 5.0.1 | Create React App 构建工具链 | package.json |
 
 ### 4.3 基础设施
 
-| 技术 | 版本 | 作用 |
-|------|------|------|
-| **PostgreSQL** | 16 (Alpine) | 关系型数据库，使用 JSONB 存储灵活字段 |
-| **Docker Compose** | 3.8 | 容器编排（db + backend + frontend 三服务） |
-
-### 4.4 各技术承担的作用
-
-- **FastAPI + Pydantic**：后端 API 层，负责接收请求、数据校验、返回统一格式响应
-- **SQLModel + PostgreSQL**：数据持久化层，使用 JSONB 存储复杂嵌套对象
-- **httpx**：LLM 外部服务调用层，支持超时、重试、错误处理
-- **pandas + numpy**：数据集加载、检查、画像分析的核心计算引擎
-- **React + TypeScript**：前端 SPA，提供表单填写和结果展示
-- **React Hook Form + Zod**：前端表单校验，与后端校验规则保持一致
-- **Docker Compose**：一键启动完整开发环境
+| 技术 | 承担作用 |
+|------|----------|
+| **Docker Compose** | 三服务编排（db + backend + frontend），PostgreSQL 健康检查，卷挂载 |
+| **PostgreSQL 16 Alpine** | 轻量数据库镜像 |
+| **Volumes** | postgres_data 持久化、backend/frontend 代码热挂载 |
 
 ---
 
 ## 5. 已实现功能模块
 
-### 5.1 模块一：Task Specification（任务规格录入）
+### 5.1 模块一：Task Specification（任务规格录入与校验）
 
-#### 5.1.1 功能一：任务表单展示与提交
+**功能描述**：用户提交材料 ML 任务需求，系统进行字段标准化、完整性和合法性校验，生成规范的 Task Specification Object 入库。
 
-- **相关文件**：
-  - 前端：[TaskSpecificationPage.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/pages/TaskSpecificationPage.tsx)、[TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx)、[constants.ts](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/constants.ts)
-  - 后端：[api.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/api.py)（POST /api/tasks）
-- **输入**：用户填写的表单字段
-- **处理逻辑**：
-  1. 前端通过 Zod Schema 进行表单校验
-  2. 提交到 POST /api/tasks
-  3. 后端生成 task_id（格式：`task_` + 8 位 uuid hex）
-  4. 调用 normalizer 标准化字段
-  5. 调用 validator 校验字段
-  6. 调用 builder 构建 Task Specification Object
-  7. 通过 repository 写入数据库
-- **输出**：TaskSpecificationResponse（含 task_id、status、missing_fields、validation_messages）
-- **完成度**：100%
+**输入**：
+- 用户通过 [TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx) 提交表单
+- Zod 前端校验 5 个必填字段（prediction_target/task_type/dataset_description/input_type/target_column）
 
-#### 5.1.2 功能二：字段标准化
+**处理逻辑**（调用链）：
+1. [api.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/api.py) → `POST /api/tasks` → `create_task`
+2. [service.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/service.py) → `create_task()` 方法
+3. 生成 `task_id` → 调用 `normalize_fields()` 进行 [normalizer.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/normalizer.py) 中的字段标准化映射（如 `"chemical composition"` → `"composition"`，`"mae"` → `"MAE"`）
+4. 调用 [validator.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/validator.py) 的 `validate()` 进行四层检查：必填字段 → 指标体系兼容性 → 输入/数据集一致性 → 警告生成
+5. 调用 [builder.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/builder.py) 的 `build_task_specification()` 构建完整 JSON dict
+6. 创建 `TaskSpecification` 实例 → [repository.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/repository.py) → 入库
 
-- **相关文件**：[normalizer.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/normalizer.py)
-- **输入**：原始表单字段
-- **处理逻辑**：
-  - `task_type`：映射 "Regression" → "regression" 等
-  - `input_type`：映射 "Chemical composition" → "composition" 等
-  - `evaluation_metric`：映射 "Mean Absolute Error" → "MAE" 等
-  - `user_priority`：标准化优先级选项
-  - 字符串字段去除前后空格
-- **输出**：标准化后的字段字典
-- **完成度**：100%
+**输出**：`TaskSpecificationResponse`，状态为 `valid` / `valid_with_warning` / `incomplete` / `invalid`
 
-#### 5.1.3 功能三：必填字段完整性检查
+**数据库表**：`task_specification`（[model.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/model.py)），包含 8 个专项列 + `task_spec_json` (JSONB) 存储完整输出
 
-- **相关文件**：[validator.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/validator.py) 中的 `check_required_fields()`
-- **输入**：标准化后的任务字段
-- **处理逻辑**：检查 prediction_target、task_type、dataset_description、input_type、target_column 是否缺失
-- **输出**：missing_fields 列表 + validation_messages 列表
-- **完成度**：100%
+**完成度**：~95%。核心流程完整，异常处理完善。前端表单字段完整覆盖 PRD 需求。
 
-#### 5.1.4 功能四：基础合法性校验
-
-- **相关文件**：[validator.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/validator.py) 中的 `check_evaluation_metric_compatibility()` 和 `check_input_dataset_consistency()`
-- **输入**：标准化后的任务字段
-- **处理逻辑**：
-  - 任务类型与评价指标匹配校验（regression → MAE/RMSE/R2，classification → Accuracy/F1/ROC-AUC）
-  - 输入类型与数据集描述一致性校验（structure 类型需要 CIF/POSCAR 等结构文件提示）
-- **输出**：validation_messages 列表
-- **完成度**：100%
-
-#### 5.1.5 功能五：查询任务规格
-
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/api.py)（GET /api/tasks/{task_id}）
-- **输入**：task_id
-- **处理逻辑**：通过 repository 查询数据库，组装为 TaskSpecificationResponse
-- **输出**：完整任务规格对象
-- **完成度**：100%
-
-#### 5.1.6 功能六：更新任务规格
-
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/api.py)（PUT /api/tasks/{task_id}）
-- **输入**：task_id + 更新字段
-- **处理逻辑**：合并旧字段和新字段 → 重新 normalizer → 重新 validator → 重新 builder → 更新数据库
-- **输出**：更新后的任务规格对象
-- **完成度**：100%
-
-#### 5.1.7 功能七：重新校验任务规格
-
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/api.py)（POST /api/tasks/{task_id}/validate）
-- **输入**：task_id
-- **处理逻辑**：从数据库读取任务 → 重新执行 validate → 返回 ValidationResultResponse
-- **输出**：校验结果（status、missing_fields、validation_messages、warnings）
-- **完成度**：100%
-
-#### 5.1.8 数据库持久化
-
-- **相关文件**：[model.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/model.py)、[repository.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/repository.py)
-- **表名**：`task_specification`
-- **结构化字段**：id、task_name、task_type、prediction_target、dataset_description、input_type、target_column、evaluation_metric、status、created_at、updated_at
-- **JSONB 字段**：task_spec_json（存储完整任务对象，含 user_priority、constraints、missing_fields 等）
-- **完成度**：100%
+**相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/api.py)、[service.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/service.py)、[model.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/model.py)、[repository.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/repository.py)、[schemas.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/schemas.py)、[normalizer.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/normalizer.py)、[validator.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/validator.py)、[builder.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/builder.py)
 
 ---
 
 ### 5.2 模块二：LLM-based Task Interpretation（基于大模型的任务理解）
 
-#### 5.2.1 功能一：创建任务理解结果
+**功能描述**：将用户提交的 Task Specification 送入 LLM，生成结构化的语义理解输出（Interpretation），为下游模块提供机器可读的任务语义描述。
 
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/api.py)（POST /api/task-interpretations/{task_id}）
-- **输入**：task_id（可选：force_rerun、llm_provider、model_name）
-- **处理逻辑**：
-  1. 从 task_specification 模块读取 Task Specification
-  2. 检查 task 状态是否为 valid 或 valid_with_warning
-  3. 通过 task_spec_adapter 转换为 Task Interpretation Context
-  4. 通过 prompt_builder 构建 LLM Prompt
-  5. 通过 llm_client 调用外部 LLM API
-  6. 通过 parser 解析 LLM JSON 输出
-  7. 通过 validator 校验输出 Schema
-  8. 通过 builder 构建 Task Interpretation Object
-  9. 写入 task_interpretation 表
-- **输出**：TaskInterpretationResponse
-- **完成度**：100%
+**输入**：
+- Task Specification DB 记录（状态为 valid/valid_with_warning）
+- LLM API 配置（`LLM_PROVIDER`/`LLM_MODEL`/`LLM_API_KEY`/`LLM_BASE_URL`）
 
-#### 5.2.2 功能二：查询任务理解结果
+**处理逻辑**（调用链）：
+1. [api.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/api.py) → `POST /api/task-interpretations/{task_id}`
+2. [service.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/service.py) → `create_interpretation()`
+3. [task_spec_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/task_spec_adapter.py) → `adapt_task_spec()`：提取 task_summary/ml_task/data_context/user_intent 四个维度
+4. [prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/prompt_builder.py) → `build_prompt()`：构建 system（含 8 条 CRITICAL RULES）+ user message（含 JSON Schema）
+5. [llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py) → `LLMClient.generate()`：httpx POST 到 `{LLM_BASE_URL}/chat/completions`，含重试逻辑（`LLM_MAX_RETRIES`）
+6. [parser.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/parser.py) → `parse_llm_response()`：去除 Markdown 代码块，解析 JSON
+7. [validator.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/validator.py) → `validate_interpretation()`：12 个必填字段 + 5 组枚举值 + confidence_score 范围校验
+8. [builder.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/builder.py) → `build_interpretation()`：构建 interpretation JSON dict，根据 ambiguities/warnings 确定状态
+9. 创建 `TaskInterpretation` → [repository.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/repository.py) → 入库
 
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/api.py)
-  - GET /api/task-interpretations/{interpretation_id}
-  - GET /api/tasks/{task_id}/interpretation（查询某任务的最新理解结果）
-- **输入**：interpretation_id 或 task_id
-- **输出**：TaskInterpretationResponse
-- **完成度**：100%
+**输出**：`TaskInterpretationResponse`，状态为 `interpreted` 或 `interpreted_with_warning`
 
-#### 5.2.3 功能三：重新执行任务理解
+**数据库表**：`task_interpretation`（[model.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/model.py)），存储 `interpretation_json` + `llm_request_json` + `llm_response_json` (JSONB)
 
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/api.py)（POST /api/task-interpretations/{task_id}/rerun）
-- **输入**：task_id
-- **处理逻辑**：不覆盖旧结果，新增一条 interpretation 记录
-- **输出**：新的 TaskInterpretationResponse
-- **完成度**：100%
+**完成度**：~90%。LLM 调用、解析、校验链路完整。但 LLM config 中存在一些未暴露给前端的可配置性（如温度值固定 0.0）。llm_client 直接依赖模块内配置，没有抽象 Provider 工厂。
 
-#### 5.2.4 LLM 调用封装
-
-- **相关文件**：[llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py)
-- **输入**：system_prompt + user_message
-- **处理逻辑**：
-  - 使用 httpx 调用 OpenAI 兼容接口（`{base_url}/chat/completions`）
-  - 支持 temperature=0、timeout、max_retries
-  - 超时重试机制
-  - 401/403 错误不重试
-  - 日志记录请求和响应
-- **输出**：LLM 原始文本
-- **完成度**：100%（但仅实现了 OpenAI 兼容接口调用，未实现多 Provider 切换）
-
-#### 5.2.5 Prompt 构建
-
-- **相关文件**：[prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/prompt_builder.py)
-- **输入**：Task Interpretation Context
-- **处理逻辑**：
-  - System Prompt：定义角色为材料机器学习任务理解专家，明确输出规则
-  - User Message：包含任务规格 JSON + 输出 JSON Schema
-  - 输出 Schema 包含 12 个必填字段，使用 JSON Schema 格式约束
-- **输出**：(system_prompt, user_message) 元组
-- **完成度**：100%
-
-#### 5.2.6 LLM 输出解析与校验
-
-- **相关文件**：[parser.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/parser.py)、[validator.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/validator.py)
-- **parser 处理逻辑**：
-  - 清理 Markdown 代码块包裹（```json ... ```）
-  - JSON 解析
-  - 解析失败抛出 LLMOutputParseException
-- **validator 处理逻辑**：
-  - 检查 12 个必填顶层字段
-  - 检查 interpreted_task_type 是否在允许集合中
-  - 检查 interpreted_input_modality 是否在允许集合中
-  - 检查 target_category 是否在允许集合中
-  - 检查 primary_goal 是否在允许集合中
-  - 检查 confidence_score 是否在 0~1 之间
-  - 检查 ambiguities 和 warnings 是否为数组
-- **完成度**：100%
-
-#### 5.2.7 Task Specification 适配器
-
-- **相关文件**：[task_spec_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/task_spec_adapter.py)
-- **输入**：TaskSpecification 模型对象
-- **处理逻辑**：
-  - 检查 task 状态是否为 valid 或 valid_with_warning，否则抛出 TaskNotReadyException
-  - 提取 task_summary、ml_task、data_context、user_intent 四个子上下文
-  - 转换为 LLM Prompt 可消费的字典格式
-- **输出**：Task Interpretation Context 字典
-- **完成度**：100%
-
-#### 5.2.8 模块专用异常体系
-
-- **相关文件**：[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/exceptions.py)
-- **异常类型**：
-  - TaskInterpretationException（基类）
-  - TaskNotReadyException（任务状态不满足）
-  - LLMCallException（LLM 调用失败）
-  - LLMOutputParseException（LLM 输出解析失败）
-  - LLMOutputValidationException（LLM 输出校验失败）
-  - InterpretationNotFoundException（理解结果不存在）
-- **完成度**：100%
-
-#### 5.2.9 数据库持久化
-
-- **相关文件**：[model.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/model.py)、[repository.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/repository.py)
-- **表名**：`task_interpretation`
-- **结构化字段**：id、task_id、status、interpreted_task_type、interpreted_input_modality、interpreted_material_domain、confidence_score、error_message、created_at、updated_at
-- **JSONB 字段**：interpretation_json（完整理解对象）、llm_request_json、llm_response_json
-- **完成度**：100%
+**相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/api.py)、[service.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/service.py)、[model.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/model.py)、[repository.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/repository.py)、[schemas.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/schemas.py)、[task_spec_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/task_spec_adapter.py)、[prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/prompt_builder.py)、[llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py)、[parser.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/parser.py)、[validator.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/validator.py)、[builder.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/builder.py)、[enums.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/enums.py)、[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/exceptions.py)
 
 ---
 
 ### 5.3 模块三：Dataset Loading, Checking, and Profiling（数据集加载与画像）
 
-#### 5.3.1 功能一：文件上传
+**功能描述**：根据 Task Interpretation 中的 `dataset_intent`，确定数据源→加载数据→执行四维检查（Schema/Modality/Quality/Target）→汇总画像→输出标准化 `workflow_planning_input`。
 
-- **相关文件**：
-  - 前端：[FileUpload.tsx](file:///c:/projects/MLAgent/frontend/src/modules/datasetProfile/components/FileUpload.tsx)
-  - 后端：[api.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/api.py)（POST /api/dataset-profiles/upload）
-- **输入**：用户上传的 CSV/XLSX/XLS 文件
-- **处理逻辑**：
-  1. 校验文件扩展名（.csv/.xlsx/.xls）
-  2. 校验文件大小（不超过 DATASET_MAX_FILE_SIZE_MB）
-  3. 生成 file_id（格式：`file_` + 8 位 uuid hex + 扩展名）
-  4. 保存到服务器上传目录
-  5. 使用 pandas 读取文件
-  6. 返回文件基本信息（行数、列数、列名、前 N 行预览）
-- **输出**：DatasetFileUploadResponse
-- **完成度**：100%
+**输入**：
+- Task Specification + Task Interpretation（状态校验过）
+- 用户可选上传文件（`uploaded_file_id` 或 `uploaded_file_path`）
 
-#### 5.3.2 功能二：创建数据集画像
+**处理逻辑**（完整的 10 步流水线）：
+1. [context_builder.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/context_builder.py) → `build_dataset_loading_context()`：跨 task_specification + task_interpretation 库构建统一 context，校验状态链
+2. [source_resolver.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/source_resolver.py) → `resolve_source()`：优先级 1 上传文件 → 2 interpretation 的 `dataset_loading_hint` → 3 启发式匹配（matbench/CSV/XLSX 关键词）
+3. [matbench_loader.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/matbench_loader.py) 或 [file_loader.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/file_loader.py) → 加载 DataFrame（Matbench 未安装时会生成样本数据）
+4. [schema_checker.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/checkers/schema_checker.py) → `check_schema()`：列名大小写匹配、重复列名、全空列检测
+5. [modality_checker.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/checkers/modality_checker.py) → `check_modality()`：启发式检测（composition regex/结构关键词/数值列/文本）→ 一致性校验
+6. [quality_checker.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/checkers/quality_checker.py) → `check_quality()`：缺失值/重复行/无效值/常量列/高缺失率列/小样本
+7. [target_checker.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/checkers/target_checker.py) → `check_target()`：回归（极值/IQR离群值/偏度）/分类（类别分布/不平衡检测）
+8. [profiler.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/profiler.py) → `aggregate_profiling_summary()` + `build_workflow_planning_input()`：综合质量评级（good/fair/poor/unusable）、样本量等级（very_small/small/medium/large）、推荐下一步
+9. [builder.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/builder.py) → `build_dataset_profile()`：汇总 179 行代码输出完整 JSON
+10. 创建 `DatasetProfile` → [repository.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/repository.py) → 入库
 
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/api.py)（POST /api/dataset-profiles/{task_id}）
-- **输入**：task_id（可选：uploaded_file_id、uploaded_file_path、max_preview_rows）
-- **处理逻辑**：
-  1. 通过 context_builder 读取上游 Task Specification 和 Task Interpretation
-  2. 检查上游状态（task 需 valid/valid_with_warning，interpretation 需 interpreted/interpreted_with_warning）
-  3. 通过 source_resolver 识别数据来源（public_benchmark / uploaded_file / unknown）
-  4. 选择对应 Loader（MatbenchLoader / FileLoader）
-  5. 加载数据为 pandas DataFrame
-  6. 执行 schema_checker（列存在性、重复列名、全空列）
-  7. 执行 modality_checker（输入模态一致性检测）
-  8. 执行 quality_checker（缺失值、重复行、非法值、常量列、高缺失率列）
-  9. 执行 target_checker（目标变量分布分析，regression/classification 不同策略）
-  10. 通过 profiler 汇总所有检查结果
-  11. 通过 builder 构建 Dataset Profile Object
-  12. 写入 dataset_profile 表
-- **输出**：DatasetProfileResponse
-- **完成度**：100%
+**输出**：`DatasetProfileResponse`，状态为 `profiled` / `profiled_with_warning` / `failed`
 
-#### 5.3.3 功能三：查询数据集画像
+**关键设计**：
+- `MatbenchLoader` 在 matminer 未安装时会从硬编码的 `_KNOWN_DATASETS` 字典生成随机样本数据（最多 200 行），确保开发环境可运行
+- `FileLoader` 支持通过 file_id 前缀匹配查找文件，增强容错性
+- `workflow_planning_input` 是模块四的标准化输入，包含数据质量、预处理需求、目标分布等信息
 
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/api.py)
-  - GET /api/dataset-profiles/{dataset_profile_id}
-  - GET /api/tasks/{task_id}/dataset-profile（查询某任务的最新画像）
-- **输入**：dataset_profile_id 或 task_id
-- **输出**：DatasetProfileResponse
-- **完成度**：100%
+**数据库表**：`dataset_profile`（[model.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/model.py)），包含 source_type/loader_name/n_samples/n_columns/input_modality/target_column/quality_level 等专项列 + `profile_json` + `preview_json` (JSONB)
 
-#### 5.3.4 功能四：重新执行数据集画像
+**完成度**：~90%。四维检查逻辑完善，Matbench fallback 机制保证开发体验。但仅支持 CSV/XLSX/XLS 三种格式，不支持 JSON/TSV 等其他格式。
 
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/api.py)（POST /api/dataset-profiles/{task_id}/rerun）
-- **输入**：task_id
-- **处理逻辑**：不覆盖旧结果，新增一条 profile 记录
-- **输出**：新的 DatasetProfileResponse
-- **完成度**：100%
-
-#### 5.3.5 功能五：数据预览
-
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/api.py)（GET /api/dataset-profiles/{dataset_profile_id}/preview）
-- **输入**：dataset_profile_id
-- **处理逻辑**：从 preview_json 中读取前 N 行预览数据
-- **输出**：DatasetPreviewResponse（含 columns、rows、total_rows、preview_rows）
-- **完成度**：100%
-
-#### 5.3.6 数据源识别
-
-- **相关文件**：[source_resolver.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/source_resolver.py)
-- **输入**：dataset_intent、dataset_description、uploaded_file_id、uploaded_file_path
-- **处理逻辑**：
-  - 优先检查是否有上传文件 ID/路径 → source_type = "uploaded_file"
-  - 检查 dataset_loading_hint.source_type → "public_benchmark"
-  - 检查 dataset_reference/description 中是否包含 "matbench" → "public_benchmark"
-  - 检查 description 中是否包含 "csv/xlsx/excel/file/upload" → "uploaded_file"
-  - 否则 → "unknown"
-- **输出**：source_resolution 字典（含 source_type、dataset_reference、loader_name、is_supported）
-- **完成度**：100%
-
-#### 5.3.7 数据加载器
-
-- **相关文件**：
-  - [base_loader.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/base_loader.py)（抽象基类）
-  - [matbench_loader.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/matbench_loader.py)
-  - [file_loader.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/file_loader.py)
-- **MatbenchLoader 处理逻辑**：
-  - 尝试导入 matbench 包加载真实数据集
-  - 若 matbench 未安装，使用内置的已知数据集 schema 生成模拟数据（最多 200 行）
-  - 已知数据集：matbench_expt_gap、matbench_mp_e_form、matbench_log_gvrh、matbench_log_kvrh
-- **FileLoader 处理逻辑**：
-  - 根据 file_path 或 file_id 查找上传文件
-  - 校验文件扩展名和大小
-  - 使用 pandas.read_csv 或 pandas.read_excel 读取
-  - 返回 DataFrame 和加载结果字典
-- **完成度**：100%（MatbenchLoader 的模拟数据生成是 MVP 阶段的权宜之计）
-
-#### 5.3.8 数据检查器
-
-- **Schema 检查**：[schema_checker.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/checkers/schema_checker.py)
-  - 检查目标列是否存在（支持大小写不敏感匹配）
-  - 检查输入列是否存在
-  - 检查重复列名
-  - 检查全空列
-- **Modality 检查**：[modality_checker.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/checkers/modality_checker.py)
-  - 根据列名和数据内容检测输入模态（composition/structure/descriptor/text/mixed）
-  - 对 composition 类型使用正则表达式验证化学式格式
-  - 比较检测到的模态与期望模态是否一致
-- **Quality 检查**：[quality_checker.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/checkers/quality_checker.py)
-  - 缺失值统计（总数、涉及列）
-  - 目标列缺失检查
-  - 重复行检查
-  - 重复输入样本检查
-  - 非法值检查（空字符串）
-  - 常量列检查
-  - 高缺失率列检查（>50%）
-  - 小样本警告（<100）
-- **Target 检查**：[target_checker.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/checkers/target_checker.py)
-  - Regression：min/max/mean/median/std/skewness/outlier_count（IQR 方法）
-  - Classification：class_count/class_distribution/majority_class_ratio/is_imbalanced（>80% 判定为不平衡）
-- **完成度**：100%
-
-#### 5.3.9 数据画像汇总
-
-- **相关文件**：[profiler.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/profiler.py)
-- **处理逻辑**：
-  - 汇总所有检查结果，判断数据质量等级（good/fair/poor/unusable）
-  - 判断样本规模等级（very_small/small/medium/large）
-  - 判断数据是否可用于机器学习
-  - 构建 workflow_planning_input（为后续模块准备的输入）
-  - 推荐下一步操作（ready_for_workflow_planning / needs_cleaning / needs_review / blocked）
-- **完成度**：100%
-
-#### 5.3.10 数据库持久化
-
-- **相关文件**：[model.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/model.py)、[repository.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/repository.py)
-- **表名**：`dataset_profile`
-- **结构化字段**：id、task_id、interpretation_id、status、source_type、dataset_reference、loader_name、n_samples、n_columns、input_modality、target_column、quality_level、is_usable_for_ml、error_message、created_at、updated_at
-- **JSONB 字段**：profile_json（完整画像对象）、preview_json（数据预览）
-- **完成度**：100%
+**相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/api.py)、[service.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/service.py)、[context_builder.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/context_builder.py)、[source_resolver.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/source_resolver.py)、[profiler.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/profiler.py)、[builder.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/builder.py)、[model.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/model.py)、[repository.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/repository.py)、[schemas.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/schemas.py)、所有 loaders/ 和 checkers/ 目录下的文件
 
 ---
 
-### 5.4 模块四：Workflow Planning（工作流规划）
+### 5.4 模块四：Workflow Planning（LLM 驱动的工作流规划）
 
-#### 5.4.1 功能一：创建工作流规划
+**功能描述**：将前三个模块的输出（Task + Interpretation + Profile）送入 LLM，生成包含 8 个策略维度的结构化 ML 工作流规划。
 
-- **相关文件**：
-  - 前端：[WorkflowPlanPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/workflowPlanning/components/WorkflowPlanPanel.tsx)
-  - 后端：[api.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/api.py)（POST /api/workflow-plans/{task_id}）
-- **输入**：task_id（可选：planning_mode、llm_provider、model_name）
-- **前置条件**：
-  - Task 状态必须为 valid 或 valid_with_warning
-  - 必须存在 interpreted 或 interpreted_with_warning 状态的 interpretation
-  - 必须存在 profiled 或 profiled_with_warning 状态的 dataset profile
-  - dataset profile 的 is_usable_for_ml 必须为 true
-  - dataset profile 中必须包含 workflow_planning_input
-- **处理逻辑**：
-  1. 通过 context_builder 读取上游 Task Specification、Task Interpretation 和 Dataset Profile
-  2. 检查上游状态是否满足条件，否则抛出 UpstreamNotReadyException
-  3. 通过 prompt_builder 构建 LLM Prompt（含 System Prompt + User Message + JSON Schema）
-  4. 通过 llm_client_adapter 调用 LLM API（复用模块二的 LLMClient）
-  5. 通过 parser 解析 LLM 返回的 JSON（清理 Markdown 代码块包裹）
-  6. 通过 validator 校验输出（含 13 个必填顶层字段、枚举值校验、禁止内容检测）
-  7. 通过 builder 构建 Workflow Plan Object
-  8. 写入 workflow_plan 表
-- **输出**：WorkflowPlanResponse
-- **完成度**：100%
+**输入**：
+- Task Specification（valid） + Task Interpretation（interpreted） + Dataset Profile（profiled，is_usable_for_ml=True）
+- LLM API（复用模块二的 `LLMClient`）
 
-#### 5.4.2 功能二：查询工作流规划
+**处理逻辑**（调用链）：
+1. [api.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/api.py) → `POST /api/workflow-plans/{task_id}`
+2. [context_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/context_builder.py) → `build_workflow_planning_context()`：跨 task_specification + task_interpretation + dataset_profile 三个表构建完整 context，校验状态链和 `is_usable_for_ml`
+3. [prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/prompt_builder.py) → `build_prompt()`：**关键创新**——在运行时从 Featurizer Registry 动态获取 `available_featurizers` 和 `planned_featurizers` 列表注入 Prompt，确保 LLM 只推荐系统中实际可用的 Featurizer
+4. [llm_client_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/llm_client_adapter.py) → `WorkflowPlanningLLMAdapter.generate()`：封装 `LLMClient`，提供统一接口
+5. [parser.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/parser.py) → `parse_llm_response()`：JSON 提取
+6. [validator.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/validator.py) → `validate_workflow_plan()`：**最严格的校验器（236 行）**，包含 4 个层面的检查：
+   - **结构校验**：13 个顶级字段 + 每个子对象的必填字段
+   - **枚举值校验**：task_type/input_modality/split_strategy/search_method/budget_level/metric_direction/n_splits 范围
+   - **禁止内容检测**：`FORBIDDEN_CONTENT` 列表（20 个关键词如 `import pandas`, `def train`, `model.fit` 等），防止 LLM 生成代码或假指标
+   - **Featurizer Registry 校验**：`_check_featurizer_registry()` —— 验证 `executable_featurizers` 中的每个名称是否能在 Registry 中解析为可用状态（三层优先级：executable → legacy recommended → fallback）
+7. [builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/builder.py) → `build_workflow_plan()`：构建完整 Plan JSON dict
 
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/api.py)
-  - GET /api/workflow-plans/{workflow_plan_id}
-  - GET /api/tasks/{task_id}/workflow-plan（查询某任务的最新规划）
-- **输入**：workflow_plan_id 或 task_id
-- **输出**：WorkflowPlanResponse
-- **完成度**：100%
+**输出**：`WorkflowPlanResponse`，包含 8 个策略维度（task_summary/data_strategy/feature_strategy/model_strategy/validation_strategy/evaluation_strategy/hpo_strategy/interpretability_strategy）+ pipeline_generation_input
 
-#### 5.4.3 功能三：重新执行工作流规划
+**关键设计**：
+- **System Prompt 10 条 CRITICAL BOUNDARY RULES**：明确禁止 LLM 生成代码、虚构训练结果、模型指标等，是约束 LLM 行为的关键设计
+- **Featurizer Registry 集成**：Validator 最后一步 `_check_featurizer_registry()` 确保了 LLM 推荐的 Featurizer 一定在 Registry 中存在且可用
+- **禁止内容列表**：所有 20 个关键词均为小写匹配，防止 LLM 输出代码片段或假造评估结果
 
-- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/api.py)（POST /api/workflow-plans/{task_id}/rerun）
-- **输入**：task_id
-- **处理逻辑**：不覆盖旧结果，新增一条 plan 记录
-- **输出**：新的 WorkflowPlanResponse
-- **完成度**：100%
+**数据库表**：`workflow_plan`（[model.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/model.py)），包含 task_type/input_modality/primary_metric/feature_type/validation_strategy/hpo_enabled/interpretability_enabled/confidence_score 等专项索引列 + `plan_json` + `llm_request_json` + `llm_response_json` (JSONB)
 
-#### 5.4.4 上游上下文构建
+**完成度**：~90%。LLM Prompt 设计和输出校验均非常严格。但所有规划策略均无规则化 fallback，完全依赖 LLM。
 
-- **相关文件**：[context_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/context_builder.py)
-- **输入**：task_id
-- **处理逻辑**：
-  - 从 task_specification 表读取任务规格
-  - 从 task_interpretation 表读取最新 interpretation
-  - 从 dataset_profile 表读取最新 profile
-  - 检查各模块状态是否满足前置条件
-  - 组装 task_context、interpretation_context、data_context 三个子上下文
-- **输出**：Workflow Planning Context 字典
-- **完成度**：100%
+**相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/api.py)、[service.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/service.py)、[context_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/context_builder.py)、[prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/prompt_builder.py)、[llm_client_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/llm_client_adapter.py)、[parser.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/parser.py)、[validator.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/validator.py)、[builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/builder.py)、[model.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/model.py)、[repository.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/repository.py)、[schemas.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/schemas.py)、[enums.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/enums.py)、[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/exceptions.py)
 
-#### 5.4.5 LLM Prompt 构建
+---
 
-- **相关文件**：[prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/prompt_builder.py)
-- **处理逻辑**：
-  - System Prompt：定义角色为 AutoML 工作流规划专家，明确 10 条关键边界规则（不执行、不生成代码、不伪造结果等）
-  - User Message：包含 Task Context + Interpretation Context + Data Context + 输出 JSON Schema
-  - 输出 JSON Schema 包含 13 个必填顶层字段，使用 JSON Schema 格式约束
-- **输出**：(system_prompt, user_message) 元组
-- **完成度**：100%
+### 5.5 模块五：Feature Engineering（特征工程）
 
-#### 5.4.6 LLM 调用适配器
+**功能描述**：根据 Workflow Plan 中的 `feature_strategy`，重新加载原始数据，通过 Featurizer Registry + Featurizer Router 选择并执行特征化器，构建特征矩阵、质量检查、持久化 artifact，输出 `downstream_input` 供 Pipeline Generation 消费。
 
-- **相关文件**：[llm_client_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/llm_client_adapter.py)
-- **处理逻辑**：
-  - 复用模块二的 LLMClient（[llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py)）
-  - 调用 generate() 方法获取 LLM 原始响应
-  - 记录请求信息（provider、model、system_prompt、user_message）
-  - 调用失败时抛出 WorkflowPlanningLLMCallException
-- **完成度**：100%
+**输入**：
+- 全部四个上游模块的输出（状态校验过）
+- Workflow Plan 中的 `feature_strategy`（含 `executable_featurizers` 或 `recommended_featurizers`）
 
-#### 5.4.7 LLM 输出解析与校验
+**处理逻辑**（最复杂的 11 步流水线，见 [service.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/service.py) 的 `create_feature_engineering()` 方法）：
+1. [context_builder.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/context_builder.py) → `build_feature_engineering_context()`：跨 5 个上游模块（Task/Interpretation/Profile/Plan）校验，提取 `feature_strategy`
+2. [data_loader_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/data_loader_adapter.py) → `reload_raw_data()`：复用模块三的 `MatbenchLoader` / `FileLoader` 重新加载原始 DataFrame
+3. [strategy_resolver.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/strategy_resolver.py) → `resolve_feature_strategy()`：**三层优先级**——
+   - Priority 1: `feature_strategy.executable_featurizers` → 对每个名称调用 Registry 的 `resolve_to_available()` 进行 ID/Alias 解析 + 可用性校验
+   - Priority 2: `feature_strategy.recommended_featurizers`（legacy 兼容）→ 通过 Registry aliases 解析
+   - Priority 3: Registry fallback → 调用 `get_default_fallback()` 获取该模态下最高优先级的可用 Featurizer
+4. [featurizer_router.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/featurizers/featurizer_router.py) → `get_executable_featurizers()`：将解析后的 Registry ID 列表映射到实际可执行的 Featurizer 类实例（懒加载 + 单例缓存）
+5. `_run_featurizers()` 方法（分两种模式）：
+   - **多 Featurizer 模式**（有 `executable_featurizers` 时）：并行运行多个 Featurizer，每个列名以 `{featurizer_id}__` 为前缀避免冲突，水平合并（`pd.concat(axis=1)`），去重列名
+   - **单 Featurizer 模式**（legacy fallback）：回退到按 `input_modality` 的简单分发（CompositionFeaturizer/DescriptorFeaturizer/StructureFeaturizer）
+6. [feature_matrix_builder.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/feature_matrix_builder.py) → `build_feature_matrix()`：合并 sample_id + features + target，清除非数值列
+7. [feature_quality_checker.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/checkers/feature_quality_checker.py) → `check_feature_quality()`：缺失值/常量特征/无效特征/高缺失率特征
+8. [artifact_manager.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/artifact_manager.py) → `save_feature_artifact()`：保存特征矩阵到 `{FEATURE_ARTIFACT_DIR}/{fe_id}/features.parquet`（或 CSV fallback），生成 `metadata.json` 和预览 JSON
+9. [feature_matrix_builder.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/feature_matrix_builder.py) → `get_feature_schema()`：特征分类统计（numeric/categorical/constant/all_missing）
+10. [builder.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/builder.py) → `build_feature_engineering_object()`：构建完整的 FeatureEngineering Object（含 `downstream_input`）
+11. 创建 `FeatureEngineering` → [repository.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/repository.py) → 入库
 
-- **相关文件**：[parser.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/parser.py)、[validator.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/validator.py)
-- **parser 处理逻辑**：
-  - 清理 Markdown 代码块包裹（```json ... ```）
-  - JSON 解析
-  - 解析失败抛出 WorkflowPlanParseException
-- **validator 处理逻辑**：
-  - 检查 13 个必填顶层字段
-  - 检查各子对象（task_summary、data_strategy、feature_strategy 等）的必填字段
-  - 检查枚举值（task_type、input_modality、split_strategy、search_method、budget_level、metric_direction）
-  - 检查 confidence_score 是否在 0~1 之间
-  - 检查数组字段类型
-  - **禁止内容检测**：检测是否包含可执行代码（import pandas、def train、model.fit 等）或伪造的训练结果（MAE of、RMSE of 等）
-- **完成度**：100%
+**可用 Featurizer 清单**：
 
-#### 5.4.8 模块专用异常体系
+| Registry ID | 实现类 | 状态 | 依赖 | 输出维度 |
+|-------------|--------|------|------|----------|
+| `basic_composition` | `CompositionFeaturizer` | always available | 无 | 16 |
+| `pymatgen_composition_parser` | `PymatgenCompositionParserFeaturizer` | pymatgen installed | pymatgen | 0（中间件） |
+| `matminer_stoichiometry` | `MatminerStoichiometryFeaturizer` | matminer+pymatgen | pymatgen, matminer | ~8 |
+| `matminer_element_property` | `MatminerElementPropertyFeaturizer` | matminer+pymatgen | pymatgen, matminer | 132 |
+| `matminer_magpie` | `MatminerMagpieFeaturizer` | matminer+pymatgen | pymatgen, matminer | 132 |
+| `matminer_valence_orbital` | `MatminerValenceOrbitalFeaturizer` | matminer+pymatgen | pymatgen, matminer | 4 |
+| `descriptor_passthrough` | `DescriptorFeaturizer` | always available | 无 | variable |
+| `descriptor_cleaner` | `DescriptorCleanerFeaturizer` | always available | 无 | variable |
+| `structure_placeholder` | `StructureFeaturizer` | planned | pymatgen, matminer | N/A |
+| `pymatgen_structure_parser` | None | planned | pymatgen | N/A |
+| `matminer_structure_basic` | `MatminerStructureBasicFeaturizer` | planned | pymatgen, matminer | ~10 |
 
-- **相关文件**：[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/exceptions.py)
-- **异常类型**：
-  - WorkflowPlanningException（基类）
-  - WorkflowPlanNotFoundException（规划结果不存在）
-  - UpstreamNotReadyException（上游模块状态不满足）
-  - WorkflowPlanningLLMCallException（LLM 调用失败）
-  - WorkflowPlanParseException（LLM 输出解析失败）
-  - WorkflowPlanValidationException（LLM 输出校验失败）
-- **完成度**：100%
+**输出**：`FeatureEngineeringResponse`，包含 feature_generation/feature_matrix/feature_schema/feature_quality/preprocessing_requirements/downstream_input
 
-#### 5.4.9 数据库持久化
+**关键设计**：
+- **多 Featurizer 并行执行**：每个 Featurizer 独立运行，即使单个失败也继续，只有全部失败才标记为 failed
+- **列名前缀机制**：`{featurizer_id}__{original_name}` 避免不同 Featurizer 之间的列名冲突
+- **Registry 驱动**：`featurizer_router.py` 通过懒初始化 + 单例模式管理所有 Featurizer 实例，新增 Featurizer 只需三步：1) 在 Registry 注册 2) 实现 BaseFeaturizer 子类 3) 在 `featurizer_router.py` 的 `_ROUTER` 字典中添加映射
+- **Artifact 持久化**：支持 Parquet（pyarrow）和 CSV 双格式，预览 JSON 兼容 PostgreSQL JSONB（NaN/Inf 替换为 None）
 
-- **相关文件**：[model.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/model.py)、[repository.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/repository.py)
-- **表名**：`workflow_plan`
-- **结构化字段**：id、task_id、interpretation_id、dataset_profile_id、status、planning_mode、task_type、input_modality、primary_metric、feature_type、validation_strategy、hpo_enabled、interpretability_enabled、confidence_score、error_message、created_at、updated_at
-- **JSONB 字段**：plan_json（完整规划对象）、llm_request_json、llm_response_json
-- **完成度**：100%
+**数据库表**：`feature_engineering`（[model.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/model.py)），包含 input_modality/feature_type/n_samples/n_features/target_column/artifact_id/artifact_path/is_ready_for_pipeline 等专项列 + `feature_json` + `preview_json` (JSONB)
 
-#### 5.4.10 前端展示
+**完成度**：~85%。5 个 Featurizer 可用（含 matminer 四个），多 Featurizer 并行执行完成。但 Structure Featurizer 仍为 planned 状态（placeholder），matminer Magpie 在未安装 pymatgen/matminer 时不可用。Descriptor clean 功能仅初步实现。
 
-- **相关文件**：[WorkflowPlanPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/workflowPlanning/components/WorkflowPlanPanel.tsx)、[types.ts](file:///c:/projects/MLAgent/frontend/src/modules/workflowPlanning/types.ts)、[workflowPlanningApi.ts](file:///c:/projects/MLAgent/frontend/src/api/workflowPlanningApi.ts)
-- **功能**：
-  - "Run Workflow Planning" 和 "Re-run Planning" 按钮
-  - 结果展示包含：Task Summary、Data Strategy、Feature Strategy、Model Strategy、Validation Strategy、Evaluation Strategy、HPO Strategy、Interpretability Strategy、Pipeline Generation Input、LLM Reasoning Summary、Planning Warnings、Planning Assumptions
-  - 完整 JSON 展示
-- **完成度**：100%
+**相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/api.py)、[service.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/service.py)、[context_builder.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/context_builder.py)、[data_loader_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/data_loader_adapter.py)、[strategy_resolver.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/strategy_resolver.py)、[feature_matrix_builder.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/feature_matrix_builder.py)、[artifact_manager.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/artifact_manager.py)、[builder.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/builder.py)、[model.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/model.py)、[repository.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/repository.py)、[schemas.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/schemas.py)、[enums.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/enums.py)、[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/exceptions.py)、[registry_api.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/registry_api.py)、所有 featurizers/ 目录下的文件
+
+---
+
+### 5.6 Featurizer Registry（共享能力注册表）
+
+**功能描述**：作为 Workflow Planning 和 Feature Engineering 之间的**共享契约**，定义系统中所有 Featurizer 的元数据（ID/别名/状态/依赖/输入模态/预估维度），提供统一的查询、解析和回退 API。
+
+**核心能力**（[featurizer_registry.py](file:///c:/projects/MLAgent/backend/app/shared/registry/featurizer_registry.py)）：
+- **12 个 FeaturizerSpec 静态定义**（7 个 available + 5 个 planned）
+- **依赖检测**：在模块导入时自动检测 pymatgen/matminer/scikit-learn/pyarrow/scipy 的安装状态并缓存
+- **双重索引**：ID 索引 `_id_index` + 别名索引 `_alias_index`（如 `"magpie"` → `"matminer_magpie"`）
+- **有效状态计算**：`get_featurizer_effective_status()` —— 即使 Registry 声明为 "available"，若依赖未安装则返回 "unavailable"
+- **查询 API**：`get_available_featurizers(input_modality, task_type, feature_type)` —— 按多维过滤、按 fallback_priority 降序排序
+- **名称解析**：`resolve(name)` —— 支持 ID 或 alias 输入 → `FeaturizerResolveResult`
+- **三级回退**：`get_default_fallback(input_modality, task_type)` → `FeaturizerFallbackResult`
+
+**API 端点**（[registry_api.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/registry_api.py)）：
+- `GET /api/registries/featurizers` — 多维度查询（input_modality/task_type/status/feature_type/requires_dependency/mvp_supported）
+- `GET /api/registries/featurizers/validate` — 注册表自检
+- `GET /api/registries/featurizers/{featurizer_id}` — 单个 Featurizer 详情（含 effective_status）
+- `GET /api/registries/featurizers/dependencies` — 依赖安装状态查询
+
+**完成度**：~90%。定义完整，查询 API 健全，别名解析完善。但 `get_default_fallback` 函数在 registry API 中有调用但尚未实现（当前代码中 workflow validator 调用了 `get_default_fallback` 但 featurizer_registry.py 中该函数定义待确认——根据当前代码推测该函数可能尚未完全实现或为简化版本）。
 
 ---
 
 ## 6. 系统数据流与调用链路
 
-### 6.1 完整端到端数据流
+### 6.1 端到端数据流
 
 ```
-用户浏览器
-    ↓
-[1] 填写并提交任务规格表单
-    ↓ POST /api/tasks
-[2] TaskSpecificationService.create_task()
-    ├── normalize_fields()          # 字段标准化
-    ├── validate()                  # 字段校验
-    ├── build_task_specification()  # 构建对象
-    └── TaskSpecificationRepository.create()  # 持久化
-    ↓
-[3] 返回 TaskSpecificationResponse（含 task_id、status）
-    ↓
-[4] 用户点击 "Run Interpretation"
-    ↓ POST /api/task-interpretations/{task_id}
-[5] TaskInterpretationService.create_interpretation()
-    ├── TaskSpecificationRepository.get_by_id()      # 读取任务规格
-    ├── adapt_task_spec()                            # 转换为 LLM 上下文
-    ├── build_prompt()                               # 构建 LLM Prompt
-    ├── LLMClient.generate()                         # 调用 LLM API
-    ├── parse_llm_response()                         # 解析 JSON
-    ├── validate_interpretation()                    # 校验 Schema
-    ├── build_interpretation()                       # 构建对象
-    └── TaskInterpretationRepository.create()        # 持久化
-    ↓
-[6] 返回 TaskInterpretationResponse
-    ↓
-[7] 用户上传数据集文件（可选）
-    ↓ POST /api/dataset-profiles/upload
-[8] upload_dataset_file()
-    ├── 校验文件扩展名和大小
-    ├── 保存到上传目录
-    ├── pandas 读取文件
-    └── 返回文件信息和预览
-    ↓
-[9] 用户点击 "Run Dataset Profiling"
-    ↓ POST /api/dataset-profiles/{task_id}
-[10] DatasetProfileService.create_profile()
-    ├── build_dataset_loading_context()    # 构建上游上下文
-    ├── resolve_source()                   # 识别数据来源
-    ├── MatbenchLoader.load() 或 FileLoader.load()  # 加载数据
-    ├── check_schema()                     # Schema 检查
-    ├── check_modality()                   # 模态检查
-    ├── check_quality()                    # 质量检查
-    ├── check_target()                     # 目标变量画像
-    ├── aggregate_profiling_summary()      # 汇总画像
-    ├── build_workflow_planning_input()    # 构建下游输入
-    ├── build_dataset_profile()            # 构建对象
-    └── DatasetProfileRepository.create()  # 持久化
-    ↓
-[11] 返回 DatasetProfileResponse
-    ↓
-[12] 用户点击 "Run Workflow Planning"
-    ↓ POST /api/workflow-plans/{task_id}
-[13] WorkflowPlanningService.create_plan()
-    ├── build_workflow_planning_context()    # 读取上游三个模块输出
-    ├── build_prompt()                       # 构建 LLM Prompt
-    ├── WorkflowPlanningLLMAdapter.generate()# 调用 LLM API
-    ├── parse_llm_response()                 # 解析 JSON
-    ├── validate_workflow_plan()             # 校验 Schema + 禁止内容
-    ├── build_workflow_plan()                # 构建对象
-    └── WorkflowPlanRepository.create()      # 持久化
-    ↓
-[14] 返回 WorkflowPlanResponse
+用户操作              前端组件                      后端 API                       数据库表              外部服务
+────────              ──────                       ────────                      ──────              ──────
+填写表单 → TaskSpecificationForm.tsx → POST /api/tasks → task_specification ─┐
+                                           │                                    │
+                                     [normalizer.py]                           │
+                                     [validator.py]                            │
+                                     [builder.py]                              │
+                                           ↓                                    │
+点击 Run → TaskInterpretationPanel → POST /api/task-interpretations/ ─→ task_interpretation ─→ LLM API
+                                           │                                    │
+                                     [task_spec_adapter.py]                    │
+                                     [prompt_builder.py]                       │
+                                     [llm_client.py] ──────────────────────────────→ OpenAI
+                                     [parser.py]                               │
+                                     [validator.py]                            │
+                                     [builder.py]                              │
+                                           ↓                                    │
+上传文件 → FileUpload.tsx → POST /api/dataset-profiles/upload → 本地磁盘
+                                           │
+点击 Run → DatasetProfilePanel → POST /api/dataset-profiles/{task_id} → dataset_profile
+                                           │
+                                     [context_builder.py](跨 task + interp 表)
+                                     [source_resolver.py]
+                                     [matbench/file_loader.py] ───→ Matbench / 本地文件
+                                     [schema/modality/quality/target_checker.py]
+                                     [profiler.py]
+                                     [builder.py]
+                                           ↓
+点击 Run → WorkflowPlanPanel → POST /api/workflow-plans/{task_id} → workflow_plan ─→ LLM API
+                                           │
+                                     [context_builder.py](跨 task + interp + profile 表)
+                                     [prompt_builder.py](动态注入 Featurizer Registry 列表)
+                                     [llm_client_adapter.py] ─────────────────────────→ OpenAI
+                                     [parser.py]
+                                     [validator.py](含 Featurizer Registry 校验)
+                                     [builder.py]
+                                           ↓
+点击 Run → FeatureEngineeringPanel → POST /api/feature-engineering/{task_id} → feature_engineering
+                                           │
+                                     [context_builder.py](跨 task+interp+profile+plan 表)
+                                     [data_loader_adapter.py](复用模块三 Loader)
+                                     [strategy_resolver.py](Featurizer Registry 解析)
+                                     [featurizer_router.py](Registry ID→实例路由)
+                                     [featurizers/*.py](执行特征化)
+                                     [feature_matrix_builder.py]
+                                     [feature_quality_checker.py]
+                                     [artifact_manager.py] → /app/artifacts/features/
+                                     [builder.py]
+                                           ↓
+                                   (Pipeline Generation — 尚未实现)
 ```
 
-### 6.2 模块间依赖关系
+### 6.2 关键调用链细节
 
+**模块五的 Featurizer 选择链**（核心链路）：
 ```
-Task Specification 模块
-    ↓ 被读取
-Task Interpretation 模块（依赖 Task Specification 输出）
-    ↓ 被读取
-Dataset Profile 模块（依赖 Task Specification + Task Interpretation 输出）
-    ↓ 被读取
-Workflow Planning 模块（依赖 Task Specification + Task Interpretation + Dataset Profile 输出）
-    ↓ 输出
-Pipeline Generation 模块（后续开发）
+WorkflowPlan.feature_strategy.executable_featurizers
+    → strategy_resolver.resolve_feature_strategy()
+        → Registry.resolve_to_available(name, input_modality)
+            → ID index lookup → Alias index lookup → available status check
+    → featurizer_router.get_executable_featurizers(selected_ids, input_modality)
+        → Registry.get_featurizer_by_id(fid) → effective_status check
+        → get_featurizer_instance(fid) → lazy init + singleton cache
+    → instance.featurize(raw_df, context, resolved_strategy)
+        → 每个 Featurizer 独立运行，失败不阻塞其他
+        → pandas.concat(axis=1) + 列去重
 ```
 
-### 6.3 前端组件渲染链路
-
-```
-TaskSpecificationPage
-    └── TaskSpecificationForm
-        ├── 表单提交成功后
-        └── 渲染 TaskInterpretationPanel（当 status 为 valid/valid_with_warning）
-            └── 渲染 DatasetProfilePanel（当 status 为 valid/valid_with_warning）
-                └── FileUpload 组件
-                └── 渲染 WorkflowPlanPanel（当 profile 状态为 profiled/profiled_with_warning）
-```
+**Featurizer Registry 集成点**（三个消费方）：
+1. **Workflow Planning prompt_builder.py** — 运行时获取 `get_available_featurizers()` + `get_planned_featurizers()` 列表注入 LLM Prompt
+2. **Workflow Planning validator.py** — `_check_featurizer_registry()` 校验 LLM 输出的 `executable_featurizers`
+3. **Feature Engineering strategy_resolver.py** — 三步优先级解析（executable → recommended → fallback）
 
 ---
 
 ## 7. 核心代码与关键设计说明
 
-### 7.1 接口设计
+### 7.1 分层架构模式
 
-#### 统一响应格式
+每个业务模块遵循**完全一致的分层结构**，这是项目最重要的代码规范：
 
-- **相关文件**：[response.py](file:///c:/projects/MLAgent/backend/app/shared/common/response.py)
-- **结构**：所有 API 返回 `{ "success": bool, "message": str, "data": Any, "error_code": str | None }`
-- **成功响应**：`success_response(message, data)`
-- **错误响应**：`error_response(message, error_code, data)`
+```
+模块目录/
+├── api.py              # API 路由层（APIRouter + HTTP 端点 + 异常→HTTP 状态码映射）
+├── schemas.py          # Pydantic 请求/响应模型（BaseModel）
+├── service.py          # 业务编排层（Service 类，方法拼装各组件）
+├── model.py            # SQLModel 数据库表定义（table=True, JSONB 列, 索引）
+├── repository.py       # 数据访问层（CRUD + 查询方法）
+├── builder.py          # Object 构建器（dict → 完整 JSON 输出）
+├── context_builder.py  # 上游上下文构建器（跨表查询 + 状态校验）
+├── prompt_builder.py   # LLM Prompt 构建器（模块二和四特有）
+├── parser.py           # LLM 响应解析器（模块二和四特有）
+├── validator.py        # 输入/输出校验器
+├── enums.py            # 枚举定义
+└── exceptions.py       # 模块专用异常
+```
 
-#### 全局异常处理
+### 7.2 数据库设计
 
-- **相关文件**：[main.py](file:///c:/projects/MLAgent/backend/app/main.py)
-- **BusinessException**：返回 400 状态码 + error_response
-- **Exception**：返回 500 状态码 + "Internal server error"
+- **5 张业务表**：`task_specification` / `task_interpretation` / `dataset_profile` / `workflow_plan` / `feature_engineering`
+- **通用模式**：每张表都包含 `id`（格式 `{prefix}_{uuid8}`）、`task_id`（关联键）、`status`（索引列）、`created_at`/`updated_at`
+- **JSONB 列**：所有表均有 `*_json` 列存储完整的模块输出。关键查询字段（如 task_type、input_modality、status）有独立列 + 索引
+- **建表方式**：`main.py` 的 `on_startup` 事件中调用 `SQLModel.metadata.create_all(engine)` 自动建表，未使用 Alembic 迁移
+- **Session 管理**：FastAPI `Depends(get_session)` 依赖注入，`with Session(engine) as session` 上下文管理
 
-#### CORS 配置
+### 7.3 异常体系
 
-- **相关文件**：[main.py](file:///c:/projects/MLAgent/backend/app/main.py)、[settings.py](file:///c:/projects/MLAgent/backend/app/shared/config/settings.py)
-- **配置项**：`CORS_ORIGINS`（默认 `["http://localhost:3000"]`）
+**三层异常层次**：
+```
+Exception
+  └── BusinessException (shared/common/exceptions.py, error_code="BUSINESS_ERROR")
+        ├── ValidationException ("VALIDATION_ERROR")
+        ├── NotFoundException ("NOT_FOUND")
+        ├── DatabaseException ("DATABASE_ERROR")
+        ├── TaskInterpretationException ("TASK_INTERPRETATION_ERROR")
+        │     ├── TaskNotReadyException ("TASK_NOT_READY")
+        │     ├── LLMCallException ("LLM_CALL_FAILED")
+        │     ├── LLMOutputParseException ("LLM_OUTPUT_PARSE_ERROR")
+        │     ├── LLMOutputValidationException ("LLM_OUTPUT_VALIDATION_ERROR")
+        │     └── InterpretationNotFoundException ("INTERPRETATION_NOT_FOUND")
+        ├── DatasetProfileException (类似子类)
+        ├── WorkflowPlanningException (类似子类)
+        ├── FeatureEngineeringException (20 个子类)
+        └── FeaturizerRegistryException (5 个子类)
+```
 
-### 7.2 数据模型设计
+**全局异常处理**：`main.py` 中注册了两个 handler：
+- `BusinessException` → HTTP 400，返回 `{"success": false, "message": ..., "error_code": ...}`
+- `Exception` → HTTP 500，返回 `{"success": false, "message": "Internal server error.", "error_code": "INTERNAL_ERROR"}`
 
-#### 混合存储策略
+### 7.4 API 设计规范
 
-所有四个业务模块都采用相同的混合存储策略：
+- **统一响应格式**：所有接口返回 `ApiResponse { success: bool, message: str, data: any, error_code: str? }`
+- **路由前缀**：`/api/tasks/`、`/api/task-interpretations/`、`/api/dataset-profiles/`、`/api/workflow-plans/`、`/api/feature-engineering/`、`/api/registries/`
+- **每个模块的 4 个标准端点**：`POST /.../{task_id}`（创建）、`GET /.../{id}`（按 ID 查询）、`GET /api/tasks/{task_id}/...`（按 Task ID 查询最新）、`POST /.../{task_id}/rerun`（重新执行）
+- **文件上传**：`POST /api/dataset-profiles/upload`（multipart/form-data）
 
-- **高频查询字段**：作为独立列存储（如 task_type、status、target_column）
-- **复杂嵌套对象**：存入 JSONB 列（如 task_spec_json、interpretation_json、profile_json、plan_json）
-- **优势**：兼顾查询性能和扩展灵活性
+### 7.5 LLM 集成设计
 
-#### ID 生成规则
+| 组件 | 角色 | 文件 |
+|------|------|------|
+| `LLMClient`（模块二） | 原始 httpx 封装，含重试逻辑 | [llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py) |
+| `WorkflowPlanningLLMAdapter`（模块四） | 复用 `LLMClient`，添加日志和请求信息封装 | [llm_client_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/llm_client_adapter.py) |
+| Prompt Builder（模块二） | 168 行 system/user prompt + 完整 JSON Schema | [prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/prompt_builder.py) |
+| Prompt Builder（模块四） | 250 行 prompt + 动态 Registry 列表注入 + 10 条 BOUNDARY RULES | [prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/prompt_builder.py) |
 
-| 模块 | ID 格式 | 示例 |
-|------|---------|------|
-| Task Specification | `task_` + 8 位 uuid hex | `task_a1b2c3d4` |
-| Task Interpretation | `interp_` + 8 位 uuid hex | `interp_e5f6g7h8` |
-| Dataset Profile | `profile_` + 8 位 uuid hex | `profile_i9j0k1l2` |
-| Workflow Plan | `plan_` + 8 位 uuid hex | `plan_m3n4o5p6` |
-| Uploaded File | `file_` + 8 位 uuid hex + 扩展名 | `file_q7r8s9t0.csv` |
+**LLM 配置**（[settings.py](file:///c:/projects/MLAgent/backend/app/shared/config/settings.py)）：
+- `LLM_PROVIDER="openai"`, `LLM_MODEL="gpt-4.1"`
+- `LLM_BASE_URL="https://api.openai.com/v1"`（兼容任何 OpenAI-API 兼容端点，如 Qwen/DeepSeek）
+- `LLM_TIMEOUT=60`, `LLM_MAX_RETRIES=2`, `LLM_TEMPERATURE=0.0`
 
-### 7.3 状态管理
+### 7.6 前端架构
 
-#### Task Specification 状态
-
-| 状态 | 含义 |
-|------|------|
-| received | 刚接收，尚未校验 |
-| incomplete | 缺少必填字段 |
-| invalid | 字段校验不通过 |
-| valid | 校验通过 |
-| valid_with_warning | 校验通过但有警告 |
-| updated | 更新后状态 |
-
-#### Task Interpretation 状态
-
-| 状态 | 含义 |
-|------|------|
-| pending | 待执行 |
-| interpreted | 解释完成 |
-| interpreted_with_warning | 解释完成但有警告/歧义 |
-| failed | LLM 调用或校验失败 |
-
-#### Dataset Profile 状态
-
-| 状态 | 含义 |
-|------|------|
-| pending | 待执行 |
-| profiled | 画像完成 |
-| profiled_with_warning | 画像完成但有警告 |
-| failed | 加载或画像失败 |
-| blocked | 上游状态不满足 |
-
-#### Workflow Plan 状态
-
-| 状态 | 含义 |
-|------|------|
-| pending | 待执行 |
-| planned | 规划完成 |
-| planned_with_warning | 规划完成但有警告/假设 |
-| failed | LLM 调用、解析或校验失败 |
-
-### 7.4 异常处理体系
-
-#### 通用异常（shared 层）
-
-- **相关文件**：[exceptions.py](file:///c:/projects/MLAgent/backend/app/shared/common/exceptions.py)
-- **BusinessException**：业务异常基类（含 message 和 error_code）
-- **ValidationException**：校验异常
-- **NotFoundException**：资源不存在
-- **DatabaseException**：数据库异常
-
-#### 模块专用异常
-
-- **Task Interpretation 模块**：[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/exceptions.py)
-  - TaskNotReadyException、LLMCallException、LLMOutputParseException、LLMOutputValidationException、InterpretationNotFoundException
-- **Dataset Profile 模块**：[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/exceptions.py)
-  - DatasetProfileNotFoundException、DatasetContextBuildException、DatasetSourceUnresolvedException、DatasetSourceUnsupportedException、DatasetLoadException、DatasetSchemaException、DatasetModalityMismatchException
-- **Workflow Planning 模块**：[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/exceptions.py)
-  - WorkflowPlanNotFoundException、UpstreamNotReadyException、WorkflowPlanningLLMCallException、WorkflowPlanParseException、WorkflowPlanValidationException
-
-### 7.5 日志
-
-- **LLM 调用日志**：[llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py)
-  - 成功时记录 provider、model、tokens_used
-  - 超时时记录尝试次数
-  - HTTP 错误时记录 status_code 和 response body
-  - 意外错误时记录异常信息
-- **数据加载日志**：[matbench_loader.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/matbench_loader.py)
-  - matbench 未安装时记录 warning
-  - 生成模拟数据时记录 info
-- **Workflow Planning LLM 调用日志**：[llm_client_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/llm_client_adapter.py)
-  - 调用前记录 provider、model
-  - 调用失败时记录异常信息
-
-### 7.6 配置管理
-
-- **相关文件**：[settings.py](file:///c:/projects/MLAgent/backend/app/shared/config/settings.py)
-- **配置项**：
-
-| 配置项 | 默认值 | 说明 |
-|--------|--------|------|
-| APP_NAME | MLAgent | 应用名称 |
-| APP_ENV | development | 运行环境 |
-| DEBUG | True | 调试模式 |
-| DATABASE_URL | postgresql://postgres:postgres@db:5432/mlagent | 数据库连接 |
-| CORS_ORIGINS | ["http://localhost:3000"] | 允许的跨域源 |
-| LLM_PROVIDER | openai | LLM 提供商 |
-| LLM_MODEL | gpt-4.1 | LLM 模型 |
-| LLM_API_KEY | "" | LLM API 密钥 |
-| LLM_BASE_URL | https://api.openai.com/v1 | LLM API 地址 |
-| LLM_TIMEOUT | 60 | LLM 请求超时（秒） |
-| LLM_MAX_RETRIES | 2 | LLM 请求最大重试次数 |
-| LLM_TEMPERATURE | 0.0 | LLM 温度参数 |
-| DATASET_UPLOAD_DIR | /app/uploads | 数据集上传目录 |
-| DATASET_MAX_FILE_SIZE_MB | 100 | 最大文件大小（MB） |
-| DATASET_ALLOWED_EXTENSIONS | csv,xlsx,xls | 允许的文件扩展名 |
-| DATASET_PREVIEW_ROWS | 20 | 预览行数 |
-
-### 7.7 数据库
-
-- **Engine 创建**：[connection.py](file:///c:/projects/MLAgent/backend/app/shared/database/connection.py)
-  - 使用 SQLModel.create_engine()，DEBUG 模式下 echo=True
-- **Session 注入**：[session.py](file:///c:/projects/MLAgent/backend/app/shared/database/session.py)
-  - FastAPI Depends 注入 get_session()
-- **表自动创建**：[main.py](file:///c:/projects/MLAgent/backend/app/main.py) 的 startup 事件中调用 `SQLModel.metadata.create_all(engine)`
-- **迁移工具**：Alembic 已安装但未启用
-
-### 7.8 外部服务调用
-
-#### LLM API 调用
-
-- **相关文件**：[llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py)
-- **调用方式**：httpx.post 到 `{base_url}/chat/completions`
-- **请求体**：model、messages（system + user）、temperature
-- **重试策略**：最多重试 max_retries + 1 次，仅对 TimeoutException 重试，401/403 不重试
-- **超时处理**：httpx.TimeoutException 捕获并重试
-
-#### Matbench 数据集加载
-
-- **相关文件**：[matbench_loader.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/matbench_loader.py)
-- **调用方式**：try/except ImportError，若 matbench 包未安装则使用模拟数据
-- **模拟数据**：使用 numpy.random.uniform 生成 0~12 的随机值，最多 200 行
+- **单页面应用**：[index.tsx](file:///c:/projects/MLAgent/frontend/src/index.tsx) 只渲染 `<TaskSpecificationPage />`
+- **面板嵌入模式**：[TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx) 在表单提交成功后（`status === 'valid' || 'valid_with_warning'`）条件渲染 4 个下游面板
+- **UI = 表单 + 流程**：所有 5 个面板纵向排列在同一页面，用户可顺序操作
+- **API 客户端**：axios 单例，全局 request/response 拦截器用于日志，超时 120s（Feature Engineering 专属 600s）
+- **前端类型**：5 个 `types.ts` 文件定义了对应的 TypeScript 类型，与后端 Pydantic Schema 对应
 
 ---
 
 ## 8. 当前未完成部分与后续开发建议
 
-### 8.1 尚未实现的功能模块
+### 8.1 尚未实现的模块
 
-| 模块 | 优先级 | 说明 |
-|------|--------|------|
-| **Pipeline Generation** | 高 | 根据 Workflow Plan 生成可执行的 ML Pipeline 代码 |
-| **Pipeline Execution** | 高 | 执行 Pipeline，包括数据预处理、模型训练、评估 |
-| **Metric Evaluation** | 中 | 评估模型性能指标，与用户指定的 evaluation_metric 对比 |
-| **Result Diagnosis** | 中 | 诊断模型表现，分析错误案例、特征重要性等 |
-| **Report Generation** | 中 | 生成最终报告，汇总全流程结果 |
+| 模块 | 说明 | 优先级 |
+|------|------|--------|
+| **Pipeline Generation** | Feature Engineering 的 `downstream_input` 已为此准备（`ready_for_pipeline_generation` 标志），但 Pipeline Generation 业务逻辑尚未开始 | 最高 |
+| **Pipeline Execution** | 将 Pipeline 转换为可执行代码或脚本 | 高 |
+| **Metric Evaluation** | 对 Pipeline 执行结果进行评估 | 高 |
+| **Result Diagnosis** | 对不好的结果进行诊断和重试建议 | 中 |
+| **Report Generation** | 最终报告生成 | 中 |
+| **用户认证/多租户** | 当前无身份验证，所有 task 对所有人可见 | 中 |
+| **异步任务队列** | 模块三/四/五（特别是五的 matminer 特征化）执行时间长（可达数分钟），当前为同步 HTTP 调用，长期执行可能导致超时 | 中 |
 
-### 8.2 半成品代码与待完善之处
+### 8.2 半成品代码
 
-#### 模块二：Task Interpretation
-
-1. **多 Provider 切换未实现**：[llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py) 仅实现了 OpenAI 兼容接口调用，settings 中的 LLM_PROVIDER 配置未被使用来切换不同 Provider
-2. **LLM 请求参数未从前端传入**：TaskInterpretationCreateRequest 中的 llm_provider 和 model_name 字段在 service 层未被使用
-3. **Prompt 中 JSON Schema 未使用 LLM 原生 JSON mode**：当前仅通过文本描述要求 LLM 输出 JSON，未使用 OpenAI 的 response_format 参数
-
-#### 模块三：Dataset Profile
-
-1. **MatbenchLoader 使用模拟数据**：当 matbench 包未安装时，使用随机生成的模拟数据而非真实数据集，这仅适用于 MVP 测试
-2. **文件上传与加载分离**：文件上传接口和 dataset profiling 接口是分开的，用户上传文件后需要手动传入 file_id 才能触发 profiling
-3. **Structure 文件支持未实现**：CIF/POSCAR 等结构文件的加载和解析尚未实现
-4. **DatabaseLoader 和 ExternalURLLoader 未实现**：[loaders/](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/) 目录下仅实现了 base_loader.py、matbench_loader.py、file_loader.py，database_loader.py 和 external_url_loader.py 尚未创建
-5. **pymatgen/matminer 未引入**：requirements.txt 中未包含材料科学相关的 pymatgen 和 matminer 依赖
-
-#### 模块四：Workflow Planning
-
-1. **多 Provider 切换未实现**：[llm_client_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/llm_client_adapter.py) 复用模块二的 LLMClient，同样未实现多 Provider 切换
-2. **LLM 请求参数未从前端传入**：WorkflowPlanCreateRequest 中的 llm_provider 和 model_name 字段在 service 层未被使用
-3. **Prompt 中 JSON Schema 未使用 LLM 原生 JSON mode**：当前仅通过文本描述要求 LLM 输出 JSON，未使用 OpenAI 的 response_format 参数
-4. **规划模式仅支持 llm_guided**：虽然 request 中有 planning_mode 字段，但 service 层未实现其他规划模式（如 template_based）
+| 位置 | 问题描述 | 建议 |
+|------|----------|------|
+| `featurizer_registry.py` 中的 `get_default_fallback()` | 被 validator.py 和 strategy_resolver.py 引用，但 featurizer_registry.py 中该函数的完整实现可能未完成或为简化版本 | 需要确认并完善该函数 |
+| `featurizer_router.py` 中的 `pymatgen_structure_parser` | 映射到 `None`，表示该功能尚未实现 | 未来需实现对应的 Featurizer 类 |
+| `structure_featurizer.py` | 占位符实现，不产生实际特征 | 需完整实现结构特征化 |
+| `matminer_structure_basic.py` | 类已实现但 Registry 中标记为 `planned`，未被 router 激活 | 当需要结构特征时启用 |
+| `strategy_resolver.py` 中 `get_planned_featurizers` | 被 prompt_builder.py 引用但 featurizer_registry.py 中该函数定义待确认 | 确认并完善 |
 
 ### 8.3 潜在问题
 
-#### 架构层面
+1. **LLM 完全依赖**：模块二和模块四完全依赖 LLM API，如果 LLM 不可用或返回不符合 Schema 的 JSON，整个管道将中断。建议未来增加规则化的 fallback 逻辑。
 
-1. **数据库表自动创建**：当前在 startup 事件中调用 `SQLModel.metadata.create_all(engine)`，生产环境应使用 Alembic 迁移
-2. **JSONB 字段查询性能**：大量使用 JSONB 存储复杂对象，若后续需要频繁按 JSONB 内部字段查询，需考虑添加 GIN 索引
-3. **文件上传目录管理**：上传文件保存在 `/app/uploads` 目录，未实现定期清理或存储配额管理
+2. **同步执行瓶颈**：所有模块的创建接口均为同步 HTTP 调用，模块五的 matminer 特征化可能需要数分钟。当前前端设置了 600s 超时，但长期来看应该改为异步任务队列（如 Celery）。
 
-#### 代码层面
+3. **数据库迁移**：当前使用 `SQLModel.metadata.create_all` 自动建表（开发模式），生产环境应使用 Alembic 管理迁移。项目已安装 alembic 但未初始化。
 
-1. **Service 层直接实例化 Repository**：如 [TaskSpecificationService.__init__](file:///c:/projects/MLAgent/backend/app/modules/task_specification/service.py#L18) 中 `self.repository = TaskSpecificationRepository()`，未使用依赖注入
-2. **异常处理不一致**：部分接口使用 HTTPException 包装 BusinessException，部分直接抛出，响应格式可能不统一
-3. **前端无状态管理库**：当前前端使用 React useState 管理组件级状态，未引入 Redux/Zustand 等全局状态管理，跨组件通信依赖 props 传递
+4. **文件存储路径**：上传文件存储在 `/app/uploads`（Docker 容器内），需要后续挂载 volume 确保持久化。
 
-#### 安全层面
+5. **Featurizer Registry 硬编码**：12 个 FeaturizerSpec 均为 Python 代码中硬编码，无法通过配置文件或数据库动态添加。如果未来 Featurizer 数量大幅增长，需要考虑配置化。
 
-1. **LLM API Key 明文存储**：LLM_API_KEY 存储在 .env 文件中，需确保不提交到版本控制
-2. **文件上传未做内容校验**：仅校验扩展名和大小，未校验文件内容是否为合法的 CSV/Excel 格式（虽然 pandas 读取失败会报错，但可能被恶意文件利用）
-3. **CORS 配置**：生产环境应限制 CORS_ORIGINS 为具体域名，而非通配符
-
-### 8.4 后续开发建议
-
-#### 短期（下一个模块：Pipeline Generation）
-
-1. 阅读 [prd-3-技术实现方案.md](file:///c:/projects/MLAgent/docs/prd-3-技术实现方案.md) 了解 Dataset Profile 模块的完整架构
-2. 设计 Pipeline Generation 模块的 PRD 和技术方案
-3. 定义 Pipeline Generation Object 的数据结构
-4. 实现从 Workflow Plan 到可执行 Pipeline 代码的生成逻辑
-
-#### 中期
-
-1. 启用 Alembic 数据库迁移
-2. 实现多 Provider LLM 切换（Qwen、DeepSeek 等）
-3. 引入 pymatgen/matminer 用于材料特征工程
-4. 实现 Structure 文件（CIF/POSCAR）加载器
-5. 前端引入全局状态管理（Zustand/Redux）
-6. 将 Workflow Planning 模块的 llm_provider 和 model_name 参数从前端传入并实际使用
-
-#### 长期
-
-1. Pipeline 执行引擎
-2. 模型训练与评估
-3. 结果诊断与报告生成
-4. 生产环境部署优化（HTTPS、认证、限流等）
+6. **前端路由缺失**：当前为单一页面，所有面板都在同一页面中。当用户操作完任务规格后想直接查看某个历史任务结果时，需要刷新页面重新添加。未来需要前端路由（如 React Router）。
 
 ---
 
 ## 9. 给后续 AI Coding 大模型的开发提示
 
-### 9.1 继续开发时应优先阅读的文件
+### 9.1 优先阅读的文件（按重要性排序）
 
-#### 理解整体架构
+| 序号 | 文件 | 理由 |
+|------|------|------|
+| 1 | [main.py](file:///c:/projects/MLAgent/backend/app/main.py) | 全局入口，理解路由注册和异常处理 |
+| 2 | [settings.py](file:///c:/projects/MLAgent/backend/app/shared/config/settings.py) | 所有配置项，控制整个系统行为 |
+| 3 | [featurizer_registry.py](file:///c:/projects/MLAgent/backend/app/shared/registry/featurizer_registry.py) | Featurizer 共享契约，模块四、五和前端都依赖它 |
+| 4 | [service.py (feature_engineering)](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/service.py) | 最复杂的业务编排，理解数据流和 Featurizer 调度 |
+| 5 | [validator.py (workflow)](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/validator.py) | 理解 LLM 输出的严格约束 |
+| 6 | [prompt_builder.py (workflow)](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/prompt_builder.py) | 理解 LLM Prompt 的设计哲学 |
+| 7 | [context_builder.py (feature_engineering)](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/context_builder.py) | 理解跨模块状态校验模式 |
+| 8 | [strategy_resolver.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/strategy_resolver.py) | 理解 Featurizer 选择的三层优先级逻辑 |
+| 9 | [TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx) | 前端入口，理解 UI 结构和面板嵌入模式 |
 
-1. [main.py](file:///c:/projects/MLAgent/backend/app/main.py) - FastAPI 应用入口、路由注册、异常处理
-2. [settings.py](file:///c:/projects/MLAgent/backend/app/shared/config/settings.py) - 全局配置项
-3. [docker-compose.yml](file:///c:/projects/MLAgent/docker-compose.yml) - 服务编排
+### 9.2 继续开发时的边界注意事项
 
-#### 理解已有模块的实现模式
+1. **新增 Featurizer 的标准流程**：
+   - Step 1: 在 [featurizer_registry.py](file:///c:/projects/MLAgent/backend/app/shared/registry/featurizer_registry.py) 的 `_FEATURIZERS` 列表中添加 `FeaturizerSpec`
+   - Step 2: 在 `featurizers/` 目录下创建 `BaseFeaturizer` 子类，实现 `featurize()` 和 `featurizer_name()` 方法
+   - Step 3: 在 [featurizer_router.py](file:///c:/projects/MLAgent/backend/app/modules/feature_engineering/featurizers/featurizer_router.py) 的 `_ROUTER` 字典中注册映射
+   - **不要**在 Workflow Planning 的 prompt/validator 或 Feature Engineering 的 strategy_resolver 中硬编码新的 Featurizer 名称
 
-4. [task_specification/service.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/service.py) - 模块一的服务编排模式
-5. [task_interpretation/service.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/service.py) - 模块二的服务编排模式（含 LLM 调用）
-6. [dataset_profile/service.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/service.py) - 模块三的服务编排模式（含数据加载和检查）
-7. [workflow_planning/service.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/service.py) - 模块四的服务编排模式（含 LLM 调用和上游依赖检查）
+2. **不要重复实现的功能**：
+   - **数据加载**：已有 `MatbenchLoader` 和 `FileLoader`，新模块如需加载数据应复用模块三的 Loader（参考 `data_loader_adapter.py`）
+   - **LLM 调用**：已有 `LLMClient`（模块二），新模块应复用（参考 `llm_client_adapter.py`）
+   - **统一响应格式**：所有 API 接口必须使用 `success_response()` / `error_response()`
+   - **异常处理**：新异常应继承 `BusinessException` 或其子类，设置语义化 `error_code`
 
-#### 理解数据模型
+3. **模块间数据传递规范**：
+   - 模块间的数据传递通过 **数据库表** 进行，不是内存对象
+   - 下游模块的 `context_builder.py` 通过 Repository 跨表查询上游数据
+   - 下游模块必须在开始处理前校验上游模块的状态（如 `status in ("valid", "valid_with_warning")`）
 
-7. [task_specification/model.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/model.py) - 模块一的数据库模型
-8. [task_interpretation/model.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/model.py) - 模块二的数据库模型
-9. [dataset_profile/model.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/model.py) - 模块三的数据库模型
-10. [workflow_planning/model.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/model.py) - 模块四的数据库模型
+4. **LLM 交互规范**（如果新模块需要使用 LLM）：
+   - 必须定义严格的 JSON Schema
+   - 必须有 parser（JSON 提取）+ validator（Schema 校验）两步
+   - 禁止内容检测（`FORBIDDEN_CONTENT` 列表）应在前置 prompt rules 中声明
+   - 失败时写入数据库，包含 `llm_request_json` + `llm_response_json` + `error_message`
 
-#### 理解前端组件
+5. **前端开发规范**：
+   - 所有 API 客户端函数遵循 `{action}{Resource}` 命名（如 `createTask`, `getLatestInterpretation`）
+   - 每个模块的 `types.ts` 定义完整的 TypeScript 类型
+   - 面板组件以 `{Module}Panel.tsx` 命名，接受 `taskId` prop
+   - axios 实例从 `taskApi.ts` 导入，不要在各自文件中创建新实例
 
-11. [TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx) - 主表单组件
-12. [TaskInterpretationPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskInterpretation/components/TaskInterpretationPanel.tsx) - 任务理解结果展示
-13. [DatasetProfilePanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/datasetProfile/components/DatasetProfilePanel.tsx) - 数据集画像结果展示
-14. [WorkflowPlanPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/workflowPlanning/components/WorkflowPlanPanel.tsx) - 工作流规划结果展示
+### 9.3 建议的 Pipeline Generation 模块实现方向
 
-### 9.2 开发时应注意的边界
+根据当前项目架构和输出，Pipeline Generation 模块应该：
+- 消费 Feature Engineering 的 `downstream_input`（含 `feature_matrix_artifact_id`/`target_column`/`task_type`/`primary_metric` 等）
+- 消费 Workflow Plan 的 `pipeline_generation_input`（含 `pipeline_steps`/`required_components`）
+- 参考 Workflow Planning 的 LLM 调用模式生成 Pipeline
+- 遵循现有的 `api.py → service.py → builder.py → model.py → repository.py` 分层模式
+- 输出中包含可执行的 Pipeline 描述（可能使用 scikit-learn Pipeline 或其他框架）
 
-#### 不要重复实现的功能
+### 9.4 技术债务提示
 
-1. **不要重新实现数据库 CRUD**：已有 [repository.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/repository.py) 模式，新模块应复制该模式并修改
-2. **不要重新实现统一响应格式**：使用 [response.py](file:///c:/projects/MLAgent/backend/app/shared/common/response.py) 中的 `success_response()` 和 `error_response()`
-3. **不要重新实现异常基类**：继承 [exceptions.py](file:///c:/projects/MLAgent/backend/app/shared/common/exceptions.py) 中的 BusinessException
-4. **不要重新实现 LLM 调用**：复用 [llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py) 或在其基础上扩展
-5. **不要重新实现数据加载器**：新 Loader 应继承 [base_loader.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/base_loader.py)
-
-#### 必须遵守的约定
-
-1. **ID 生成规则**：新模块的 ID 格式应为 `{module_prefix}_` + 8 位 uuid hex
-2. **状态枚举**：新模块的状态设计应参考已有模块的状态流转模式
-3. **JSONB 存储**：复杂嵌套对象应存入 JSONB 列，高频查询字段应单独建列
-4. **API 路由前缀**：新模块的 API 路由应使用 `/api/{module-name}s` 格式
-5. **Pydantic 校验**：所有请求/响应模型应使用 Pydantic BaseModel
-6. **前端 API 客户端**：新模块的 API 调用应在 `frontend/src/api/` 下新建文件，复用 [taskApi.ts](file:///c:/projects/MLAgent/frontend/src/api/taskApi.ts) 中的 axios 实例
-
-### 9.3 模块间数据传递约定
-
-1. **上游模块只读不写**：新模块读取 Task Specification / Task Interpretation / Dataset Profile 时，不应修改它们的数据
-2. **状态检查**：调用上游模块前必须检查其状态是否满足前置条件
-3. **通过 task_id 关联**：所有模块都通过 task_id 关联到同一个任务
-4. **通过 interpretation_id 关联**：Dataset Profile 及后续模块通过 interpretation_id 关联到具体的理解结果
-
-### 9.4 测试建议
-
-1. 当前项目尚未实现自动化测试，建议后续开发时补充单元测试和集成测试
-2. 重点测试：normalizer 映射规则、validator 校验逻辑、LLM output parser、data checkers
-3. 使用 pytest 作为测试框架（与 FastAPI 生态一致）
-
-### 9.5 启动开发环境
-
-```bash
-# 启动数据库
-docker-compose up -d db
-
-# 启动后端
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-
-# 启动前端
-cd frontend
-npm install
-npm start
-```
-
-或使用 Docker Compose 一键启动：
-
-```bash
-docker-compose up -d
-```
-
----
-
-*文档结束。本文档基于对项目中所有源代码文件的实际阅读和分析编写，所有文件路径、函数名、类名、接口名和数据结构均可在项目中找到对应实现。*
+- `featurizer_registry.py` 中的 `get_default_fallback()` 和 `get_planned_featurizers()` 函数需要确认完整实现
+- `enums.py` 中各模块使用了不同的枚举定义风格（模块一使用 `Enum` 类，模块四使用普通类常量），后续可以统一
+- 前端没有 React Router，所有面板嵌入在一个页面中，历史任务查看不便
+- 缺少 API 版本管理（如 `/api/v1/` 前缀）
+- 缺少请求日志中间件和性能监控

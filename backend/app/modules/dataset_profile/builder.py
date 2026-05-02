@@ -60,6 +60,8 @@ def build_dataset_profile(
     }
     if source_type == "uploaded_file":
         dataset_source["file_name"] = loading_result.get("file_name")
+        dataset_source["file_id"] = source_resolution.get("file_id")
+        dataset_source["file_path"] = source_resolution.get("file_path")
 
     dataset_schema = {
         "n_samples": n_samples,

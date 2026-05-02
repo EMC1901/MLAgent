@@ -230,6 +230,9 @@ class WorkflowPlanningService:
         feature_strategy_raw = plan_json.get("feature_strategy") or {}
         feature_strategy = FeatureStrategy(
             feature_type=feature_strategy_raw.get("feature_type"),
+            executable_featurizers=feature_strategy_raw.get("executable_featurizers", []),
+            semantic_featurizers=feature_strategy_raw.get("semantic_featurizers", []),
+            unsupported_future_featurizers=feature_strategy_raw.get("unsupported_future_featurizers", []),
             recommended_featurizers=feature_strategy_raw.get("recommended_featurizers", []),
             requires_structure_features=feature_strategy_raw.get("requires_structure_features", False),
             feature_selection_required=feature_strategy_raw.get("feature_selection_required", False),
