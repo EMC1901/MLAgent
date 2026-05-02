@@ -43,7 +43,13 @@
       "Bash(/c/Users/emc20/anaconda3/envs/AUTOML/python.exe -m py_compile app/shared/config/settings.py)",
       "Bash(/c/Users/emc20/anaconda3/envs/AUTOML/python.exe -c \"print\\('placeholder'\\)\")",
       "Bash(npm list *)",
-      "Bash(npx react-scripts *)"
+      "Bash(npx react-scripts *)",
+      "Bash(python -m py_compile app/modules/workflow_planning/enums.py)",
+      "Bash(python -m py_compile app/modules/workflow_planning/exceptions.py)",
+      "Bash(python -m py_compile app/modules/workflow_planning/model.py)",
+      "Bash(python -m py_compile app/modules/workflow_planning/repository.py)",
+      "Bash(python -m py_compile app/modules/workflow_planning/schemas.py)",
+      "Bash(python -m py_compile app/modules/workflow_planning/context_builder.py)"
     ]
   }
 }

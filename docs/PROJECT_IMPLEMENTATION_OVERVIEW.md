@@ -1,6 +1,6 @@
 # 项目已实现部分说明文档
 
-> 文档生成日期：2026-05-01
+> 文档生成日期：2026-05-02
 > 项目名称：MLAgent - AI-driven Automated Machine Learning Framework for Materials Science
 > 文档用途：帮助后续 AI Coding 大模型和开发者快速理解当前项目已经完成的部分
 
@@ -14,15 +14,16 @@ MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框�
 
 ### 1.2 当前实现阶段
 
-当前项目已完成 **三个核心业务模块** 的端到端实现：
+当前项目已完成 **四个核心业务模块** 的端到端实现：
 
 | 模块 | 阶段 | 完成度 |
 |------|------|--------|
 | **模块一：Task Specification（任务规格录入）** | MVP 已完成 | ~95% |
 | **模块二：LLM-based Task Interpretation（基于大模型的任务理解）** | MVP 已完成 | ~90% |
 | **模块三：Dataset Loading, Checking, and Profiling（数据集加载与画像）** | MVP 已完成 | ~90% |
+| **模块四：Workflow Planning（工作流规划）** | MVP 已完成 | ~90% |
 
-当前尚未实现的后续模块包括：Workflow Planning、Pipeline Generation、Pipeline Execution、Metric Evaluation、Result Diagnosis、Report Generation 等。
+当前尚未实现的后续模块包括：Pipeline Generation、Pipeline Execution、Metric Evaluation、Result Diagnosis、Report Generation 等。
 
 ### 1.3 项目整体架构
 
@@ -99,6 +100,21 @@ c:\projects\MLAgent/
 │   │   │           ├── modality_checker.py# 模态一致性检查
 │   │   │           ├── quality_checker.py# 数据质量检查
 │   │   │           └── target_checker.py # 目标变量画像
+│   │   │   └── workflow_planning/        # 模块四：工作流规划
+│   │   │       ├── __init__.py
+│   │   │       ├── api.py                # API 路由层（4 个接口）
+│   │   │       ├── schemas.py            # Pydantic 请求/响应模型
+│   │   │       ├── service.py            # 业务编排中枢
+│   │   │       ├── model.py              # SQLModel 数据库表定义
+│   │   │       ├── repository.py         # 数据访问层（CRUD）
+│   │   │       ├── context_builder.py    # 构建上游上下文（Task + Interpretation + Profile）
+│   │   │       ├── prompt_builder.py     # LLM Prompt 构建
+│   │   │       ├── llm_client_adapter.py # LLM 调用适配器（复用模块二的 LLMClient）
+│   │   │       ├── parser.py             # LLM 响应解析（JSON 提取）
+│   │   │       ├── validator.py          # LLM 输出校验（含禁止内容检测）
+│   │   │       ├── builder.py            # Workflow Plan Object 构建器
+│   │   │       ├── enums.py              # 枚举定义（WorkflowPlanStatus）
+│   │   │       └── exceptions.py         # 模块专用异常
 │   │   └── shared/                       # 公共能力
 │   │       ├── __init__.py
 │   │       ├── common/
@@ -124,7 +140,8 @@ c:\projects\MLAgent/
 │   │   ├── api/
 │   │   │   ├── taskApi.ts                # Task Specification 模块 API 客户端（axios）
 │   │   │   ├── taskInterpretationApi.ts  # Task Interpretation 模块 API 客户端
-│   │   │   └── datasetProfileApi.ts      # Dataset Profile 模块 API 客户端
+│   │   │   ├── datasetProfileApi.ts      # Dataset Profile 模块 API 客户端
+│   │   │   └── workflowPlanningApi.ts    # Workflow Planning 模块 API 客户端
 │   │   └── modules/
 │   │       ├── taskSpecification/        # 前端任务规格模块
 │   │       │   ├── pages/
@@ -141,6 +158,10 @@ c:\projects\MLAgent/
 │   │           ├── components/
 │   │           │   ├── DatasetProfilePanel.tsx     # 画像结果展示面板
 │   │           │   └── FileUpload.tsx              # 文件上传组件（拖拽/点击）
+│   │           └── types.ts              # TypeScript 类型定义
+│   │       └── workflowPlanning/         # 前端工作流规划模块
+│   │           ├── components/
+│   │           │   └── WorkflowPlanPanel.tsx       # 工作流规划结果展示面板
 │   │           └── types.ts              # TypeScript 类型定义
 │   ├── package.json                      # 前端依赖
 │   ├── tsconfig.json                     # TypeScript 配置
@@ -714,6 +735,129 @@ c:\projects\MLAgent/
 
 ---
 
+### 5.4 模块四：Workflow Planning（工作流规划）
+
+#### 5.4.1 功能一：创建工作流规划
+
+- **相关文件**：
+  - 前端：[WorkflowPlanPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/workflowPlanning/components/WorkflowPlanPanel.tsx)
+  - 后端：[api.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/api.py)（POST /api/workflow-plans/{task_id}）
+- **输入**：task_id（可选：planning_mode、llm_provider、model_name）
+- **前置条件**：
+  - Task 状态必须为 valid 或 valid_with_warning
+  - 必须存在 interpreted 或 interpreted_with_warning 状态的 interpretation
+  - 必须存在 profiled 或 profiled_with_warning 状态的 dataset profile
+  - dataset profile 的 is_usable_for_ml 必须为 true
+  - dataset profile 中必须包含 workflow_planning_input
+- **处理逻辑**：
+  1. 通过 context_builder 读取上游 Task Specification、Task Interpretation 和 Dataset Profile
+  2. 检查上游状态是否满足条件，否则抛出 UpstreamNotReadyException
+  3. 通过 prompt_builder 构建 LLM Prompt（含 System Prompt + User Message + JSON Schema）
+  4. 通过 llm_client_adapter 调用 LLM API（复用模块二的 LLMClient）
+  5. 通过 parser 解析 LLM 返回的 JSON（清理 Markdown 代码块包裹）
+  6. 通过 validator 校验输出（含 13 个必填顶层字段、枚举值校验、禁止内容检测）
+  7. 通过 builder 构建 Workflow Plan Object
+  8. 写入 workflow_plan 表
+- **输出**：WorkflowPlanResponse
+- **完成度**：100%
+
+#### 5.4.2 功能二：查询工作流规划
+
+- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/api.py)
+  - GET /api/workflow-plans/{workflow_plan_id}
+  - GET /api/tasks/{task_id}/workflow-plan（查询某任务的最新规划）
+- **输入**：workflow_plan_id 或 task_id
+- **输出**：WorkflowPlanResponse
+- **完成度**：100%
+
+#### 5.4.3 功能三：重新执行工作流规划
+
+- **相关文件**：[api.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/api.py)（POST /api/workflow-plans/{task_id}/rerun）
+- **输入**：task_id
+- **处理逻辑**：不覆盖旧结果，新增一条 plan 记录
+- **输出**：新的 WorkflowPlanResponse
+- **完成度**：100%
+
+#### 5.4.4 上游上下文构建
+
+- **相关文件**：[context_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/context_builder.py)
+- **输入**：task_id
+- **处理逻辑**：
+  - 从 task_specification 表读取任务规格
+  - 从 task_interpretation 表读取最新 interpretation
+  - 从 dataset_profile 表读取最新 profile
+  - 检查各模块状态是否满足前置条件
+  - 组装 task_context、interpretation_context、data_context 三个子上下文
+- **输出**：Workflow Planning Context 字典
+- **完成度**：100%
+
+#### 5.4.5 LLM Prompt 构建
+
+- **相关文件**：[prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/prompt_builder.py)
+- **处理逻辑**：
+  - System Prompt：定义角色为 AutoML 工作流规划专家，明确 10 条关键边界规则（不执行、不生成代码、不伪造结果等）
+  - User Message：包含 Task Context + Interpretation Context + Data Context + 输出 JSON Schema
+  - 输出 JSON Schema 包含 13 个必填顶层字段，使用 JSON Schema 格式约束
+- **输出**：(system_prompt, user_message) 元组
+- **完成度**：100%
+
+#### 5.4.6 LLM 调用适配器
+
+- **相关文件**：[llm_client_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/llm_client_adapter.py)
+- **处理逻辑**：
+  - 复用模块二的 LLMClient（[llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py)）
+  - 调用 generate() 方法获取 LLM 原始响应
+  - 记录请求信息（provider、model、system_prompt、user_message）
+  - 调用失败时抛出 WorkflowPlanningLLMCallException
+- **完成度**：100%
+
+#### 5.4.7 LLM 输出解析与校验
+
+- **相关文件**：[parser.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/parser.py)、[validator.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/validator.py)
+- **parser 处理逻辑**：
+  - 清理 Markdown 代码块包裹（```json ... ```）
+  - JSON 解析
+  - 解析失败抛出 WorkflowPlanParseException
+- **validator 处理逻辑**：
+  - 检查 13 个必填顶层字段
+  - 检查各子对象（task_summary、data_strategy、feature_strategy 等）的必填字段
+  - 检查枚举值（task_type、input_modality、split_strategy、search_method、budget_level、metric_direction）
+  - 检查 confidence_score 是否在 0~1 之间
+  - 检查数组字段类型
+  - **禁止内容检测**：检测是否包含可执行代码（import pandas、def train、model.fit 等）或伪造的训练结果（MAE of、RMSE of 等）
+- **完成度**：100%
+
+#### 5.4.8 模块专用异常体系
+
+- **相关文件**：[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/exceptions.py)
+- **异常类型**：
+  - WorkflowPlanningException（基类）
+  - WorkflowPlanNotFoundException（规划结果不存在）
+  - UpstreamNotReadyException（上游模块状态不满足）
+  - WorkflowPlanningLLMCallException（LLM 调用失败）
+  - WorkflowPlanParseException（LLM 输出解析失败）
+  - WorkflowPlanValidationException（LLM 输出校验失败）
+- **完成度**：100%
+
+#### 5.4.9 数据库持久化
+
+- **相关文件**：[model.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/model.py)、[repository.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/repository.py)
+- **表名**：`workflow_plan`
+- **结构化字段**：id、task_id、interpretation_id、dataset_profile_id、status、planning_mode、task_type、input_modality、primary_metric、feature_type、validation_strategy、hpo_enabled、interpretability_enabled、confidence_score、error_message、created_at、updated_at
+- **JSONB 字段**：plan_json（完整规划对象）、llm_request_json、llm_response_json
+- **完成度**：100%
+
+#### 5.4.10 前端展示
+
+- **相关文件**：[WorkflowPlanPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/workflowPlanning/components/WorkflowPlanPanel.tsx)、[types.ts](file:///c:/projects/MLAgent/frontend/src/modules/workflowPlanning/types.ts)、[workflowPlanningApi.ts](file:///c:/projects/MLAgent/frontend/src/api/workflowPlanningApi.ts)
+- **功能**：
+  - "Run Workflow Planning" 和 "Re-run Planning" 按钮
+  - 结果展示包含：Task Summary、Data Strategy、Feature Strategy、Model Strategy、Validation Strategy、Evaluation Strategy、HPO Strategy、Interpretability Strategy、Pipeline Generation Input、LLM Reasoning Summary、Planning Warnings、Planning Assumptions
+  - 完整 JSON 展示
+- **完成度**：100%
+
+---
+
 ## 6. 系统数据流与调用链路
 
 ### 6.1 完整端到端数据流
@@ -769,6 +913,19 @@ c:\projects\MLAgent/
     └── DatasetProfileRepository.create()  # 持久化
     ↓
 [11] 返回 DatasetProfileResponse
+    ↓
+[12] 用户点击 "Run Workflow Planning"
+    ↓ POST /api/workflow-plans/{task_id}
+[13] WorkflowPlanningService.create_plan()
+    ├── build_workflow_planning_context()    # 读取上游三个模块输出
+    ├── build_prompt()                       # 构建 LLM Prompt
+    ├── WorkflowPlanningLLMAdapter.generate()# 调用 LLM API
+    ├── parse_llm_response()                 # 解析 JSON
+    ├── validate_workflow_plan()             # 校验 Schema + 禁止内容
+    ├── build_workflow_plan()                # 构建对象
+    └── WorkflowPlanRepository.create()      # 持久化
+    ↓
+[14] 返回 WorkflowPlanResponse
 ```
 
 ### 6.2 模块间依赖关系
@@ -779,8 +936,10 @@ Task Specification 模块
 Task Interpretation 模块（依赖 Task Specification 输出）
     ↓ 被读取
 Dataset Profile 模块（依赖 Task Specification + Task Interpretation 输出）
+    ↓ 被读取
+Workflow Planning 模块（依赖 Task Specification + Task Interpretation + Dataset Profile 输出）
     ↓ 输出
-Workflow Planning 模块（后续开发）
+Pipeline Generation 模块（后续开发）
 ```
 
 ### 6.3 前端组件渲染链路
@@ -792,6 +951,7 @@ TaskSpecificationPage
         └── 渲染 TaskInterpretationPanel（当 status 为 valid/valid_with_warning）
             └── 渲染 DatasetProfilePanel（当 status 为 valid/valid_with_warning）
                 └── FileUpload 组件
+                └── 渲染 WorkflowPlanPanel（当 profile 状态为 profiled/profiled_with_warning）
 ```
 
 ---
@@ -822,10 +982,10 @@ TaskSpecificationPage
 
 #### 混合存储策略
 
-所有三个业务模块都采用相同的混合存储策略：
+所有四个业务模块都采用相同的混合存储策略：
 
 - **高频查询字段**：作为独立列存储（如 task_type、status、target_column）
-- **复杂嵌套对象**：存入 JSONB 列（如 task_spec_json、interpretation_json、profile_json）
+- **复杂嵌套对象**：存入 JSONB 列（如 task_spec_json、interpretation_json、profile_json、plan_json）
 - **优势**：兼顾查询性能和扩展灵活性
 
 #### ID 生成规则
@@ -835,7 +995,8 @@ TaskSpecificationPage
 | Task Specification | `task_` + 8 位 uuid hex | `task_a1b2c3d4` |
 | Task Interpretation | `interp_` + 8 位 uuid hex | `interp_e5f6g7h8` |
 | Dataset Profile | `profile_` + 8 位 uuid hex | `profile_i9j0k1l2` |
-| Uploaded File | `file_` + 8 位 uuid hex + 扩展名 | `file_m3n4o5p6.csv` |
+| Workflow Plan | `plan_` + 8 位 uuid hex | `plan_m3n4o5p6` |
+| Uploaded File | `file_` + 8 位 uuid hex + 扩展名 | `file_q7r8s9t0.csv` |
 
 ### 7.3 状态管理
 
@@ -869,6 +1030,15 @@ TaskSpecificationPage
 | failed | 加载或画像失败 |
 | blocked | 上游状态不满足 |
 
+#### Workflow Plan 状态
+
+| 状态 | 含义 |
+|------|------|
+| pending | 待执行 |
+| planned | 规划完成 |
+| planned_with_warning | 规划完成但有警告/假设 |
+| failed | LLM 调用、解析或校验失败 |
+
 ### 7.4 异常处理体系
 
 #### 通用异常（shared 层）
@@ -885,6 +1055,8 @@ TaskSpecificationPage
   - TaskNotReadyException、LLMCallException、LLMOutputParseException、LLMOutputValidationException、InterpretationNotFoundException
 - **Dataset Profile 模块**：[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/exceptions.py)
   - DatasetProfileNotFoundException、DatasetContextBuildException、DatasetSourceUnresolvedException、DatasetSourceUnsupportedException、DatasetLoadException、DatasetSchemaException、DatasetModalityMismatchException
+- **Workflow Planning 模块**：[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/exceptions.py)
+  - WorkflowPlanNotFoundException、UpstreamNotReadyException、WorkflowPlanningLLMCallException、WorkflowPlanParseException、WorkflowPlanValidationException
 
 ### 7.5 日志
 
@@ -896,6 +1068,9 @@ TaskSpecificationPage
 - **数据加载日志**：[matbench_loader.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/matbench_loader.py)
   - matbench 未安装时记录 warning
   - 生成模拟数据时记录 info
+- **Workflow Planning LLM 调用日志**：[llm_client_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/llm_client_adapter.py)
+  - 调用前记录 provider、model
+  - 调用失败时记录异常信息
 
 ### 7.6 配置管理
 
@@ -954,8 +1129,7 @@ TaskSpecificationPage
 
 | 模块 | 优先级 | 说明 |
 |------|--------|------|
-| **Workflow Planning** | 高 | 根据 Dataset Profile 和 Task Interpretation 生成 ML 工作流计划 |
-| **Pipeline Generation** | 高 | 根据工作流计划生成可执行的 ML Pipeline 代码 |
+| **Pipeline Generation** | 高 | 根据 Workflow Plan 生成可执行的 ML Pipeline 代码 |
 | **Pipeline Execution** | 高 | 执行 Pipeline，包括数据预处理、模型训练、评估 |
 | **Metric Evaluation** | 中 | 评估模型性能指标，与用户指定的 evaluation_metric 对比 |
 | **Result Diagnosis** | 中 | 诊断模型表现，分析错误案例、特征重要性等 |
@@ -976,6 +1150,13 @@ TaskSpecificationPage
 3. **Structure 文件支持未实现**：CIF/POSCAR 等结构文件的加载和解析尚未实现
 4. **DatabaseLoader 和 ExternalURLLoader 未实现**：[loaders/](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/loaders/) 目录下仅实现了 base_loader.py、matbench_loader.py、file_loader.py，database_loader.py 和 external_url_loader.py 尚未创建
 5. **pymatgen/matminer 未引入**：requirements.txt 中未包含材料科学相关的 pymatgen 和 matminer 依赖
+
+#### 模块四：Workflow Planning
+
+1. **多 Provider 切换未实现**：[llm_client_adapter.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/llm_client_adapter.py) 复用模块二的 LLMClient，同样未实现多 Provider 切换
+2. **LLM 请求参数未从前端传入**：WorkflowPlanCreateRequest 中的 llm_provider 和 model_name 字段在 service 层未被使用
+3. **Prompt 中 JSON Schema 未使用 LLM 原生 JSON mode**：当前仅通过文本描述要求 LLM 输出 JSON，未使用 OpenAI 的 response_format 参数
+4. **规划模式仅支持 llm_guided**：虽然 request 中有 planning_mode 字段，但 service 层未实现其他规划模式（如 template_based）
 
 ### 8.3 潜在问题
 
@@ -999,12 +1180,12 @@ TaskSpecificationPage
 
 ### 8.4 后续开发建议
 
-#### 短期（下一个模块：Workflow Planning）
+#### 短期（下一个模块：Pipeline Generation）
 
 1. 阅读 [prd-3-技术实现方案.md](file:///c:/projects/MLAgent/docs/prd-3-技术实现方案.md) 了解 Dataset Profile 模块的完整架构
-2. 设计 Workflow Planning 模块的 PRD 和技术方案
-3. 定义 Workflow Planning Object 的数据结构
-4. 实现从 Dataset Profile + Task Interpretation 到 Workflow Planning 的转换逻辑
+2. 设计 Pipeline Generation 模块的 PRD 和技术方案
+3. 定义 Pipeline Generation Object 的数据结构
+4. 实现从 Workflow Plan 到可执行 Pipeline 代码的生成逻辑
 
 #### 中期
 
@@ -1013,10 +1194,11 @@ TaskSpecificationPage
 3. 引入 pymatgen/matminer 用于材料特征工程
 4. 实现 Structure 文件（CIF/POSCAR）加载器
 5. 前端引入全局状态管理（Zustand/Redux）
+6. 将 Workflow Planning 模块的 llm_provider 和 model_name 参数从前端传入并实际使用
 
 #### 长期
 
-1. Pipeline 生成与执行引擎
+1. Pipeline 执行引擎
 2. 模型训练与评估
 3. 结果诊断与报告生成
 4. 生产环境部署优化（HTTPS、认证、限流等）
@@ -1038,18 +1220,21 @@ TaskSpecificationPage
 4. [task_specification/service.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/service.py) - 模块一的服务编排模式
 5. [task_interpretation/service.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/service.py) - 模块二的服务编排模式（含 LLM 调用）
 6. [dataset_profile/service.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/service.py) - 模块三的服务编排模式（含数据加载和检查）
+7. [workflow_planning/service.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/service.py) - 模块四的服务编排模式（含 LLM 调用和上游依赖检查）
 
 #### 理解数据模型
 
 7. [task_specification/model.py](file:///c:/projects/MLAgent/backend/app/modules/task_specification/model.py) - 模块一的数据库模型
 8. [task_interpretation/model.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/model.py) - 模块二的数据库模型
 9. [dataset_profile/model.py](file:///c:/projects/MLAgent/backend/app/modules/dataset_profile/model.py) - 模块三的数据库模型
+10. [workflow_planning/model.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/model.py) - 模块四的数据库模型
 
 #### 理解前端组件
 
-10. [TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx) - 主表单组件
-11. [TaskInterpretationPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskInterpretation/components/TaskInterpretationPanel.tsx) - 任务理解结果展示
-12. [DatasetProfilePanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/datasetProfile/components/DatasetProfilePanel.tsx) - 数据集画像结果展示
+11. [TaskSpecificationForm.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskSpecification/components/TaskSpecificationForm.tsx) - 主表单组件
+12. [TaskInterpretationPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/taskInterpretation/components/TaskInterpretationPanel.tsx) - 任务理解结果展示
+13. [DatasetProfilePanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/datasetProfile/components/DatasetProfilePanel.tsx) - 数据集画像结果展示
+14. [WorkflowPlanPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/workflowPlanning/components/WorkflowPlanPanel.tsx) - 工作流规划结果展示
 
 ### 9.2 开发时应注意的边界
 

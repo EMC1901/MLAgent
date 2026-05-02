@@ -9,6 +9,7 @@ from app.shared.common.exceptions import BusinessException
 from app.modules.task_specification.api import router as task_spec_router
 from app.modules.task_interpretation.api import router as task_interp_router
 from app.modules.dataset_profile.api import router as dataset_profile_router
+from app.modules.workflow_planning.api import router as workflow_planning_router
 
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
@@ -36,6 +37,7 @@ def on_shutdown():
 app.include_router(task_spec_router)
 app.include_router(task_interp_router)
 app.include_router(dataset_profile_router)
+app.include_router(workflow_planning_router)
 
 
 @app.exception_handler(BusinessException)
