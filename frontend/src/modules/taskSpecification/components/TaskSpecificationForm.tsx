@@ -16,6 +16,7 @@ import TaskInterpretationPanel from '../../taskInterpretation/components/TaskInt
 import DatasetProfilePanel from '../../datasetProfile/components/DatasetProfilePanel';
 import WorkflowPlanPanel from '../../workflowPlanning/components/WorkflowPlanPanel';
 import FeatureEngineeringPanel from '../../featureEngineering/components/FeatureEngineeringPanel';
+import FeaturePreprocessingPanel from '../../featurePreprocessing/components/FeaturePreprocessingPanel';
 
 interface TaskSpecificationFormProps {
   onSubmitSuccess?: (result: TaskSpecificationResponse) => void;
@@ -427,6 +428,10 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
 
       {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
         <FeatureEngineeringPanel taskId={result.task_id} />
+      )}
+
+      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
+        <FeaturePreprocessingPanel taskId={result.task_id} />
       )}
     </div>
   );
