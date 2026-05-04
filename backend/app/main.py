@@ -15,6 +15,7 @@ from app.modules.feature_engineering.registry_api import registry_router
 from app.modules.feature_preprocessing.api import router as feature_preprocessing_router
 from app.modules.model_search_context.api import router as model_search_context_router
 from app.modules.model_search.api import router as model_search_router
+from app.modules.pipeline_generation.api import router as pipeline_generation_router
 
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
@@ -48,6 +49,7 @@ app.include_router(registry_router)
 app.include_router(feature_preprocessing_router)
 app.include_router(model_search_context_router)
 app.include_router(model_search_router)
+app.include_router(pipeline_generation_router)
 
 
 @app.exception_handler(BusinessException)

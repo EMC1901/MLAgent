@@ -55,7 +55,14 @@
       "Bash(./node_modules/.bin/tsc *)",
       "Bash(python *)",
       "Bash(echo \"EXIT_CODE=$?\")",
-      "Bash(wc -l \"C:\\\\\\\\projects\\\\\\\\MLAgent\\\\\\\\docs\\\\\\\\PROJECT_IMPLEMENTATION_OVERVIEW.md\")"
+      "Bash(wc -l \"C:\\\\\\\\projects\\\\\\\\MLAgent\\\\\\\\docs\\\\\\\\PROJECT_IMPLEMENTATION_OVERVIEW.md\")",
+      "Bash(mkdir -p \"C:/projects/MLAgent/backend/app/modules/pipeline_generation\")",
+      "Bash(mkdir -p \"C:/projects/MLAgent/frontend/src/modules/pipelineGeneration/components\")",
+      "Bash(mkdir -p \"C:/projects/MLAgent/frontend/src/api\")",
+      "Bash(xxd)",
+      "Bash(sed -i '440s/.*/        ↓ \\(模块九: Pipeline Generation\\)/' \"C:/projects/MLAgent/docs/PROJECT_IMPLEMENTATION_OVERVIEW.md\")",
+      "Bash(sed -i '441s/.*/    Pipeline Bundle + Execution Input \\(pipeline_bundle + execution_input，存入 PipelineGeneration 表\\)/' \"C:/projects/MLAgent/docs/PROJECT_IMPLEMENTATION_OVERVIEW.md\")",
+      "Bash(sed -i '442s/.*/        ↓ \\(尚未实现: Pipeline Execution\\)/' \"C:/projects/MLAgent/docs/PROJECT_IMPLEMENTATION_OVERVIEW.md\")"
     ]
   }
 }
