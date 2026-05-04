@@ -53,7 +53,9 @@
       "Bash(python -c \"from app.modules.feature_engineering.enums import FeatureEngineeringStatus; from app.modules.feature_engineering.exceptions import FeatureEngineeringNotFoundException; from app.modules.feature_engineering.model import FeatureEngineering; from app.modules.feature_engineering.schemas import FeatureEngineeringResponse; from app.modules.feature_engineering.repository import FeatureEngineeringRepository; from app.modules.feature_engineering.context_builder import build_feature_engineering_context; from app.modules.feature_engineering.strategy_resolver import resolve_feature_strategy; from app.modules.feature_engineering.featurizers.composition_featurizer import CompositionFeaturizer; from app.modules.feature_engineering.featurizers.descriptor_featurizer import DescriptorFeaturizer; from app.modules.feature_engineering.featurizers.structure_featurizer import StructureFeaturizer; from app.modules.feature_engineering.feature_matrix_builder import build_feature_matrix, get_feature_schema; from app.modules.feature_engineering.checkers.feature_quality_checker import check_feature_quality; from app.modules.feature_engineering.artifact_manager import save_feature_artifact; from app.modules.feature_engineering.builder import build_feature_engineering_object; print\\('All imports successful!'\\)\")",
       "Bash(python -c \"from app.main import app; print\\('main.py imports OK'\\)\")",
       "Bash(./node_modules/.bin/tsc *)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(wc -l \"C:\\\\\\\\projects\\\\\\\\MLAgent\\\\\\\\docs\\\\\\\\PROJECT_IMPLEMENTATION_OVERVIEW.md\")"
     ]
   }
 }

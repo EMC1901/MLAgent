@@ -18,6 +18,7 @@ import WorkflowPlanPanel from '../../workflowPlanning/components/WorkflowPlanPan
 import FeatureEngineeringPanel from '../../featureEngineering/components/FeatureEngineeringPanel';
 import FeaturePreprocessingPanel from '../../featurePreprocessing/components/FeaturePreprocessingPanel';
 import ModelSearchContextPanel from '../../modelSearchContext/components/ModelSearchContextPanel';
+import ModelSearchPlanPanel from '../../modelSearch/components/ModelSearchPlanPanel';
 
 interface TaskSpecificationFormProps {
   onSubmitSuccess?: (result: TaskSpecificationResponse) => void;
@@ -437,6 +438,10 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
 
       {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
         <ModelSearchContextPanel taskId={result.task_id} />
+      )}
+
+      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
+        <ModelSearchPlanPanel taskId={result.task_id} />
       )}
     </div>
   );

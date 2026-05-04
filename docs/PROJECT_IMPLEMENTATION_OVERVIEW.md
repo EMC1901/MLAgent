@@ -1,6 +1,6 @@
 # 项目已实现部分说明文档
 
-> 文档生成日期：2026-05-04（全面更新版 — 含模块七 Model Search Context）
+> 文档生成日期：2026-05-04（全面更新版 — 含模块八 Automated Model and HPO Search）
 > 项目名称：MLAgent — AI-driven Automated Machine Learning Framework for Materials Science
 > 文档用途：帮助后续 AI Coding 大模型和开发者快速理解当前项目已经完成的部分
 
@@ -10,11 +10,11 @@
 
 ### 1.1 项目定位
 
-MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框架。其核心目标是让用户通过结构化表单提交材料机器学习任务需求，系统自动完成从**任务理解 → 数据加载 → 工作流规划 → 特征工程 → 特征预处理 → 模型搜索上下文更新**的全流程自动化。当前尚未实现 Model Search / Pipeline Generation / Pipeline Execution 及后续阶段。
+MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框架。其核心目标是让用户通过结构化表单提交材料机器学习任务需求，系统自动完成从**任务理解 → 数据加载 → 工作流规划 → 特征工程 → 特征预处理 → 模型搜索上下文更新 → 模型搜索计划生成**的全流程自动化。当前尚未实现 Pipeline Generation / Pipeline Execution / Metric Evaluation 及后续阶段。
 
 ### 1.2 当前实现阶段
 
-当前项目已完成 **七个核心业务模块** 的端到端实现：
+当前项目已完成 **八个核心业务模块** 的端到端实现：
 
 | 模块 | 阶段 | 完成度 |
 |------|------|--------|
@@ -25,14 +25,15 @@ MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框�
 | **模块五：Feature Engineering（特征工程）** | MVP 已完成 | ~85% |
 | **模块六：Feature Preprocessing（特征预处理）** | MVP 已完成 | ~90% |
 | **模块七：Model Search Context（模型搜索上下文更新）** | MVP 已完成 | ~85% |
+| **模块八：Automated Model and HPO Search（自动化模型与超参数搜索规划）** ★ 新增 | MVP 已完成 | ~85% |
 | **Featurizer Registry / Model Registry / HPO Registry（共享能力注册表）** | MVP 已完成 | ~90% |
 
-当前**尚未实现**的后续模块包括：Model Search、Pipeline Generation、Pipeline Execution、Metric Evaluation、Result Diagnosis、Report Generation 等。
+当前**尚未实现**的后续模块包括：Pipeline Generation、Pipeline Execution、Metric Evaluation、Result Diagnosis、Report Generation 等。
 
 ### 1.3 项目整体架构
 
 ```
-用户浏览器 (React SPA — 单一 TaskSpecificationPage，含 7 个嵌入式面板)
+用户浏览器 (React SPA — 单一 TaskSpecificationPage，含 8 个嵌入式面板)
     | HTTP (axios)
 FastAPI 后端 (Python, port 8000)
     | SQLModel
@@ -53,20 +54,25 @@ PostgreSQL 数据库 (port 5432)
     │       ↓
     │   Model-Ready Artifact (parquet + joblib pipeline 存储到 /app/artifacts/model_ready/)
     │
-    └── Model Search Context (数据集分析 → 特征组分析 → LLM 策略建议 → 策略合并)
+    ├── Model Search Context (数据集分析 → 特征组分析 → LLM 策略建议 → 策略合并)
+    │       ↓
+    │   Updated Strategies (供下游 Model Search 消费)
+    │
+    └── Model Search (LLM 模型搜索建议 → Registry 校验 → 候选模型/HPO/搜索空间 → Trial 分配 → Pipeline Generation Input)
             ↓
-        Updated Strategies (供下游 Model Search 消费)
+        Model Search Plan (供下游 Pipeline Generation 消费)
 ```
 
 ### 1.4 核心设计原则（根据当前代码分析）
 
-1. **管道式架构**：七个模块严格按序依赖。每个下游模块的 `context_builder.py` 会校验所有上游模块的输出状态，状态不符则抛出专用异常。
+1. **管道式架构**：八个模块严格按序依赖。每个下游模块的 `context_builder.py` 会校验所有上游模块的输出状态，状态不符则抛出专用异常。
 2. **统一异常体系**：所有业务异常继承自 `BusinessException`（定义于 [exceptions.py](file:///c:/projects/MLAgent/backend/app/shared/common/exceptions.py)），每个模块有自己的异常子类，附带有语义化的 `error_code`。
-3. **LLM 输出强约束**：模块二、模块四和模块七均定义了严格的 JSON Schema，LLM 响应经过解析（`parser.py`）+ 校验（`validator.py`）两步才被认为有效。
+3. **LLM 输出强约束**：模块二、模块四、模块七和模块八均定义了严格的 JSON Schema，LLM 响应经过解析（`parser.py`）+ 校验（`validator.py`）两步才被认为有效。
 4. **Featurizer Registry 作为共享契约**：Workflow Planning 的 Prompt 和 Validator、Feature Engineering 的 Strategy Resolver 都向 Registry 查询，而非各自维护硬编码列表。
 5. **失败状态持久化**：所有模块在失败时都会将失败记录（含错误信息）写入数据库，不会静默丢失。
-6. **Artifact 传递链**：Feature Engineering 输出特征矩阵 artifact → Feature Preprocessing 加载并处理后输出 model-ready artifact + preprocessor pipeline artifact → Model Search Context 分析后输出更新后的策略，供下游 Model Search 消费。
-7. **多 Registry 共享架构**：除 Featurizer Registry 外，还有 [model_registry.py](file:///c:/projects/MLAgent/backend/app/shared/registry/model_registry.py)（10 个模型族定义）和 [hpo_registry.py](file:///c:/projects/MLAgent/backend/app/shared/registry/hpo_registry.py)（5 个 HPO 方法定义），为下游模块提供统一的候选模型和超参搜索策略。
+6. **Artifact 传递链**：Feature Engineering 输出特征矩阵 artifact → Feature Preprocessing 加载并处理后输出 model-ready artifact + preprocessor pipeline artifact → Model Search Context 分析后输出更新后的策略 → Model Search 基于策略和 Registry 生成模型搜索计划，供下游 Pipeline Generation 消费。
+7. **多 Registry 共享架构**：除 Featurizer Registry 外，还有 [model_registry.py](file:///c:/projects/MLAgent/backend/app/shared/registry/model_registry.py)（10 个模型族定义）和 [hpo_registry.py](file:///c:/projects/MLAgent/backend/app/shared/registry/hpo_registry.py)（5 个 HPO 方法定义）。模块八深度消费这两个 Registry，所有 LLM 推荐的模型和 HPO 方法必须经 Registry 校验。
+8. **LLM 建议 + 系统生成分离**：模块八中 LLM 仅输出结构化建议（推荐哪些模型、HPO 预算），最终候选模型、HPO 方法、搜索空间必须由系统基于 Registry、模板和校验器生成。LLM 不输出可执行代码、不直接指定参数空间。
 
 ---
 
@@ -80,7 +86,7 @@ c:\projects\MLAgent/
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py                        # FastAPI 入口，路由注册，CORS，异常处理，启动时建表
-│   │   ├── modules/                       # 业务模块（七个模块 + Featurizer Registry API）
+│   │   ├── modules/                       # 业务模块（八个模块 + Featurizer Registry API）
 │   │   │   ├── __init__.py                # 空文件
 │   │   │   ├── task_specification/        # 模块一：任务规格
 │   │   │   │   ├── __init__.py
@@ -206,7 +212,7 @@ c:\projects\MLAgent/
 │   │   │   │       ├── encoder.py        # 编码器（占位，当前未启用）
 │   │   │   │       └── feature_selector.py # sklearn VarianceThreshold 封装
 │   │   │   │
-│   │   │   └── model_search_context/     # 模块七：模型搜索上下文更新（新增）
+│   │   │   └── model_search_context/     # 模块七：模型搜索上下文更新
 │   │   │       ├── __init__.py
 │   │   │       ├── api.py                # 4 个接口（POST, GET by id, GET by task, POST:/rerun）
 │   │   │       ├── schemas.py            # DatasetEffectiveProfile, FeatureGroupSummary, LLMStrategyAdvice, StrategyAdjustment 等
@@ -220,7 +226,7 @@ c:\projects\MLAgent/
 │   │   │       ├── llm_context_builder.py       # 构建 LLM 上下文 prompt
 │   │   │       ├── llm_strategy_advisor.py      # LLM 策略顾问（调用 LLM 获取策略建议）
 │   │   │       ├── llm_response_parser.py       # LLM 响应 JSON 解析
-│   │   │       ├── llm_advice_validator.py      # LLM 建议校验器（模型族/HPC方法/验证策略合法性检查）
+│   │   │       ├── llm_advice_validator.py      # LLM 建议校验器（模型族/HPO方法/验证策略合法性检查）
 │   │   │       ├── strategy_merger.py           # 策略合并器（原始策略 + LLM建议 + 数据分析 → 最终策略）
 │   │   │       ├── model_strategy_adjuster.py   # 模型策略调整器
 │   │   │       ├── hpo_strategy_adjuster.py     # HPO 策略调整器
@@ -229,6 +235,29 @@ c:\projects\MLAgent/
 │   │   │       ├── builder.py            # 构建 ModelSearchContextResponse
 │   │   │       ├── enums.py              # ModelSearchContextStatus / UpdateMode / HPOBudgetLevel 等
 │   │   │       └── exceptions.py         # ModelSearchContextNotFound / UpstreamNotReady / LLMCall 等
+│   │   │
+│   │   │   └── model_search/             # 模块八：自动化模型与超参数搜索规划 ★ 新增
+│   │   │       ├── __init__.py
+│   │   │       ├── api.py                # 5 个接口（POST, GET by id, GET by task, POST:/rerun, GET summary）
+│   │   │       ├── schemas.py            # ModelSearchPlanCreateRequest, DatasetContext, CandidateModelPlanGroup, HPOPlan, SearchSpacePlan, ValidationPlan, EvaluationPlan 等 20+ 个子对象
+│   │   │       ├── service.py            # 12 步流水线：build_context → build_llm_prompt → LLM → parse → validate → select_candidate_models → build_hpo_plan → build_search_space → build_validation/eval → build → persist
+│   │   │       ├── model.py              # ModelSearchPlan (JSONB + 18 个专项列 + 4 个上游 ID 索引 + ready_for_pipeline_generation)
+│   │   │       ├── repository.py         # CRUD + get_latest_by_task_id + list_by_task_id
+│   │   │       ├── context_builder.py    # 读取模块七的 ModelSearchContext，校验 ready_for_model_search_plan=True，加载 Model/HPC Registry
+│   │   │       ├── llm_prompt_builder.py # 构建 LLM 模型搜索 prompt（含严格 JSON Schema + 禁止代码规则）
+│   │   │       ├── llm_model_search_advisor.py  # LLM 模型搜索顾问（复用 LLMClient 调用 LLM）
+│   │   │       ├── llm_response_parser.py       # LLM 响应 JSON 解析（去除 markdown + Pydantic 校验）
+│   │   │       ├── llm_advice_validator.py      # LLM 建议校验器（Model/HPC Registry 校验 + 代码注入扫描 + 14 种模式检测）
+│   │   │       ├── candidate_model_selector.py  # 候选模型选择器（LLM 建议 + Registry + 优先级权重 + include/exclude 过滤）
+│   │   │       ├── hpo_plan_builder.py          # HPO 计划构建器（搜索方法/预算级别/trial 分配/并行度/early stopping/fallback）
+│   │   │       ├── search_space_builder.py      # 超参数搜索空间构建器（10 个模型 × 2 种任务类型的内置模板 + space_width 自适应调整）
+│   │   │       ├── trial_allocator.py           # Trial 分配器（按优先级权重分配，小样本偏向简单模型）
+│   │   │       ├── validation_plan_builder.py   # 验证计划构建器
+│   │   │       ├── evaluation_plan_builder.py   # 评价计划构建器（指标方向映射 + 二级指标默认值）
+│   │   │       ├── pipeline_input_builder.py    # 下游 Pipeline Generation Input 构建器
+│   │   │       ├── builder.py            # 构建 ModelSearchPlanResponse（含 plan_json）
+│   │   │       ├── enums.py              # ModelSearchPlanStatus / PlanningMode / HPOBudgetLevel / SearchSpaceProfile / ModelPriority 等
+│   │   │       └── exceptions.py         # 13 个专用异常（ModelSearchPlanNotFound / ModelSearchContextRequired / LLMCall / Parse / Validation 等）
 │   │   │
 │   │   └── shared/                      # 公共能力
 │   │       ├── __init__.py
@@ -268,10 +297,11 @@ c:\projects\MLAgent/
 │   │   │   ├── workflowPlanningApi.ts   # Workflow Planning API
 │   │   │   ├── featureEngineeringApi.ts # Feature Engineering API（超时 600s）+ Featurizer Registry API
 │   │   │   ├── featurePreprocessingApi.ts # Feature Preprocessing API（超时 600s）
-│   │   │   └── modelSearchContextApi.ts # Model Search Context API（超时 300s）
-│   │   ├── modules/                     # 业务模块（7 个面板）
+│   │   │   ├── modelSearchContextApi.ts # Model Search Context API（超时 300s）
+│   │   │   └── modelSearchApi.ts        # Model Search Plan API（超时 300s，含 LLM 调用）★ 新增
+│   │   ├── modules/                     # 业务模块（8 个面板）
 │   │   │   ├── taskSpecification/       # 任务规格表单
-│   │   │   │   ├── pages/TaskSpecificationPage.tsx  # 页面容器（含 7 个嵌入式面板）
+│   │   │   │   ├── pages/TaskSpecificationPage.tsx  # 页面容器（含 8 个嵌入式面板）
 │   │   │   │   ├── components/TaskSpecificationForm.tsx # 主表单（react-hook-form + zod）
 │   │   │   │   ├── components/TaskFieldGroup.tsx    # 字段分组容器
 │   │   │   │   └── constants.ts         # Zod Schema + 下拉选项常量
@@ -296,7 +326,7 @@ c:\projects\MLAgent/
 │   │   │   │   ├── components/ModelReadyArtifactCard.tsx
 │   │   │   │   ├── constants.ts
 │   │   │   │   └── types.ts
-│   │   │   └── modelSearchContext/      # 模型搜索上下文面板（新增）
+│   │   │   └── modelSearchContext/      # 模型搜索上下文面板
 │   │   │       ├── components/ModelSearchContextPanel.tsx
 │   │   │       ├── components/EffectiveDatasetProfileCard.tsx
 │   │   │       ├── components/FeatureGroupSummaryCard.tsx
@@ -309,6 +339,10 @@ c:\projects\MLAgent/
 │   │   │       ├── components/ModelSearchContextJsonViewer.tsx
 │   │   │       ├── constants.ts
 │   │   │       └── types.ts
+│   │   │   └── modelSearch/              # 自动化模型与超参数搜索面板 ★ 新增
+│   │   │       ├── components/ModelSearchPlanPanel.tsx   # 主面板（含 Run/Re-run 按钮、12 个展示子区）
+│   │   │       ├── constants.ts          # 状态标签 / 优先级/预算级别颜色
+│   │   │       └── types.ts              # ModelSearchPlanResponse, HPOPlan, SearchSpacePlan 等 20+ 个接口
 │   │   └── index.tsx
 │   ├── Dockerfile
 │   ├── package.json                     # React 18 + Ant Design 5 + react-hook-form + zod + axios
@@ -316,7 +350,7 @@ c:\projects\MLAgent/
 │
 ├── docs/                                # 项目文档
 │   ├── PROJECT_IMPLEMENTATION_OVERVIEW.md  # 本文档
-│   ├── prd-1-mvp.md ~ prd-7.md          # 各模块 PRD 文档
+│   ├── prd-1-mvp.md ~ prd-8.md          # 各模块 PRD 文档
 │   └── prd-*-技术实现方案.md             # 各模块技术实现方案
 │
 ├── docker-compose.yml                   # 三服务编排（db + backend + frontend）
@@ -347,6 +381,7 @@ c:\projects\MLAgent/
 | Feature Engineering Result | 数据库 + API 响应 + 文件系统 | JSON + Parquet/CSV | 特征矩阵存储到 `/app/artifacts/features/{fe_id}/features.parquet` |
 | Feature Preprocessing Result | 数据库 + API 响应 + 文件系统 | JSON + Parquet + Joblib | Model-ready 矩阵存储到 `/app/artifacts/model_ready/{fmp_id}/model_ready_features.parquet`，预处理管道存储为 `preprocessor.joblib` |
 | Model Search Context | 数据库 + API 响应 | JSON | 含 dataset_effective_profile, feature_group_summary, preprocessing_summary, llm_strategy_advice, updated strategies, model_search_context_input |
+| Model Search Plan | 数据库 + API 响应 | JSON | 含 dataset_context, candidate_model_plan (baseline + candidate + excluded), hpo_plan (method/budget/trial_allocation), search_space_plan (每模型参数空间), validation_plan, evaluation_plan, llm_model_search_advice, system_validation_result, pipeline_generation_input |
 
 ### 3.3 中间产物（Artifact 传递链）
 
@@ -361,7 +396,9 @@ Model-Ready Artifact → /app/artifacts/model_ready/{fmp_id}/model_ready_feature
 Preprocessor Pipeline → /app/artifacts/model_ready/{fmp_id}/preprocessor.joblib
     ↓ (模块七: Model Search Context)
 Updated Strategies (JSON, 存入数据库)
-    ↓ (尚未实现: Model Search)
+    ↓ (模块八: Model Search)
+Model Search Plan (含 candidate_model_plan + hpo_plan + search_space_plan + pipeline_generation_input，存入数据库)
+    ↓ (尚未实现: Pipeline Generation)
 ```
 
 ---
@@ -755,7 +792,84 @@ Updated Strategies (JSON, 存入数据库)
 
 ---
 
-### 5.8 Featurizer Registry（共享能力注册表）
+### 5.8 模块八：Automated Model and HPO Search（自动化模型与超参数搜索规划）★ 新增
+
+**文件位置**：[backend/app/modules/model_search/](file:///c:/projects/MLAgent/backend/app/modules/model_search/)
+
+**输入**：
+- `ModelSearchPlanCreateRequest`（[schemas.py](file:///c:/projects/MLAgent/backend/app/modules/model_search/schemas.py)）：force_rerun, use_llm_advisor, max_total_trials_override, preferred_search_method, include_models, exclude_models
+- 上游 ModelSearchContext 的 `model_search_context_input` + Model Registry + HPO Registry
+
+**处理逻辑**（12 步流水线）：
+1. `context_builder.build_model_search_context()` 读取模块七的最新 ModelSearchContext，校验 `ready_for_model_search_plan = true`，加载 Model Registry 和 HPO Registry，构建包含 task_type/primary_metric/n_samples/n_features/allowed_model_families/allowed_hpo_methods 的完整 context
+2. `llm_prompt_builder.build_llm_model_search_prompt()` 构建 LLM prompt（含 10 条 CRITICAL 安全规则 + 严格 JSON Schema + allowed lists）
+3. `llm_model_search_advisor.LLMModelSearchAdvisor.generate()` 复用模块二的 `LLMClient` 调用 LLM 获取结构化模型搜索建议
+4. `llm_response_parser.parse_llm_model_search_response()` 解析 LLM 响应：去除 markdown 代码块 → JSON 解析 → Pydantic `LLMModelSearchSuggestion` Schema 校验
+5. `llm_advice_validator.validate_llm_advice()` 执行五层校验：
+   - **安全扫描**：14 种代码模式检测（`import`, `def`, `.fit(`, `optuna.create_study`, `sklearn.` 等）
+   - **Model Registry 校验**：recommended_model_ids 和 baseline_model_ids 是否在 Registry 中存在
+   - **HPO Registry 校验**：hpo_recommendation.search_method 是否在 HPO Registry 中存在
+   - **trial 数上限检查**：`max_total_trials` 不超过 `settings.MODEL_SEARCH_MAX_TOTAL_TRIALS`（默认 50）
+   - **置信度范围检查**：`confidence_score` 在 [0, 1] 范围内
+   - 记录 rejected_models / rejected_hpo_methods / fallback_applied
+6. `candidate_model_selector.select_candidate_models()` 根据 LLM 建议 + Registry + 用户 include/exclude 覆盖，生成三类模型的列表：
+   - **baseline_models**：dummy_mean（non-HPO baseline）、ridge（strong_baseline，启用 HPO）
+   - **candidate_models**：每个候选模型含 model_id, model_family, priority（high/medium/low）、hpo_enabled, reason
+   - **excluded_models**：被排除的模型及原因
+7. `hpo_plan_builder.build_hpo_plan()` 生成 HPO 计划：
+   - search_method（优先用户指定 > LLM 建议 > 默认 random_search）
+   - budget_level（基于样本量和特征数推断：< 200/low, < 1000/moderate, >= 1000/high）
+   - max_total_trials / max_parallel_trials
+   - trial_allocation（按 priority 权重分配：high=3, medium=2, low=1）
+   - early_stopping 标记 / fallback_method
+8. `search_space_builder.build_search_space_plan()` 基于内置模板生成每个模型的超参数搜索空间：
+   - 内置 10 个模型 × 2 种任务类型的参数模板（ridge, lasso, elastic_net, random_forest, gradient_boosting, xgboost, svr, knn, linear_regression, dummy_mean）
+   - 支持 space_width 自适应调整（narrow→缩窄范围，wide→扩大范围）
+   - LLM 只能建议 `search_space_profile`，最终参数空间由系统模板生成
+9. `validation_plan_builder.build_validation_plan()` 从上游策略继承验证计划（split_strategy, n_splits, random_state, shuffle 等）
+10. `evaluation_plan_builder.build_evaluation_plan()` 从上游策略继承评价计划（primary_metric, metric_direction, secondary_metrics），含 14 个常见指标的 metric_direction 映射
+11. `pipeline_input_builder.build_pipeline_generation_input()` 构建下游 Pipeline Generation 的输入对象（含 model_ready_matrix_path, feature_columns, 所有计划的 dict + ready_for_pipeline_generation 标记）
+12. `builder.build_model_search_plan_response()` 构建完整响应（含 plan_json），持久化到数据库
+
+**LLM 输出 Schema**（[llm_prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/model_search/llm_prompt_builder.py)）：
+- `recommended_model_ids`（候选模型 ID 列表，只能在 allowed_model_families 中选择）
+- `baseline_model_ids`（基线模型 ID 列表）
+- `excluded_model_ids`（排除模型及原因）
+- `hpo_recommendation`（enabled, search_method, budget_level, max_total_trials）
+- `search_space_profile`（space_width: narrow/moderate/wide, prefer_conservative_ranges）
+- `model_priority_notes`（每模型的优先级和原因）
+- `risk_notes`（风险提示列表）
+- `confidence_score`（置信度 0-1）
+
+**输出**：
+- `ModelSearchPlanResponse`：含 model_search_plan_id, status, planning_mode, dataset_context, candidate_model_plan（baseline/candidate/excluded 三组）, hpo_plan（method/budget/trial_allocation）, search_space_plan（每模型参数空间）, validation_plan, evaluation_plan, llm_model_search_advice, system_validation_result, pipeline_generation_input
+- `ModelSearchPlanSummaryResponse`：摘要接口返回
+
+**API 接口**（[api.py](file:///c:/projects/MLAgent/backend/app/modules/model_search/api.py)）：
+- `POST /api/model-search-plans/{task_id}` — 创建模型搜索计划
+- `GET /api/model-search-plans/{model_search_plan_id}` — 获取模型搜索计划
+- `GET /api/tasks/{task_id}/model-search-plan` — 获取任务的最新模型搜索计划
+- `POST /api/model-search-plans/{task_id}/rerun` — 重新生成（不覆盖旧记录）
+- `GET /api/model-search-plans/{model_search_plan_id}/summary` — 获取计划摘要（前端快速展示）
+
+**数据模型**（[model.py](file:///c:/projects/MLAgent/backend/app/modules/model_search/model.py)）：
+- `ModelSearchPlan` 表：id (PK), task_id (indexed), model_search_context_id (indexed), feature_preprocessing_id (indexed), workflow_plan_id (indexed), status (indexed), planning_mode, task_type, target_column, primary_metric, n_samples, n_features, n_candidate_models, hpo_enabled, hpo_method, max_total_trials, ready_for_pipeline_generation (indexed), llm_used, llm_confidence_score, plan_json (JSONB), llm_request_json (JSONB), llm_response_json (JSONB), error_message, created_at (indexed), updated_at
+
+**关键设计约束**：
+1. **LLM 只输出结构化 JSON**：LLM 不输出任何代码、不直接指定参数空间、不训练模型、不执行 HPO
+2. **系统生成最终计划**：候选模型必须经 Registry 校验；HPO 方法必须经 HPO Registry 校验；搜索空间必须由系统内置模板生成；trial 分配由系统按优先级权重计算
+3. **安全扫描**：`llm_advice_validator.py` 含 14 个正则模式扫描 LLM 输出中的可执行代码
+4. **不倒置职责**：本模块生成计划，不训练模型、不执行 HPO、不计算指标、不生成 Pipeline 代码
+
+**前端面板**（[ModelSearchPlanPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/modelSearch/components/ModelSearchPlanPanel.tsx)）：
+- 提供 "Generate Model Search Plan" 和 "Re-run Plan" 两个按钮
+- 展示 12 个子区：Dataset Context / Candidate Model Plan（baseline + candidate 表格 + excluded） / HPO Plan（method/budget/trial allocation 表格） / Search Space Plan（每模型参数表格） / Validation Plan / Evaluation Plan / LLM Advice / System Validation Result / Pipeline Generation Input / Warnings / Errors / Full JSON
+
+**完成度**：~85%。核心 12 步流水线完整。LLM 深度参与策略建议但受 Registry 约束；搜索空间模板覆盖 10 个模型族；安全校验包含代码注入扫描。尚未与 Pipeline Generation 模块对接（该模块尚未实现）。
+
+---
+
+### 5.9 Featurizer Registry（共享能力注册表）
 
 **文件位置**：[backend/app/shared/registry/](file:///c:/projects/MLAgent/backend/app/shared/registry/)
 
@@ -929,11 +1043,47 @@ Updated Strategies (JSON, 存入数据库)
 │                                                                          │
 │ 输出: Updated Strategies (供下游 Model Search 消费)                       │
 └─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 阶段 8: 自动化模型与超参数搜索规划 ★ 新增                                  │
+│                                                                          │
+│ POST /api/model-search-plans/{task_id}                                   │
+│   └── ModelSearchService.create_model_search_plan()                      │
+│       ├── context_builder.build_model_search_context()                   │
+│       │   └── 读取模块七最新 MSC → 校验 ready_for_model_search_plan=true   │
+│       │   └── 加载 Model Registry + HPO Registry                         │
+│       ├── llm_prompt_builder.build_llm_model_search_prompt()             │
+│       │   └── 构建 system prompt（10 条安全规则）+ user message（JSON Schema） │
+│       ├── LLMModelSearchAdvisor.generate() → LLMClient                   │
+│       │   └── httpx POST → 获取 structured model search advice           │
+│       ├── llm_response_parser.parse_llm_model_search_response()          │
+│       │   └── 去 markdown → JSON 解析 → Pydantic Schema 校验              │
+│       ├── llm_advice_validator.validate_llm_advice()                     │
+│       │   ├── 安全扫描（14 种代码模式检测）                                 │
+│       │   ├── Model Registry 校验（recommended + baseline IDs）           │
+│       │   ├── HPO Registry 校验（search_method + max_trials 上限）         │
+│       │   └── → 拒绝不合法的建议，记录 rejected_models/hpo_methods          │
+│       ├── candidate_model_selector.select_candidate_models()             │
+│       │   └── LLM advice + Registry + include/exclude → baseline/candidate/excluded │
+│       ├── hpo_plan_builder.build_hpo_plan()                              │
+│       │   └── method/budget/trial_allocation/parallel/fallback           │
+│       ├── search_space_builder.build_search_space_plan()                 │
+│       │   └── 基于内置模板（10 模型 × 2 任务类型）生成每模型参数空间          │
+│       ├── validation_plan_builder / evaluation_plan_builder              │
+│       │   └── 从上游策略继承并规范化                                       │
+│       ├── pipeline_input_builder.build_pipeline_generation_input()       │
+│       │   └── 构建下游 Pipeline Generation 输入（含 ready 标记）            │
+│       ├── builder.build_model_search_plan_response() → 完整 plan JSON    │
+│       └── 持久化到 ModelSearchPlan 表                                     │
+│                                                                          │
+│ 输出: Model Search Plan (供下游 Pipeline Generation 消费)                  │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 6.2 关键调用链路
 
-**LLM 调用链路**（模块二、四、七共享模式）：
+**LLM 调用链路**（模块二、四、七、八共享模式）：
 ```
 Service.create_*()
   → context_builder.build_*_context()     # 校验上游 + 构建 context
@@ -963,6 +1113,13 @@ ModelSearchContextService
   → context_builder.build_model_search_context()
     ← 读取 FeaturePreprocessing 表中的 artifact_path
   → 分析后输出 Updated Strategies (JSON, 存入数据库)
+
+ModelSearchService
+  → context_builder.build_model_search_context()
+    ← 读取 ModelSearchContext 表中的 model_search_context_input
+    ← 加载 Model Registry + HPO Registry
+  → LLM advisor → validator → candidate_selector → hpo_builder → search_space_builder
+  → 输出 Model Search Plan (JSON, 存入 ModelSearchPlan 表)
 ```
 
 ---
@@ -1116,8 +1273,8 @@ def on_startup():
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| **Model Search** | 未实现 | 模块七输出的 Updated Strategies 尚未被消费 |
-| **Pipeline Generation** | 未实现 | 需要根据 Workflow Plan 生成可执行的 ML Pipeline |
+| **Model Search** | ✅ 已实现 | 模块八已实现：基于 Updated Strategies + Registry + LLM 建议生成 Model Search Plan |
+| **Pipeline Generation** | 未实现 | 需要根据 Model Search Plan 生成可执行的 ML Pipeline |
 | **Pipeline Execution** | 未实现 | 需要执行 Pipeline 并收集结果 |
 | **Metric Evaluation** | 未实现 | 需要对模型结果进行评估 |
 | **Result Diagnosis** | 未实现 | 需要对结果进行诊断分析 |
@@ -1158,8 +1315,8 @@ def on_startup():
 
 ### 8.4 后续开发优先级建议
 
-1. **高优先级**：实现 Model Search 模块（消费模块七的输出）
-2. **高优先级**：实现 Pipeline Generation 和 Pipeline Execution
+1. **高优先级**：实现 Pipeline Generation 和 Pipeline Execution（消费模块八的 pipeline_generation_input）
+2. **高优先级**：实现 Metric Evaluation 和 Result Diagnosis 模块
 3. **中优先级**：补全占位符功能（Structure Featurizer, Categorical Encoder）
 4. **中优先级**：添加前端路由和任务列表页面
 5. **低优先级**：添加 API 版本管理、请求日志、性能监控
@@ -1178,9 +1335,11 @@ def on_startup():
 5. **[hpo_registry.py](file:///c:/projects/MLAgent/backend/app/shared/registry/hpo_registry.py)** — 理解 HPO 方法定义
 6. **[exceptions.py](file:///c:/projects/MLAgent/backend/app/shared/common/exceptions.py)** — 理解异常体系
 7. **[response.py](file:///c:/projects/MLAgent/backend/app/shared/common/response.py)** — 理解统一响应格式
-8. **各模块的 `service.py`** — 理解每个模块的核心业务逻辑
-9. **各模块的 `context_builder.py`** — 理解模块间依赖校验逻辑
-10. **[taskApi.ts](file:///c:/projects/MLAgent/frontend/src/api/taskApi.ts)** — 理解前端 API 配置
+8. **[model_search/service.py](file:///c:/projects/MLAgent/backend/app/modules/model_search/service.py)** — 理解最新的模块八（12 步流水线，代码模式最新）
+9. **[model_search/search_space_builder.py](file:///c:/projects/MLAgent/backend/app/modules/model_search/search_space_builder.py)** — 理解 10 模型 × 2 任务类型的内置超参数模板
+10. **各模块的 `service.py`** — 理解每个模块的核心业务逻辑
+11. **各模块的 `context_builder.py`** — 理解模块间依赖校验逻辑
+12. **[taskApi.ts](file:///c:/projects/MLAgent/frontend/src/api/taskApi.ts)** — 理解前端 API 配置
 
 ### 9.2 开发新模块时应遵循的模式
 
@@ -1195,21 +1354,23 @@ def on_startup():
 1. **Featurizer Registry** — 已在 `shared/registry/` 中实现，不要在各模块中硬编码 Featurizer 列表
 2. **Model Registry** — 已定义 10 个模型族，新模块应查询 Registry 而非硬编码
 3. **HPO Registry** — 已定义 5 个 HPO 方法，新模块应查询 Registry 而非硬编码
-4. **LLM 客户端** — 模块二的 `LLMClient` 可复用，不要重新实现 HTTP 调用逻辑
-5. **统一异常处理** — 已在 `main.py` 中全局注册，新模块只需定义异常子类
-6. **统一响应格式** — 使用 `success_response()` / `error_response()`，不要自定义响应格式
-7. **数据库连接/会话管理** — 使用 `get_session()` 依赖注入
-8. **Data Loaders** — 模块三的 `MatbenchLoader` / `FileLoader` 可复用
+4. **超参数搜索空间模板** — 已在模块八 `search_space_builder.py` 中定义 10 模型 × 2 任务类型的模板，下游模块应查询 Model Search Plan 而非重新构建
+5. **LLM 客户端** — 模块二的 `LLMClient` 可复用，不要重新实现 HTTP 调用逻辑
+6. **统一异常处理** — 已在 `main.py` 中全局注册，新模块只需定义异常子类
+7. **统一响应格式** — 使用 `success_response()` / `error_response()`，不要自定义响应格式
+8. **数据库连接/会话管理** — 使用 `get_session()` 依赖注入
+9. **Data Loaders** — 模块三的 `MatbenchLoader` / `FileLoader` 可复用
+10. **Model Search Plan** — 模块八已输出完整的模型搜索计划（含 pipeline_generation_input），下游 Pipeline Generation 应消费该计划而非重新规划
 
 ### 9.4 关键边界和注意事项
 
-1. **管道严格顺序**：模块一 → 二 → 三 → 四 → 五 → 六 → 七，不可跳过或乱序
-2. **状态校验**：每个下游模块的 `context_builder.py` 会检查上游模块的状态值（如 `valid`, `interpreted`, `profiled`, `planned`, `completed`, `preprocessed`），状态不符则抛出 `UpstreamNotReadyException`
+1. **管道严格顺序**：模块一 → 二 → 三 → 四 → 五 → 六 → 七 → 八，不可跳过或乱序
+2. **状态校验**：每个下游模块的 `context_builder.py` 会检查上游模块的状态值（如 `valid`, `interpreted`, `profiled`, `planned`, `completed`, `preprocessed`, `updated`, `planned`），状态不符则抛出专用异常
 3. **JSONB 字段**：所有模块的核心数据存储在 JSONB 字段中（如 `task_spec_json`, `interpretation_json`, `plan_json`），读取时需注意可能为 `None`
 4. **LLM 输出不可信**：所有 LLM 输出必须经过 `parser` + `validator` 两步处理
 5. **Featurizer 名称校验**：Workflow Planning 的 Validator 会校验 `executable_featurizers` 中的名称是否在 Registry 中存在，因此 LLM Prompt 必须包含当前 Registry 的 Featurizer 列表
 6. **Artifact 路径**：Feature Engineering 和 Feature Preprocessing 的 artifact 存储在文件系统中，下游模块通过数据库中的 `artifact_path` 字段定位
-7. **前端超时配置**：Feature Engineering API 超时 600s，Feature Preprocessing API 超时 600s，Model Search Context API 超时 300s，其他 API 超时 120s
+7. **前端超时配置**：Feature Engineering API 超时 600s，Feature Preprocessing API 超时 600s，Model Search Context API 超时 300s，Model Search Plan API 超时 300s，其他 API 超时 120s
 8. **CORS 配置**：后端允许 `http://localhost:5173` 的跨域请求，生产环境需调整
 9. **数据库初始化**：开发环境使用 `docker-compose up` 启动，首次启动会自动建表。如需重置数据，删除 PostgreSQL 卷后重新启动
 10. **测试账号**：admin/password（管理员），2024000001/password（学生），100001/password（教师）— 所有账号密码均为 `password`
