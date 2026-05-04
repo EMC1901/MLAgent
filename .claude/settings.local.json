@@ -62,7 +62,9 @@
       "Bash(xxd)",
       "Bash(sed -i '440s/.*/        ↓ \\(模块九: Pipeline Generation\\)/' \"C:/projects/MLAgent/docs/PROJECT_IMPLEMENTATION_OVERVIEW.md\")",
       "Bash(sed -i '441s/.*/    Pipeline Bundle + Execution Input \\(pipeline_bundle + execution_input，存入 PipelineGeneration 表\\)/' \"C:/projects/MLAgent/docs/PROJECT_IMPLEMENTATION_OVERVIEW.md\")",
-      "Bash(sed -i '442s/.*/        ↓ \\(尚未实现: Pipeline Execution\\)/' \"C:/projects/MLAgent/docs/PROJECT_IMPLEMENTATION_OVERVIEW.md\")"
+      "Bash(sed -i '442s/.*/        ↓ \\(尚未实现: Pipeline Execution\\)/' \"C:/projects/MLAgent/docs/PROJECT_IMPLEMENTATION_OVERVIEW.md\")",
+      "Bash(PYTHONPATH=. python -c \"from app.main import app; routes = [r.path for r in app.routes if hasattr\\(r, 'path'\\)]; pe_routes = [r for r in routes if 'pipeline-execution' in r]; print\\(f'Pipeline Execution routes: {pe_routes}'\\)\")",
+      "Bash(npm run *)"
     ]
   }
 }

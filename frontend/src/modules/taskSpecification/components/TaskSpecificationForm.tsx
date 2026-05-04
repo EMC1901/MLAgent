@@ -20,6 +20,7 @@ import FeaturePreprocessingPanel from '../../featurePreprocessing/components/Fea
 import ModelSearchContextPanel from '../../modelSearchContext/components/ModelSearchContextPanel';
 import ModelSearchPlanPanel from '../../modelSearch/components/ModelSearchPlanPanel';
 import PipelineGenerationPanel from '../../pipelineGeneration/components/PipelineGenerationPanel';
+import PipelineExecutionPanel from '../../pipelineExecution/components/PipelineExecutionPanel';
 
 interface TaskSpecificationFormProps {
   onSubmitSuccess?: (result: TaskSpecificationResponse) => void;
@@ -447,6 +448,10 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
 
       {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
         <PipelineGenerationPanel taskId={result.task_id} />
+      )}
+
+      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
+        <PipelineExecutionPanel taskId={result.task_id} />
       )}
     </div>
   );

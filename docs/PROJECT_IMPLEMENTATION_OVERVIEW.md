@@ -1,6 +1,6 @@
 # 项目已实现部分说明文档
 
-> 文档生成日期：2026-05-04（全面更新版 — 含模块九 Executable Pipeline Generation 及 LLM Advisory Review 优化）
+> 文档生成日期：2026-05-04（全面更新版 — 含模块十 Pipeline Execution and Training）
 > 项目名称：MLAgent — AI-driven Automated Machine Learning Framework for Materials Science
 > 文档用途：帮助后续 AI Coding 大模型和开发者快速理解当前项目已经完成的部分
 
@@ -10,11 +10,11 @@
 
 ### 1.1 项目定位
 
-MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框架。其核心目标是让用户通过结构化表单提交材料机器学习任务需求，系统自动完成从**任务理解 → 数据加载 → 工作流规划 → 特征工程 → 特征预处理 → 模型搜索上下文更新 → 模型搜索计划生成 → 可执行流水线生成**的全流程自动化。当前尚未实现 Pipeline Execution / Metric Evaluation / Result Diagnosis / Report Generation 及后续阶段。
+MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框架。其核心目标是让用户通过结构化表单提交材料机器学习任务需求，系统自动完成从**任务理解 → 数据加载 → 工作流规划 → 特征工程 → 特征预处理 → 模型搜索上下文更新 → 模型搜索计划生成 → 可执行流水线生成 → 流水线执行与训练**的全流程自动化。当前尚未实现 Metric Evaluation / Result Diagnosis / Report Generation 及后续阶段。
 
 ### 1.2 当前实现阶段
 
-当前项目已完成 **九个核心业务模块** 的端到端实现：
+当前项目已完成 **十个核心业务模块** 的端到端实现：
 
 | 模块 | 阶段 | 完成度 |
 |------|------|--------|
@@ -26,15 +26,16 @@ MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框�
 | **模块六：Feature Preprocessing（特征预处理）** | MVP 已完成 | ~90% |
 | **模块七：Model Search Context（模型搜索上下文更新）** | MVP 已完成 | ~85% |
 | **模块八：Automated Model and HPO Search（自动化模型与超参数搜索规划）** | MVP 已完成 | ~85% |
-| **模块九：Executable Pipeline Generation（可执行流水线生成）** ★ 新增 | MVP 已完成 | ~85% |
+| **模块九：Executable Pipeline Generation（可执行流水线生成）** | MVP 已完成 | ~85% |
+| **模块十：Pipeline Execution and Training（流水线执行与训练）** ★ 最新 | MVP 已完成 | ~85% |
 | **Featurizer Registry / Model Registry / HPO Registry / Pipeline Template Registry（共享能力注册表）** | MVP 已完成 | ~90% |
 
-当前**尚未实现**的后续模块包括：Pipeline Execution、Metric Evaluation、Result Diagnosis、Report Generation 等。
+当前**尚未实现**的后续模块包括：Metric Evaluation、Result Diagnosis、Report Generation 等。
 
 ### 1.3 项目整体架构
 
 ```
-用户浏览器 (React SPA — 单一 TaskSpecificationPage，含 9 个嵌入式面板)
+用户浏览器 (React SPA — 单一 TaskSpecificationPage，含 10 个嵌入式面板)
     | HTTP (axios)
 FastAPI 后端 (Python, port 8000)
     | SQLModel
@@ -66,11 +67,15 @@ PostgreSQL 数据库 (port 5432)
     Pipeline Generation (12 步流水线：context → artifact → bind → specs → trial → validate → safety → LLM advisory review → execution input → bundle → response → persist)
             ↓
         Pipeline Bundle + Execution Input (供下游 Pipeline Execution 消费)
+            ↓
+    Pipeline Execution (12 步流水线：context → load_input → load_matrix → create_splits → expand_plan → setup_dir → execute_training → collect_artifacts → build_metric_input → save_artifacts → build_response → persist)
+            ↓
+        Training Artifacts + Metric Evaluation Input (供下游 Metric Evaluation 消费)
 ```
 
 ### 1.4 核心设计原则（根据当前代码分析）
 
-1. **管道式架构**：九个模块严格按序依赖。每个下游模块的 `context_builder.py` 会校验所有上游模块的输出状态，状态不符则抛出专用异常。
+1. **管道式架构**：十个模块严格按序依赖。每个下游模块的 `context_builder.py` 会校验所有上游模块的输出状态，状态不符则抛出专用异常。
 2. **统一异常体系**：所有业务异常继承自 `BusinessException`（定义于 [exceptions.py](file:///c:/projects/MLAgent/backend/app/shared/common/exceptions.py)），每个模块有自己的异常子类，附带有语义化的 `error_code`。
 3. **LLM 输出强约束**：模块二、模块四、模块七和模块八均定义了严格的 JSON Schema，LLM 响应经过解析（`parser.py`）+ 校验（`validator.py`）两步才被认为有效。
 4. **Featurizer Registry 作为共享契约**：Workflow Planning 的 Prompt 和 Validator、Feature Engineering 的 Strategy Resolver 都向 Registry 查询，而非各自维护硬编码列表。
@@ -80,6 +85,7 @@ PostgreSQL 数据库 (port 5432)
 8. **LLM 建议 + 系统生成分离**：模块八中 LLM 仅输出结构化建议（推荐哪些模型、HPO 预算），最终候选模型、HPO 方法、搜索空间必须由系统基于 Registry、模板和校验器生成。LLM 不输出可执行代码、不直接指定参数空间。
 9. **LLM Advisory Review（顾问式审查）**：模块九的 LLM 审查定位于"顾问"而非"审批者"。LLM 输出仅作为参考建议（non-blocking），`ready_for_execution` 标记由 System Validator + Safety Checker + Artifact Manifest 三者共同决定，LLM 无权批准或拒绝执行。
 10. **多级安全防护**：模块九在 Safety Checker 中扫描 15+ 种危险模式（import、eval、exec、subprocess 等），LLM Review Validator 额外扫描 25+ 种禁止内容模式，且 LLM Review Normalizer 自动剥离旧式审批字段（approval_status、needs_improvement 等），确保 LLM 不能越权。
+11. **Controlled Executor 作为唯一训练入口**：模块十中所有模型训练必须通过 Controlled Executor 执行，使用 Model Registry 中注册的模型（通过 model_factory.py 的显式映射实例化），禁止 LLM 生成训练代码、禁止动态 import 模型类。训练仅使用上游 Pipeline Generation 输出的 execution_input_json 中的数据。
 
 ---
 
@@ -93,7 +99,7 @@ c:\projects\MLAgent/
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py                        # FastAPI 入口，路由注册，CORS，异常处理，启动时建表
-│   │   ├── modules/                       # 业务模块（九个模块 + Featurizer Registry API）
+│   │   ├── modules/                       # 业务模块（十个模块 + Featurizer Registry API）
 │   │   │   ├── __init__.py                # 空文件
 │   │   │   ├── task_specification/        # 模块一：任务规格
 │   │   │   │   ├── __init__.py
@@ -266,7 +272,7 @@ c:\projects\MLAgent/
 │   │   │       ├── enums.py              # ModelSearchPlanStatus / PlanningMode / HPOBudgetLevel / SearchSpaceProfile / ModelPriority 等
 │   │   │       └── exceptions.py         # 13 个专用异常（ModelSearchPlanNotFound / ModelSearchContextRequired / LLMCall / Parse / Validation 等）
 │   │   │
-│   │   │   └── pipeline_generation/      # 模块九：可执行流水线生成 ★ 新增
+│   │   │   └── pipeline_generation/      # 模块九：可执行流水线生成
 │   │   │       ├── __init__.py
 │   │   │       ├── api.py                # 6 个接口（POST, GET by id, GET by task, POST:/rerun, GET summary, GET execution-input）
 │   │   │       ├── schemas.py            # PipelineGenerationCreateRequest, ArtifactManifest, ComponentBinding, PipelineSpec, TrialPlan, ExecutionInput, PipelineBundle, PipelineValidationResult, SafetyCheckResult, LLMAdvisoryReview 等 20+ 个子对象
@@ -292,6 +298,32 @@ c:\projects\MLAgent/
 │   │   │       ├── enums.py              # PipelineGenerationStatus / GenerationMode / PipelineRole / PipelineProfile / ComponentType / TaskType / MetricDirection / SplitStrategy / ModelPriority
 │   │   │       └── exceptions.py         # 10 个专用异常（PipelineGenerationNotFound / ModelSearchPlanRequired / ArtifactResolve / ComponentBinding / PipelineSpecBuild / PipelineValidation / PipelineSafety / LLMPipelineReview / ExecutionInputBuild 等）
 │   │   │
+│   │   │   └── pipeline_execution/       # 模块十：流水线执行与训练 ★ 最新
+│   │   │       ├── __init__.py
+│   │   │       ├── api.py                # 8 个接口（POST create, GET by id, GET latest by task, POST rerun, GET summary, GET trials, GET metric-evaluation-input, GET logs）
+│   │   │       ├── schemas.py            # PipelineExecutionCreateRequest, FoldResultDTO, TrialResultDTO, PipelineRunResultDTO, MetricEvaluationInputDTO, TrainingArtifactManifestDTO, PipelineExecutionResponse 等 10+ 个子对象
+│   │   │       ├── service.py            # 12 步流水线：context → load_input → load_matrix → create_splits → expand_plan → setup_dir → execute_training → collect_artifacts → build_metric_input → save_artifacts → build_response → persist
+│   │   │       ├── model.py              # PipelineExecution (JSONB + execution_json + metric_evaluation_input_json + runtime_log_json)
+│   │   │       ├── repository.py         # CRUD + get_latest_by_task_id + list_by_task_id + update
+│   │   │       ├── context_builder.py    # 读取模块九的 PipelineGeneration，校验 ready_for_execution=True，验证 execution_input_json 存在
+│   │   │       ├── execution_input_loader.py # 加载和解析 upstream execution_input_json，校验 pipeline_specs/trial_plan/validation_plan/evaluation_plan
+│   │   │       ├── data_matrix_loader.py # 加载 model_ready_features.parquet，校验路径安全（无 .. 遍历）、特征列和目标列存在性、NaN 检测
+│   │   │       ├── validation_splitter.py # 创建训练/验证数据划分（含 _normalize_strategy() 将上游 k_fold_cross_validation 映射为 k_fold），支持 train_test_split/holdout/k_fold/stratified_k_fold
+│   │   │       ├── execution_planner.py  # 展开 PipelineSpecs + TrialPlan → 扁平化 trial 计划列表（baseline→1 trial, fixed_params→1 trial, hpo_candidate→multi trials）
+│   │   │       ├── model_factory.py      # 通过显式 sklearn 映射（非动态 import）从 Model Registry ID 创建模型实例（regression + classification），校验任务类型兼容性
+│   │   │       ├── hpo_trial_generator.py # 解析上游 SearchSpaceItem 格式，生成 HPO trial 参数组合（支持 random_search 和 grid_search，含 log_uniform/uniform/choice 采样）
+│   │   │       ├── controlled_executor.py # Controlled Executor — 唯一训练入口：迭代 trial plans，按 pipeline_run 分组执行，支持 sequential/limited_parallel 模式、timeout、fail_fast
+│   │   │       ├── trial_runner.py       # 单 Trial 执行器：遍历验证划分，调用 fold_runner 逐 fold 训练，聚合跨 fold 平均指标
+│   │   │       ├── fold_runner.py        # 单 Fold 执行器：训练模型 → 预测 → 计算原始指标（MAE/MSE/RMSE/R2/Accuracy）→ 保存 artifacts
+│   │   │       ├── prediction_writer.py  # 保存预测结果（y_true + y_pred + sample_id + metadata）为 parquet 文件
+│   │   │       ├── training_artifact_manager.py # 训练 artifact 管理：创建执行目录、保存模型/预测/manifest/trial_results/split_metadata/execution_result/metric_evaluation_input
+│   │   │       ├── runtime_monitor.py    # 运行时环境监测：捕获 Python/sklearn/pandas/numpy 版本，构建结构化 runtime_log
+│   │   │       ├── execution_state_tracker.py # 执行状态追踪：计算 completed/failed 计数（兼容 dict 和 Pydantic 对象），判定总体状态
+│   │   │       ├── metric_input_builder.py # 构建下游 Metric Evaluation 输入（含 ready 标记、artifact 路径、trial 摘要）
+│   │   │       ├── builder.py            # 构建 PipelineExecutionResponse（含 pipeline_run_results, trial_results, metric_evaluation_input, artifact_manifest）
+│   │   │       ├── enums.py              # PipelineExecutionStatus / TrialStatus / TrialType / ExecutionMode / PipelineRole / SplitStrategy
+│   │   │       └── exceptions.py         # 11 个专用异常（PipelineExecutionNotFound / PipelineGenerationRequired / PipelineGenerationNotReady / ExecutionInputInvalid / TrainingDataLoad / ValidationSplit / ModelInstantiation / TrialGeneration / TrialExecution / TrainingArtifactSave / MetricEvaluationInputBuild）
+│   │   │
 │   │   └── shared/                      # 公共能力
 │   │       ├── __init__.py
 │   │       ├── common/
@@ -301,7 +333,7 @@ c:\projects\MLAgent/
 │   │       │   └── enums.py             # 公共枚举：TaskStatus / TaskType / InputType / EvaluationMetric / UserPriority
 │   │       ├── config/
 │   │       │   ├── __init__.py
-│   │       │   └── settings.py          # pydantic-settings：数据库/LLM/数据上传/特征工程/特征预处理/模型搜索上下文/流水线生成 配置
+│   │       │   └── settings.py          # pydantic-settings：数据库/LLM/数据上传/特征工程/特征预处理/模型搜索上下文/模型搜索计划/流水线生成/流水线执行 配置
 │   │       ├── database/
 │   │       │   ├── __init__.py
 │   │       │   ├── connection.py        # SQLModel Engine 创建（单行，基于 DATABASE_URL）
@@ -332,11 +364,12 @@ c:\projects\MLAgent/
 │   │   │   ├── featurePreprocessingApi.ts # Feature Preprocessing API（超时 600s）
 │   │   │   ├── modelSearchContextApi.ts # Model Search Context API（超时 300s）
 │   │   │   ├── modelSearchApi.ts        # Model Search Plan API（超时 300s，含 LLM 调用）
-│   │   │   └── pipelineGenerationApi.ts  # Pipeline Generation API（超时 300s，含 LLM 审查）★ 新增
-│   │   ├── modules/                     # 业务模块（9 个面板）
+│   │   │   ├── pipelineGenerationApi.ts  # Pipeline Generation API（超时 300s，含 LLM 审查）
+│   │   │   └── pipelineExecutionApi.ts   # Pipeline Execution API（超时 600s，含模型训练）★ 最新
+│   │   ├── modules/                     # 业务模块（10 个面板）
 │   │   │   ├── taskSpecification/       # 任务规格表单
-│   │   │   │   ├── pages/TaskSpecificationPage.tsx  # 页面容器（含 9 个嵌入式面板）
-│   │   │   │   ├── components/TaskSpecificationForm.tsx # 主表单（react-hook-form + zod）
+│   │   │   │   ├── pages/TaskSpecificationPage.tsx  # 页面容器（含 10 个嵌入式面板）
+│   │   │   │   ├── components/TaskSpecificationForm.tsx # 主表单（react-hook-form + zod，含 10 个嵌入式面板）
 │   │   │   │   ├── components/TaskFieldGroup.tsx    # 字段分组容器
 │   │   │   │   └── constants.ts         # Zod Schema + 下拉选项常量
 │   │   │   ├── taskInterpretation/      # 任务理解面板
@@ -377,10 +410,14 @@ c:\projects\MLAgent/
 │   │   │       ├── components/ModelSearchPlanPanel.tsx   # 主面板（含 Run/Re-run 按钮、12 个展示子区）
 │   │   │       ├── constants.ts          # 状态标签 / 优先级/预算级别颜色
 │   │   │       └── types.ts              # ModelSearchPlanResponse, HPOPlan, SearchSpacePlan 等 20+ 个接口
-│   │   │   └── pipelineGeneration/        # 可执行流水线生成面板 ★ 新增
+│   │   │   └── pipelineGeneration/        # 可执行流水线生成面板
 │   │   │       ├── components/PipelineGenerationPanel.tsx  # 主面板（Generate/Rerun 按钮、10 个展示子区含 LLM Advisory Review）
 │   │   │       ├── constants.ts           # 状态颜色 / 优先级颜色 / 角色颜色
 │   │   │       └── types.ts               # PipelineGenerationResponse, PipelineSpec, TrialPlan, LLMAdvisoryReview 等 20+ 个接口
+│   │   │   └── pipelineExecution/          # 流水线执行与训练面板 ★ 最新
+│   │   │       ├── components/PipelineExecutionPanel.tsx  # 主面板（Run Training / Re-run Training 按钮、10 个展示子区：Summary/Pipeline Runs/Trial Results/Artifact Manifest/Metric Eval Input/Runtime/Warnings/Errors/JSON）
+│   │   │       ├── constants.ts           # 状态颜色 / Trial 状态颜色 / 角色颜色 / Trial 类型颜色
+│   │   │       └── types.ts               # PipelineExecutionResponse, TrialResultDTO, PipelineRunResultDTO, MetricEvaluationInputDTO 等接口
 │   │   └── index.tsx
 │   ├── Dockerfile
 │   ├── package.json                     # React 18 + Ant Design 5 + react-hook-form + zod + axios
@@ -388,7 +425,7 @@ c:\projects\MLAgent/
 │
 ├── docs/                                # 项目文档
 │   ├── PROJECT_IMPLEMENTATION_OVERVIEW.md  # 本文档
-│   ├── prd-1-mvp.md ~ prd-8.md          # 各模块 PRD 文档
+│   ├── prd-1-mvp.md ~ prd-10.md         # 各模块 PRD 文档
 │   └── prd-*-技术实现方案.md             # 各模块技术实现方案
 │
 ├── docker-compose.yml                   # 三服务编排（db + backend + frontend）
@@ -421,6 +458,7 @@ c:\projects\MLAgent/
 | Model Search Context | 数据库 + API 响应 | JSON | 含 dataset_effective_profile, feature_group_summary, preprocessing_summary, llm_strategy_advice, updated strategies, model_search_context_input |
 | Model Search Plan | 数据库 + API 响应 | JSON | 含 dataset_context, candidate_model_plan (baseline + candidate + excluded), hpo_plan (method/budget/trial_allocation), search_space_plan (每模型参数空间), validation_plan, evaluation_plan, llm_model_search_advice, system_validation_result, pipeline_generation_input |
 | Pipeline Generation | 数据库 + API 响应 | JSON | 含 pipeline_bundle (specs + trial_plan + validation/eval plan), pipeline_specs (含 baseline/hpo_candidate 角色), component_binding_result, artifact_manifest, pipeline_validation_result, safety_check_result, llm_advisory_review (顾问式审查), execution_input, ready_for_execution 标记 |
+| Pipeline Execution Result | 数据库 + API 响应 + 文件系统 | JSON + Parquet + Joblib | 含 pipeline_run_results (每 pipeline run 的 trial 统计), trial_results (含 fold_results + 原始指标), training_artifact_manifest (预测/模型/日志/划分元数据路径), metric_evaluation_input (下游 Metric Evaluation 合同), runtime_environment (Python/sklearn/pandas/numpy 版本)；训练 artifacts 存储到 `/app/artifacts/training/{pe_id}/` |
 
 ### 3.3 中间产物（Artifact 传递链）
 
@@ -439,7 +477,16 @@ Updated Strategies (JSON, 存入数据库)
 Model Search Plan (含 candidate_model_plan + hpo_plan + search_space_plan + pipeline_generation_input，存入数据库)
         ↓ (模块九: Pipeline Generation)
     Pipeline Bundle + Execution Input (pipeline_bundle + execution_input，存入 PipelineGeneration 表)
-        ↓ (尚未实现: Pipeline Execution)
+        ↓ (模块十: Pipeline Execution)
+    Training Artifacts → /app/artifacts/training/{pe_id}/
+        ├── predictions/   (*.parquet — y_true + y_pred + sample_id)
+        ├── models/        (*.joblib — trained sklearn models)
+        ├── trial_results.json
+        ├── split_metadata.json
+        ├── execution_result.json
+        ├── metric_evaluation_input.json
+        └── logs/execution.log
+            ↓ (尚未实现: Metric Evaluation)
 ```
 
 ---
@@ -984,7 +1031,67 @@ Model Search Plan (含 candidate_model_plan + hpo_plan + search_space_plan + pip
 
 ---
 
-### 5.10 Featurizer Registry / Model Registry / HPO Registry / Pipeline Template Registry（共享能力注册表）
+### 5.10 模块十：Pipeline Execution and Training（流水线执行与训练）★ 最新
+
+**文件位置**：[backend/app/modules/pipeline_execution/](file:///c:/projects/MLAgent/backend/app/modules/pipeline_execution/)
+
+**输入**：
+- `PipelineExecutionCreateRequest`（[schemas.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_execution/schemas.py)）：pipeline_generation_id, execution_mode, max_trials_override, fail_fast, save_predictions, save_trained_models, max_runtime_seconds, force_rerun
+- 上游 PipelineGeneration 的 `execution_input_json`（通过 `context_builder.py` 读取 + `execution_input_loader.py` 解析）
+
+**处理逻辑**（12 步流水线）：
+1. **Build Execution Context**：`context_builder.build_execution_context()` 读取模块九的最新 PipelineGeneration，校验 `ready_for_execution = true`，验证 `execution_input_json` 存在
+2. **Load Execution Input**：`execution_input_loader.load_execution_input()` 解析 execution_input_json 为 ExecutionInput Pydantic 模型，校验 pipeline_specs（非空 + execution_ready=True）、trial_plan、validation_plan（split_strategy）、evaluation_plan（primary_metric）、feature_columns、target_column
+3. **Load Model-Ready Matrix**：`data_matrix_loader.load_model_ready_matrix()` 加载 model_ready_features.parquet（路径安全校验：无 `..` 遍历），验证特征列和目标列存在、目标列无 NaN
+4. **Create Validation Splits**：`validation_splitter.create_validation_splits()` 根据 validation_plan 创建训练/验证划分。`_normalize_strategy()` 将上游标准名称映射为内部标准（`k_fold_cross_validation` → `k_fold`），支持 train_test_split/holdout/k_fold/stratified_k_fold
+5. **Expand Execution Plan**：`execution_planner.expand_execution_plan()` 展开 PipelineSpecs + TrialPlan → 扁平化 trial 计划列表（baseline→1 trial, fixed_params candidate→1 trial, hpo_candidate→max_trials trials from search_space）
+6. **Setup Artifact Directory**：`training_artifact_manager.ensure_execution_dir()` 创建 `/app/artifacts/training/{pe_id}/` 及子目录（predictions/, models/, splits/, logs/）
+7. **Execute Training (Controlled Executor)**：`controlled_executor.execute_training()` — 唯一训练入口：
+   - 迭代 trial plans，按 pipeline_run（pipeline_spec）分组
+   - 对每个 trial：`trial_runner.run_trial()` 遍历验证划分 → `fold_runner.run_fold()` 逐 fold 训练模型 → `_compute_raw_metrics()` 计算 MAE/MSE/RMSE/R2（回归）或 Accuracy（分类）→ `prediction_writer.save_predictions()` 保存预测结果
+   - 模型实例化通过 `model_factory.create_model()` 从 Model Registry ID 映射到 sklearn 类（显式映射，非动态 import）
+   - HPO 参数通过 `hpo_trial_generator.generate_hpo_trials()` 从上游 SearchSpaceItem 格式生成（支持 random_search + grid_search，log_uniform/uniform/choice 采样）
+   - 支持 sequential/limited_parallel 执行模式、timeout、fail_fast
+8. **Collect Artifacts**：收集所有 trial 的 prediction_artifact_path 和 model_artifact_path
+9. **Build Metric Evaluation Input**：`metric_input_builder.build_metric_evaluation_input()` 构建下游 Metric Evaluation 合同（含 ready 标记、task_type、target_column、primary_metric、metric_direction、prediction/model artifacts、trial results 摘要）。Ready 条件：至少 1 个 completed trial + prediction artifacts 存在 + target_column 有效 + evaluation_plan 存在
+10. **Save Artifacts**：保存 split_metadata.json, trial_results.json, manifest.json, execution_result.json, metric_evaluation_input.json
+11. **Build Response**：`builder.build_response()` 组装 PipelineExecutionResponse（含 execution counts, pipeline_run_results, trial_results, metric_evaluation_input, artifact_manifest, runtime_environment）
+12. **Persist**：将完整 execution_json 和 metric_evaluation_input_json 以 `model_dump(mode='json')` 序列化后存入 PostgreSQL JSONB（避免 datetime 序列化错误），同时存储 runtime_log_json
+
+**输出**：
+- `PipelineExecutionResponse`：含 pipeline_execution_id, task_id, pipeline_generation_id, status, execution_mode, n_pipeline_specs, n_trials_planned, n_trials_completed, n_trials_failed, n_models_trained, ready_for_metric_evaluation, duration_seconds, pipeline_run_results (per-pipeline-run trial 统计), trial_results (含 fold_results + 原始指标), training_artifact_manifest, metric_evaluation_input, runtime_environment, warnings, error_message
+
+**API 接口**（[api.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_execution/api.py)）：
+- `POST /api/pipeline-executions/{task_id}` — 创建并执行 Pipeline Execution
+- `GET /api/pipeline-executions/{pe_id}` — 获取执行详情
+- `GET /api/tasks/{task_id}/pipeline-execution` — 获取任务的最新执行
+- `POST /api/pipeline-executions/{task_id}/rerun` — 重新执行
+- `GET /api/pipeline-executions/{pe_id}/summary` — 获取执行摘要
+- `GET /api/pipeline-executions/{pe_id}/trials` — 获取 trial 结果列表
+- `GET /api/pipeline-executions/{pe_id}/metric-evaluation-input` — 获取下游 Metric Evaluation 输入
+- `GET /api/pipeline-executions/{pe_id}/logs` — 获取运行时日志
+
+**数据模型**（[model.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_execution/model.py)）：
+- `PipelineExecution` 表：id (PK), task_id (indexed), pipeline_generation_id (indexed), status (indexed), execution_mode, task_type, target_column, primary_metric, n_pipeline_specs, n_trials_planned, n_trials_completed, n_trials_failed, n_models_trained, ready_for_metric_evaluation (indexed), training_artifact_dir, error_message, started_at, finished_at, execution_json (JSONB), metric_evaluation_input_json (JSONB), runtime_log_json (JSONB), created_at (indexed), updated_at
+
+**关键设计约束**：
+1. **Controlled Executor 为唯一训练入口**：所有模型训练必须通过 `controlled_executor.py`，禁止 LLM 生成训练代码、禁止动态 import 模型类
+2. **仅消费 upstream execution_input_json**：不重新生成 PipelineSpecs、不重新规划 HPO，完全依从上游合同
+3. **模型仅来自 Model Registry**：通过 `model_factory.py` 的显式 sklearn 映射实例化（不动态 import），训练前校验 task_type 兼容性和依赖可用性
+4. **不执行最终模型排名**：本模块只训练模型并收集原始指标，模型排名和选择由下游 Metric Evaluation 处理
+5. **失败状态持久化**：即使执行过程中抛出异常，也会将失败记录（含 error_message + traceback）写入数据库
+6. **HPO 搜索空间解析**：`hpo_trial_generator.py` 专门处理上游 SearchSpaceItem 格式（`{model_id, search_space_id, parameters: [{name, param_type, low, high, choices, sampling}]}`）
+
+**前端面板**（[PipelineExecutionPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/pipelineExecution/components/PipelineExecutionPanel.tsx)）：
+- 提供 "Run Training" 和 "Re-run Training" 两个按钮
+- 展示 10 个子区：Execution Summary（计数卡片：Pipeline Specs / Trials Planned / Completed / Failed / Models Trained / Duration）/ Pipeline Runs 表格（Run ID / Role / Model / Family / HPO / Trials / Status / Duration）/ Trial Results 表格（Trial ID / Model / Type / Params / Folds / Status / Prediction / Model Path / Duration / Error）/ Training Artifact Manifest / Metric Evaluation Input / Runtime Environment / Warnings / Error Message / Full JSON
+- 表格卡片支持水平滚动（`overflowX: 'auto'`），解决内容溢出问题
+
+**完成度**：~85%。核心 12 步流水线完整，Controlled Executor 训练链路（fold_runner→trial_runner→controlled_executor）完整，Model Factory 覆盖 10 个模型族的显式映射，HPO Trial Generator 支持上游 SearchSpaceItem 格式，上游 split strategy 名称自动标准化。已通过 `metric_evaluation_input` 和 `ready_for_metric_evaluation` 标记与下游 Metric Evaluation 模块对接。
+
+---
+
+### 5.11 Featurizer Registry / Model Registry / HPO Registry / Pipeline Template Registry（共享能力注册表）
 
 **文件位置**：[backend/app/shared/registry/](file:///c:/projects/MLAgent/backend/app/shared/registry/)
 
@@ -1242,6 +1349,62 @@ Model Search Plan (含 candidate_model_plan + hpo_plan + search_space_plan + pip
 │                                                                          │
 │ 输出: Pipeline Bundle + Execution Input (供下游 Pipeline Execution 消费)   │
 └─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 阶段 10: 流水线执行与训练 ★ 最新                                            │
+│                                                                          │
+│ POST /api/pipeline-executions/{task_id}                                  │
+│   └── PipelineExecutionService.create_pipeline_execution()               │
+│       ├── context_builder.build_execution_context()                      │
+│       │   └── 读取模块九最新 PipelineGeneration → 校验 ready_for_execution=true │
+│       │   └── 验证 execution_input_json 存在                              │
+│       ├── execution_input_loader.load_execution_input()                  │
+│       │   └── 解析 execution_input_json → ExecutionInput Pydantic 模型   │
+│       │   └── 校验 pipeline_specs / trial_plan / validation_plan /       │
+│       │       evaluation_plan / feature_columns / target_column          │
+│       ├── data_matrix_loader.load_model_ready_matrix()                   │
+│       │   └── 加载 model_ready_features.parquet                           │
+│       │   └── 校验路径安全（无 .. 遍历）/ 特征列 / 目标列 / NaN           │
+│       ├── validation_splitter.create_validation_splits()                 │
+│       │   └── _normalize_strategy() 标准化策略名                          │
+│       │   └── 支持 train_test_split / holdout / k_fold / stratified_k_fold │
+│       ├── execution_planner.expand_execution_plan()                      │
+│       │   └── PipelineSpecs + TrialPlan → 扁平化 trial 计划              │
+│       │   └── baseline → 1 trial, fixed_params → 1 trial,               │
+│       │       hpo → max_trials trials from search_space                  │
+│       ├── training_artifact_manager.ensure_execution_dir()               │
+│       │   └── → /app/artifacts/training/{pe_id}/{predictions,models,splits,logs}/ │
+│       ├── controlled_executor.execute_training()                         │
+│       │   ├── 按 pipeline_run 分组迭代 trial plans                       │
+│       │   ├── trial_runner.run_trial()                                   │
+│       │   │   └── 遍历 validation splits → fold_runner.run_fold()        │
+│       │   │       ├── model_factory.create_model() → sklearn 实例        │
+│       │   │       │   └── 显式 sklearn 映射（非动态 import）              │
+│       │   │       │   └── 校验 Model Registry + task_type 兼容性         │
+│       │   │       ├── hpo_trial_generator.generate_hpo_trials()          │
+│       │   │       │   └── 解析 SearchSpaceItem → random/grid search      │
+│       │   │       ├── model.fit(X_train, y_train)                        │
+│       │   │       ├── model.predict(X_val) → y_pred                      │
+│       │   │       ├── _compute_raw_metrics()                             │
+│       │   │       │   └── MAE/MSE/RMSE/R2 (回归) / Accuracy (分类)      │
+│       │   │       └── prediction_writer.save_predictions()               │
+│       │   │           └── → predictions/{trial_id}_fold_{k}.parquet      │
+│       │   └── 支持 sequential / limited_parallel / timeout / fail_fast   │
+│       ├── 收集 prediction_artifact_paths + model_artifact_paths          │
+│       ├── metric_input_builder.build_metric_evaluation_input()           │
+│       │   └── 构建下游 Metric Evaluation 合同（含 ready 标记）           │
+│       ├── save_split_metadata / save_trial_results / save_manifest       │
+│       │   / save_execution_result / save_metric_evaluation_input         │
+│       ├── builder.build_response()                                       │
+│       │   └── 组装 PipelineExecutionResponse（含 counts / pipeline_runs  │
+│       │       / trials / metric_input / artifacts / runtime_env）        │
+│       └── 持久化到 PipelineExecution 表（execution_json +                 │
+│           metric_evaluation_input_json model_dump(mode='json')）          │
+│                                                                          │
+│ 输出: Pipeline Execution Result + Metric Evaluation Input                │
+│        (供下游 Metric Evaluation 消费)                                    │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 6.2 关键调用链路
@@ -1294,6 +1457,21 @@ PipelineGenerationService
   → [可选] LLM advisory review (parse → validate → normalize)
   → execution_input_builder → builder (bundle + response)
   → 输出 Pipeline Generation (pipeline_json + execution_input_json, 存入 PipelineGeneration 表)
+
+PipelineExecutionService
+  → context_builder.build_execution_context()
+    ← 读取 PipelineGeneration 表中的 execution_input_json
+    ← 校验 ready_for_execution = true
+  → execution_input_loader → data_matrix_loader (parquet) → validation_splitter
+  → execution_planner → training_artifact_manager (setup dirs)
+  → controlled_executor (→ trial_runner → fold_runner → model_factory + hpo_trial_generator)
+  → metric_input_builder → save artifacts (trial_results/split_metadata/manifest/execution_result/metric_input)
+  → builder (response) → persist (execution_json + metric_evaluation_input_json model_dump(mode='json'))
+  → 输出 Pipeline Execution Result + Training Artifacts
+    → /app/artifacts/training/{pe_id}/predictions/    (*.parquet)
+    → /app/artifacts/training/{pe_id}/models/         (*.joblib)
+    → /app/artifacts/training/{pe_id}/trial_results.json
+    → /app/artifacts/training/{pe_id}/metric_evaluation_input.json
 ```
 
 ---
@@ -1428,7 +1606,7 @@ def on_startup():
 
 ### 7.8 前端状态管理
 
-- **无全局路由**：前端只有一个页面 `TaskSpecificationPage`，9 个面板嵌入其中
+- **无全局路由**：前端只有一个页面 `TaskSpecificationPage`，10 个面板嵌入其中
 - **无 Pinia Store 的实际使用**：虽然定义了 `user.js` store，但各面板组件直接调用 API 并管理本地状态（`useState`）
 - **API 层**：每个模块有独立的 API 文件，统一使用 `taskApi.ts` 中的 axios 单例（含 request/response 拦截器）
 - **表单校验**：使用 `react-hook-form` + `zod` 进行前端校验
@@ -1449,8 +1627,8 @@ def on_startup():
 |------|------|------|
 | **Model Search** | ✅ 已实现 | 模块八已实现：基于 Updated Strategies + Registry + LLM 建议生成 Model Search Plan |
 | **Pipeline Generation** | ✅ 已实现 | 模块九已实现：12 步流水线，含 LLM Advisory Review（parse→validate→normalize），消费模块八的 pipeline_generation_input |
-| **Pipeline Execution** | 未实现 | 需要执行 Pipeline 并收集结果（消费模块九的 execution_input） |
-| **Metric Evaluation** | 未实现 | 需要对模型结果进行评估 |
+| **Pipeline Execution** | ✅ 已实现 | 模块十已实现：12 步流水线，Controlled Executor 训练链路，消费模块九的 execution_input，输出 training artifacts + metric_evaluation_input |
+| **Metric Evaluation** | 未实现 | 需要对模型结果进行评估（消费模块十的 metric_evaluation_input） |
 | **Result Diagnosis** | 未实现 | 需要对结果进行诊断分析 |
 | **Report Generation** | 未实现 | 需要生成最终报告 |
 
@@ -1489,8 +1667,8 @@ def on_startup():
 
 ### 8.4 后续开发优先级建议
 
-1. **高优先级**：实现 Pipeline Execution（消费模块九的 execution_input）
-2. **高优先级**：实现 Metric Evaluation 和 Result Diagnosis 模块
+1. **高优先级**：实现 Metric Evaluation（消费模块十的 metric_evaluation_input）
+2. **高优先级**：实现 Result Diagnosis 和 Report Generation 模块
 3. **中优先级**：补全占位符功能（Structure Featurizer, Categorical Encoder）
 4. **中优先级**：添加前端路由和任务列表页面
 5. **低优先级**：添加 API 版本管理、请求日志、性能监控
@@ -1514,9 +1692,14 @@ def on_startup():
 10. **[pipeline_generation/service.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_generation/service.py)** — 理解模块九（12 步流水线 + LLM Advisory Review parse→validate→normalize 链路）
 11. **[pipeline_generation/llm_review_normalizer.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_generation/llm_review_normalizer.py)** — 理解 LLM 顾问式审查的标准化逻辑（旧式审批→标准 advisory 格式）
 12. **[pipeline_generation/schemas.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_generation/schemas.py)** — 理解 LLMAdvisoryReview / PipelineSpec / TrialPlan / ExecutionInput 等核心数据结构
-13. **各模块的 `service.py`** — 理解每个模块的核心业务逻辑
-14. **各模块的 `context_builder.py`** — 理解模块间依赖校验逻辑
-15. **[taskApi.ts](file:///c:/projects/MLAgent/frontend/src/api/taskApi.ts)** — 理解前端 API 配置
+13. **[pipeline_execution/service.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_execution/service.py)** — 理解模块十（12 步流水线 + Controlled Executor 训练链路）
+14. **[pipeline_execution/controlled_executor.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_execution/controlled_executor.py)** — 理解唯一训练入口的迭代逻辑（trial plans → pipeline_runs → trials → folds）
+15. **[pipeline_execution/model_factory.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_execution/model_factory.py)** — 理解 Model Registry ID → sklearn 类的显式映射（10 模型族 × 2 任务类型）
+16. **[pipeline_execution/hpo_trial_generator.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_execution/hpo_trial_generator.py)** — 理解上游 SearchSpaceItem 格式的解析和 HPO 参数生成
+17. **[pipeline_execution/execution_input_loader.py](file:///c:/projects/MLAgent/backend/app/modules/pipeline_execution/execution_input_loader.py)** — 理解上游 execution_input_json 的加载和校验
+18. **各模块的 `service.py`** — 理解每个模块的核心业务逻辑
+19. **各模块的 `context_builder.py`** — 理解模块间依赖校验逻辑
+20. **[taskApi.ts](file:///c:/projects/MLAgent/frontend/src/api/taskApi.ts)** — 理解前端 API 配置
 
 ### 9.2 开发新模块时应遵循的模式
 
@@ -1524,8 +1707,9 @@ def on_startup():
 2. **上游依赖校验**：新模块的 `context_builder.py` 必须校验所有上游模块的输出状态
 3. **失败状态持久化**：失败时必须写入数据库（含 error_message）
 4. **LLM 调用模式**：如需调用 LLM，参考模块二/四/七的 `prompt_builder → LLMClient → parser → validator` 模式；如需顾问式 LLM 审查（LLM 不能影响执行决策），参考模块九的 `prompt_builder → LLMClient → parser → validator → normalizer` 模式
-5. **Artifact 管理**：如需文件持久化，参考模块五/六的 `artifact_manager.py`
+5. **Artifact 管理**：如需文件持久化，参考模块五/六的 `artifact_manager.py`；如需管理训练 artifacts（模型/预测/日志/元数据），参考模块十的 `training_artifact_manager.py`
 6. **Pipeline Template Registry 模式**：如需定义可执行模板（LLM 不参与生成），参考模块九的 `pipeline_template_registry.py` 和 `pipeline_spec_builder.py`
+7. **非 LLM 执行模块模式**：如需实现纯系统执行模块（不调用 LLM），参考模块十的 12 步流水线模式（context → load_input → execute → collect → build → persist），以及 `controlled_executor → trial_runner → fold_runner` 三层训练链路
 
 ### 9.3 不要重复实现的功能
 
@@ -1540,20 +1724,25 @@ def on_startup():
 9. **Data Loaders** — 模块三的 `MatbenchLoader` / `FileLoader` 可复用
 10. **Model Search Plan** — 模块八已输出完整的模型搜索计划（含 pipeline_generation_input），下游模块应消费该计划而非重新规划
 11. **Pipeline Generation** — 模块九已输出完整的 Pipeline Bundle + Execution Input（含 execution_input），下游 Pipeline Execution 应消费该合同而非重新构建
-12. **LLM Advisory Review 标准化** — `llm_review_normalizer.py` 已实现完整的旧式→标准格式映射，新 LLM 审查功能应复用该标准化器
+12. **Pipeline Execution** — 模块十已输出完整的训练结果 + Metric Evaluation Input（含 metric_evaluation_input），下游 Metric Evaluation 应消费该合同而非重新训练
+13. **Model Factory** — 模块十的 `model_factory.py` 已实现 10 个模型族的 sklearn 显式映射和 task_type 兼容性校验，新模块应复用该工厂而非自行实例化模型
+14. **HPO Trial Generator** — 模块十的 `hpo_trial_generator.py` 已实现上游 SearchSpaceItem 格式解析，新的 HPO 执行场景应复用该生成器
+15. **LLM Advisory Review 标准化** — `llm_review_normalizer.py` 已实现完整的旧式→标准格式映射，新 LLM 审查功能应复用该标准化器
 
 ### 9.4 关键边界和注意事项
 
-1. **管道严格顺序**：模块一 → 二 → 三 → 四 → 五 → 六 → 七 → 八 → 九，不可跳过或乱序
-2. **状态校验**：每个下游模块的 `context_builder.py` 会检查上游模块的状态值（如 `valid`, `interpreted`, `profiled`, `planned`, `completed`, `preprocessed`, `updated`, `planned`, `generated`），状态不符则抛出专用异常
-3. **JSONB 字段**：所有模块的核心数据存储在 JSONB 字段中（如 `task_spec_json`, `interpretation_json`, `plan_json`），读取时需注意可能为 `None`
+1. **管道严格顺序**：模块一 → 二 → 三 → 四 → 五 → 六 → 七 → 八 → 九 → 十，不可跳过或乱序
+2. **状态校验**：每个下游模块的 `context_builder.py` 会检查上游模块的状态值（如 `valid`, `interpreted`, `profiled`, `planned`, `completed`, `preprocessed`, `updated`, `planned`, `generated`, `completed`），状态不符则抛出专用异常
+3. **JSONB 字段**：所有模块的核心数据存储在 JSONB 字段中（如 `task_spec_json`, `interpretation_json`, `plan_json`），读取时需注意可能为 `None`。序列化时使用 `model_dump(mode='json')` 而非普通的 `model_dump()`，否则 datetime 对象无法写入 PostgreSQL JSONB
 4. **LLM 输出不可信**：所有 LLM 输出必须经过 `parser` + `validator` 两步处理；若 LLM 用于顾问式审查，还需经过 `normalizer` 标准化（剥离旧式审批字段、强制 non_blocking 执行影响）
 5. **Featurizer 名称校验**：Workflow Planning 的 Validator 会校验 `executable_featurizers` 中的名称是否在 Registry 中存在，因此 LLM Prompt 必须包含当前 Registry 的 Featurizer 列表
-6. **Artifact 路径**：Feature Engineering 和 Feature Preprocessing 的 artifact 存储在文件系统中，下游模块通过数据库中的 `artifact_path` 字段定位
-7. **前端超时配置**：Feature Engineering API 超时 600s，Feature Preprocessing API 超时 600s，Model Search Context API 超时 300s，Model Search Plan API 超时 300s，其他 API 超时 120s
+6. **Artifact 路径**：Feature Engineering 和 Feature Preprocessing 的 artifact 存储在文件系统中，下游模块通过数据库中的 `artifact_path` 字段定位。模块十的 training artifacts 存储在 `/app/artifacts/training/{pe_id}/`，含 predictions/ 和 models/ 子目录
+7. **前端超时配置**：Feature Engineering API 超时 600s，Feature Preprocessing API 超时 600s，Pipeline Execution API 超时 600s（含模型训练），Model Search Context API 超时 300s，Model Search Plan API 超时 300s，其他 API 超时 120s
 8. **CORS 配置**：后端允许 `http://localhost:5173` 的跨域请求，生产环境需调整
 9. **数据库初始化**：开发环境使用 `docker-compose up` 启动，首次启动会自动建表。如需重置数据，删除 PostgreSQL 卷后重新启动
 10. **测试账号**：admin/password（管理员），2024000001/password（学生），100001/password（教师）— 所有账号密码均为 `password`
+11. **上游 split strategy 标准化**：上游模块（pipeline_generation/model_search/workflow_planning）使用 `k_fold_cross_validation` 作为标准名称，模块十的 `validation_splitter._normalize_strategy()` 会自动映射为内部 `k_fold`，新增下游模块时需注意此兼容逻辑
+12. **SearchSpaceItem 格式**：上游搜索空间为 `{model_id, search_space_id, parameters: [{name, param_type, low, high, choices, sampling}]}` 格式，消费搜索空间的模块应参考 `hpo_trial_generator._extract_parameters()` 的解析逻辑
 
 ---
 
