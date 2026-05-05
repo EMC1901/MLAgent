@@ -1,6 +1,6 @@
 # 项目已实现部分说明文档
 
-> 文档生成日期：2026-05-04（全面更新版 — 含模块十一 Metric Evaluation）
+> 文档生成日期：2026-05-05（全面更新版 — 含模块十二 LLM-based Result Diagnosis）
 > 项目名称：MLAgent — AI-driven Automated Machine Learning Framework for Materials Science
 > 文档用途：帮助后续 AI Coding 大模型和开发者快速理解当前项目已经完成的部分
 
@@ -10,11 +10,11 @@
 
 ### 1.1 项目定位
 
-MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框架。其核心目标是让用户通过结构化表单提交材料机器学习任务需求，系统自动完成从**任务理解 → 数据加载 → 工作流规划 → 特征工程 → 特征预处理 → 模型搜索上下文更新 → 模型搜索计划生成 → 可执行流水线生成 → 流水线执行与训练 → 指标评估**的全流程自动化。当前尚未实现 Result Diagnosis / Report Generation 及后续阶段。
+MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框架。其核心目标是让用户通过结构化表单提交材料机器学习任务需求，系统自动完成从**任务理解 → 数据加载 → 工作流规划 → 特征工程 → 特征预处理 → 模型搜索上下文更新 → 模型搜索计划生成 → 可执行流水线生成 → 流水线执行与训练 → 指标评估 → LLM 结果诊断**的全流程自动化。当前尚未实现 Closed-loop Refinement / Final Pipeline Selection / Interpretability Analysis / Final Output 等后续阶段。
 
 ### 1.2 当前实现阶段
 
-当前项目已完成 **十一个核心业务模块** 的端到端实现：
+当前项目已完成 **十二个核心业务模块** 的端到端实现：
 
 | 模块 | 阶段 | 完成度 |
 |------|------|--------|
@@ -28,15 +28,16 @@ MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框�
 | **模块八：Automated Model and HPO Search（自动化模型与超参数搜索规划）** | MVP 已完成 | ~85% |
 | **模块九：Executable Pipeline Generation（可执行流水线生成）** | MVP 已完成 | ~85% |
 | **模块十：Pipeline Execution and Training（流水线执行与训练）** | MVP 已完成 | ~85% |
-| **模块十一：Metric Evaluation（指标评估）** ★ 最新 | MVP 已完成 | ~90% |
+| **模块十一：Metric Evaluation（指标评估）** | MVP 已完成 | ~90% |
+| **模块十二：LLM-based Result Diagnosis（基于大模型的结果诊断）** ★ 最新 | MVP 已完成 | ~90% |
 | **Featurizer Registry / Model Registry / HPO Registry / Pipeline Template Registry / Metric Registry（共享能力注册表）** | MVP 已完成 | ~90% |
 
-当前**尚未实现**的后续模块包括：Result Diagnosis、Report Generation 等。
+当前**尚未实现**的后续模块包括：Closed-loop Refinement、Final Pipeline Selection、Interpretability Analysis、Final Output 等。
 
 ### 1.3 项目整体架构
 
 ```
-用户浏览器 (React SPA — 单一 TaskSpecificationPage，含 11 个嵌入式面板)
+用户浏览器 (React SPA — 单一 TaskSpecificationPage，含 12 个嵌入式面板)
     | HTTP (axios)
 FastAPI 后端 (Python, port 8000)
     | SQLModel
@@ -75,14 +76,18 @@ PostgreSQL 数据库 (port 5432)
             ↓
     Metric Evaluation (13 步流水线：context → load_input → load_predictions → build_trial_info → evaluate_folds → aggregate_trials → aggregate_pipelines → rank → compare_baselines → build_diagnosis_input → save_artifacts → build_response → persist)
             ↓
-        Metric Results + Model Ranking + Baseline Comparison + Result Diagnosis Input (供下游 Result Diagnosis 消费)
+        Metric Results + Model Ranking + Baseline Comparison + Result Diagnosis Input
+            ↓
+    Result Diagnosis (15 步流水线：context → load_input → optional_context → extract_evidence → system_checks → build_llm_context → build_prompt → call_llm → parse → validate → normalize → build_refinement_input → save_artifacts → build_response → persist)
+            ↓
+        Diagnosis Result + Closed-loop Refinement Input (供下游 Closed-loop Refinement 消费)
 ```
 
 ### 1.4 核心设计原则（根据当前代码分析）
 
-1. **管道式架构**：十一个模块严格按序依赖。每个下游模块的 `context_builder.py` 会校验所有上游模块的输出状态，状态不符则抛出专用异常。
+1. **管道式架构**：十二个模块严格按序依赖。每个下游模块的 `context_builder.py` 会校验所有上游模块的输出状态，状态不符则抛出专用异常。
 2. **统一异常体系**：所有业务异常继承自 `BusinessException`（定义于 [exceptions.py](file:///c:/projects/MLAgent/backend/app/shared/common/exceptions.py)），每个模块有自己的异常子类，附带有语义化的 `error_code`。
-3. **LLM 输出强约束**：模块二、模块四、模块七、模块八和模块九均定义了严格的 JSON Schema，LLM 响应经过解析（`parser.py`）+ 校验（`validator.py`）两步才被认为有效。模块十和模块十一为纯系统执行模块，不调用 LLM。
+3. **LLM 输出强约束**：模块二、模块四、模块七、模块八、模块九和模块十二均定义了严格的 JSON Schema，LLM 响应经过解析（`parser.py`）+ 校验（`validator.py`）+ 标准化（`normalizer.py`）三步才被认为有效。模块十和模块十一为纯系统执行模块，不调用 LLM。
 4. **Featurizer Registry 作为共享契约**：Workflow Planning 的 Prompt 和 Validator、Feature Engineering 的 Strategy Resolver 都向 Registry 查询，而非各自维护硬编码列表。
 5. **失败状态持久化**：所有模块在失败时都会将失败记录（含错误信息）写入数据库，不会静默丢失。
 6. **Artifact 传递链**：Feature Engineering 输出特征矩阵 artifact → Feature Preprocessing 加载并处理后输出 model-ready artifact + preprocessor pipeline artifact → Model Search Context 分析后输出更新后的策略 → Model Search 基于策略和 Registry 生成模型搜索计划，供下游 Pipeline Generation 消费。
@@ -92,6 +97,9 @@ PostgreSQL 数据库 (port 5432)
 10. **多级安全防护**：模块九在 Safety Checker 中扫描 15+ 种危险模式（import、eval、exec、subprocess 等），LLM Review Validator 额外扫描 25+ 种禁止内容模式，且 LLM Review Normalizer 自动剥离旧式审批字段（approval_status、needs_improvement 等），确保 LLM 不能越权。
 11. **Controlled Executor 作为唯一训练入口**：模块十中所有模型训练必须通过 Controlled Executor 执行，使用 Model Registry 中注册的模型（通过 model_factory.py 的显式映射实例化），禁止 LLM 生成训练代码、禁止动态 import 模型类。训练仅使用上游 Pipeline Generation 输出的 execution_input_json 中的数据。
 12. **轻量合同 + JSONB 补充模式**：模块十一的 metric_evaluation_input_json 中的 trial_results 为轻量摘要（仅 6 个字段），完整的 pipeline_role / model_family / trial_type / params 等元数据从 PipelineExecution 的 execution_json JSONB 中补充。这是一种"上游发轻量合同，下游按需从完整日志中提取"的设计模式，减少了合同字段的冗余。
+13. **LLM 诊断只建议不执行**：模块十二的 LLM 只能输出结构化 JSON 诊断与建议，Prompt 明确禁止代码生成，Validator 扫描 14 种危险代码模式（import / def / class / eval / exec / subprocess 等），Normalizer 将所有 LLM 输出归一化为标准 Schema。LLM 失败时降级到 system rule-based fallback，不影响上游 Metric Evaluation 结果。
+14. **证据驱动诊断**：每个 DiagnosticFinding 必须包含 evidence_items（含 evidence_type / source_module / source_field / value / interpretation），证据不足时强制标记 `evidence_strength: weak`，LLM 不能凭空断言。
+15. **诊断类型别名映射**：模块十二的 `DIAGNOSIS_TYPE_ALIASES`（25 条映射）将 LLM 常见近义表达（如 `baseline_improvement` / `overfitting` / `underfit`）归一化为规范枚举值，避免因 LLM 输出的微小措辞差异导致整个诊断路径失败。
 
 ---
 
@@ -105,7 +113,7 @@ c:\projects\MLAgent/
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py                        # FastAPI 入口，路由注册，CORS，异常处理，启动时建表
-│   │   ├── modules/                       # 业务模块（十一个模块 + Featurizer Registry API）
+│   │   ├── modules/                       # 业务模块（十二个模块 + Featurizer Registry API）
 │   │   │   ├── __init__.py                # 空文件
 │   │   │   ├── task_specification/        # 模块一：任务规格
 │   │   │   │   ├── __init__.py
@@ -354,6 +362,29 @@ c:\projects\MLAgent/
 │   │   │       ├── enums.py              # MetricEvaluationStatus / TrialEvaluationStatus / MetricDirection / TaskType
 │   │   │       └── exceptions.py         # 13 个专用异常（MetricEvaluationException / MetricEvaluationNotFound / PipelineExecutionRequired / PipelineExecutionNotReady / MetricEvaluationInputInvalid / PredictionArtifactLoad / MetricNotSupported / MetricCalculation / MetricAggregation / ModelRanking / BaselineComparison / ResultDiagnosisInputBuild / EvaluationArtifactSave）
 │   │   │
+│   │   │   └── result_diagnosis/          # 模块十二：LLM-based Result Diagnosis ★ 最新
+│   │   │       ├── __init__.py
+│   │   │       ├── api.py                # 6 个接口（POST create, GET by id, GET latest by task, POST rerun, GET summary, GET closed-loop-refinement-input）
+│   │   │       ├── schemas.py            # ResultDiagnosisCreateRequest, EvidenceItem, DiagnosticFinding, RootCauseHypothesis, SystemActionHint, RefinementRecommendation, OverallAssessment, EvidenceSummary, SystemDiagnosticChecks, LLMDiagnosisResult, SuggestedNextIterationProfile, ClosedLoopRefinementInput, DiagnosisArtifactManifest, ResultDiagnosisResponse, ResultDiagnosisSummaryResponse 等 14 个 DTO
+│   │   │       ├── service.py            # 15 步流水线：context → load_input → optional_context → extract_evidence → system_checks → build_llm_context → build_prompt → call_llm → parse → validate → normalize → build_refinement_input → save_artifacts → build_response → persist
+│   │   │       ├── model.py              # ResultDiagnosis (SQLModel, table=True, JSONB + diagnosis_json + closed_loop_refinement_input_json + llm_request_json + llm_response_json + system_checks_json)
+│   │   │       ├── repository.py         # CRUD + get_latest_by_task_id + list_by_task_id + update
+│   │   │       ├── context_builder.py    # 读取模块十一的 MetricEvaluation，校验 status ∈ {evaluated,evaluated_with_warning,partially_evaluated} 且 ready_for_result_diagnosis=True
+│   │   │       ├── diagnosis_input_loader.py # 加载和校验 result_diagnosis_input_json（9 个必填字段检查）
+│   │   │       ├── evidence_extractor.py # 证据提取器：6 类证据（metric/baseline/fold_stability/dataset/feature/pipeline）
+│   │   │       ├── system_diagnostic_checker.py # 9 项规则诊断：性能/基线/稳定性/过拟合/欠拟合/特征不足/特征噪声/HPO 不足/数据质量（含可配置阈值）
+│   │   │       ├── diagnostic_context_builder.py # 构建 LLM 诊断上下文（compact/standard/full 三种 profile）
+│   │   │       ├── llm_prompt_builder.py  # System prompt（14 个诊断维度 + JSON Schema）+ user message 构建
+│   │   │       ├── llm_result_diagnoser.py # LLM Result Diagnoser（复用 LLMClient 调用 LLM）
+│   │   │       ├── llm_response_parser.py  # LLM 响应 JSON 解析（3 种策略：direct json/代码块提取/大括号提取）
+│   │   │       ├── llm_diagnosis_validator.py # 诊断校验器：结构校验 + 枚举值校验 + 安全扫描（14 种代码模式 + 9 个禁止字段 + DIAGNOSIS_TYPE_ALIASES 25 条目别名支持）
+│   │   │       ├── llm_diagnosis_normalizer.py # 诊断标准化器：canonicalize diagnosis_type，coerce supporting_findings int→str，Default fill
+│   │   │       ├── refinement_input_builder.py # 闭环精炼输入构建器（含 ready_for_closed_loop_refinement 标记）
+│   │   │       ├── diagnosis_artifact_manager.py # 诊断 artifact 管理：创建 /app/artifacts/diagnosis/{rd_id}/，保存 7 个 JSON 文件
+│   │   │       ├── builder.py            # 构建 ResultDiagnosisResponse（含 llm_diagnosis / system_checks / evidence_summary / refinement_input / artifact_manifest）
+│   │   │       ├── enums.py              # ResultDiagnosisStatus / DiagnosisMode / DiagnosisType / Severity / Confidence / EvidenceStrength / EvidenceType / TargetStage / RecommendationType / RefinementTarget 等 14 个枚举
+│   │   │       └── exceptions.py         # 10 个专用异常（ResultDiagnosisException / ResultDiagnosisNotFound / MetricEvaluationRequired / MetricEvaluationNotReady / DiagnosisInputInvalid / EvidenceExtraction / SystemDiagnosis / DiagnosticContextBuild / LLMDiagnosisCall / LLMDiagnosisParse / RefinementInputBuild / DiagnosisArtifact 等）
+│   │   │
 │   │   └── shared/                      # 公共能力
 │   │       ├── __init__.py
 │   │       ├── common/
@@ -363,7 +394,7 @@ c:\projects\MLAgent/
 │   │       │   └── enums.py             # 公共枚举：TaskStatus / TaskType / InputType / EvaluationMetric / UserPriority
 │   │       ├── config/
 │   │       │   ├── __init__.py
-│   │       │   └── settings.py          # pydantic-settings：数据库/LLM/数据上传/特征工程/特征预处理/模型搜索上下文/模型搜索计划/流水线生成/流水线执行 配置
+│   │       │   └── settings.py          # pydantic-settings：数据库/LLM/数据上传/特征工程/特征预处理/模型搜索上下文/模型搜索计划/流水线生成/流水线执行/指标评估/结果诊断 配置
 │   │       ├── database/
 │   │       │   ├── __init__.py
 │   │       │   ├── connection.py        # SQLModel Engine 创建（单行，基于 DATABASE_URL）
@@ -397,10 +428,11 @@ c:\projects\MLAgent/
 │   │   │   ├── pipelineGenerationApi.ts  # Pipeline Generation API（超时 300s，含 LLM 审查）
 │   │   │   ├── pipelineExecutionApi.ts   # Pipeline Execution API（超时 600s，含模型训练）★ 最新
 │   │   │   └── metricEvaluationApi.ts    # Metric Evaluation API（超时 300s）★ 最新
-│   │   ├── modules/                     # 业务模块（11 个面板）
+│   │   │   └── resultDiagnosisApi.ts       # Result Diagnosis API（超时 300s）★ 最新
+│   │   ├── modules/                     # 业务模块（12 个面板）
 │   │   │   ├── taskSpecification/       # 任务规格表单
-│   │   │   │   ├── pages/TaskSpecificationPage.tsx  # 页面容器（含 11 个嵌入式面板）
-│   │   │   │   ├── components/TaskSpecificationForm.tsx # 主表单（react-hook-form + zod，含 11 个嵌入式面板）
+│   │   │   │   ├── pages/TaskSpecificationPage.tsx  # 页面容器（含 12 个嵌入式面板）
+│   │   │   │   ├── components/TaskSpecificationForm.tsx # 主表单（react-hook-form + zod，含 12 个嵌入式面板）
 │   │   │   │   ├── components/TaskFieldGroup.tsx    # 字段分组容器
 │   │   │   │   └── constants.ts         # Zod Schema + 下拉选项常量
 │   │   │   ├── taskInterpretation/      # 任务理解面板
@@ -453,6 +485,10 @@ c:\projects\MLAgent/
 │   │   │       ├── components/MetricEvaluationPanel.tsx  # 主面板（Run Evaluation / Re-run Evaluation 按钮、11 个展示子区：Summary/Count Boxes/Best Model/Model Ranking/Trial Metrics/Fold Metrics/Baseline Comparison/Metric Validation/Artifact Manifest/Result Diagnosis Input/Warnings & Errors/JSON）
 │   │   │       ├── constants.ts           # 状态颜色 / 方向标签 / 角色颜色
 │   │   │       └── types.ts               # MetricEvaluationResponse, FoldMetricResult, TrialMetricResult, ModelRankingItem, BaselineComparison 等接口
+│   │   │   └── resultDiagnosis/              # LLM 结果诊断面板 ★ 最新
+│   │   │       ├── components/ResultDiagnosisPanel.tsx  # 主面板（Create Diagnosis / Re-run Diagnosis 按钮、9 个 Tab：Overview/Findings/Evidence/Hypotheses/Recommendations/System Checks/LLM Diagnosis/Closed-loop Input/Full JSON）
+│   │   │       ├── constants.ts           # 状态颜色 / 诊断类型颜色 / 严重度颜色 / 置信度颜色 / 优先级颜色 / 性能等级颜色
+│   │   │       └── types.ts               # ResultDiagnosisResponse, DiagnosticFinding, EvidenceItem, RootCauseHypothesis, RefinementRecommendation 等接口
 │   │   └── index.tsx
 │   ├── Dockerfile
 │   ├── package.json                     # React 18 + Ant Design 5 + react-hook-form + zod + axios
@@ -532,7 +568,16 @@ Metric Evaluation Artifacts → /app/artifacts/evaluation/{me_id}/
     ├── baseline_comparison.json
     ├── result_diagnosis_input.json
     └── manifest.json
-        ↓ (尚未实现: Result Diagnosis)
+        ↓ (模块十二: Result Diagnosis)
+Result Diagnosis Artifacts → /app/artifacts/diagnosis/{rd_id}/
+    ├── diagnosis_result.json
+    ├── evidence_summary.json
+    ├── system_checks.json
+    ├── closed_loop_refinement_input.json
+    ├── llm_request.json
+    ├── llm_response.json
+    └── manifest.json
+        ↓ (尚未实现: Closed-loop Refinement)
 ```
 
 ---
@@ -1231,7 +1276,106 @@ Metric Evaluation Artifacts → /app/artifacts/evaluation/{me_id}/
 
 ---
 
-### 5.12 Featurizer Registry / Model Registry / HPO Registry / Pipeline Template Registry（共享能力注册表）
+### 5.12 模块十二：LLM-based Result Diagnosis（基于大模型的结果诊断）
+
+**文件位置**：[backend/app/modules/result_diagnosis/](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/)
+
+**输入**：
+- `ResultDiagnosisCreateRequest`（[schemas.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/schemas.py)）：metric_evaluation_id（可选，不指定则自动取最新）/ force_rerun / use_llm（默认 true）/ include_dataset_context / include_pipeline_context / include_feature_context / diagnosis_profile（compact / standard / full，默认 standard）/ notes
+- 上游 `MetricEvaluation`：必须满足 `status ∈ {evaluated, evaluated_with_warning, partially_evaluated}` 且 `ready_for_result_diagnosis = true`
+- 必须消费 `result_diagnosis_input_json`（含 best_trial / best_model / model_ranking / baseline_comparison / metric_summary / stability_summary / failed_trials_summary / evaluation_warnings）
+- 可选补充读取：DatasetProfile.profile_json / FeatureEngineering.feature_json / FeaturePreprocessing.preprocessing_json / PipelineExecution.execution_json
+
+**处理逻辑**（15 步流水线，定义于 [service.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/service.py) `create_result_diagnosis()`）：
+1. `context_builder.build_result_diagnosis_context()` 校验上游 MetricEvaluation 状态和 `ready_for_result_diagnosis` 标记
+2. `diagnosis_input_loader.load_result_diagnosis_input()` 校验 `result_diagnosis_input_json` 合同完整性（9 个必填字段检查）
+3. `_load_optional_context()` 按请求配置补充读取 DatasetProfile / FeatureEngineering / FeaturePreprocessing / PipelineExecution 等记录
+4. `evidence_extractor.extract_evidence()` 从 6 类来源提取 EvidenceItem（metric / baseline / fold_stability / dataset / feature / pipeline）
+5. `system_diagnostic_checker.run_system_diagnostic_checks()` 执行 9 条规则化系统检查（weak_baseline_improvement / high_fold_variance / all_models_weak / hpo_budget_limited / small_sample_warning / feature_count_low / many_features_dropped / candidate_underperforms_baseline / unstable_best_model）
+6. `diagnostic_context_builder.build_llm_diagnostic_context()` 汇总 LLM 诊断上下文（compact / standard / full 三档可选）
+7. `llm_prompt_builder.build_llm_prompt()` 构建 System Prompt（含 14 个诊断维度 + 完整 JSON Schema + 禁止代码生成声明）
+8. `llm_result_diagnoser.LLMResultDiagnoser.diagnose()` 复用 `LLMClient`（定义于 [task_interpretation/llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py)）调用 LLM
+9. `llm_response_parser.parse_llm_response()` 解析 LLM JSON（支持裸 JSON / markdown code block / 花括号提取三种解析策略）
+10. `llm_diagnosis_validator.validate_llm_diagnosis()` 执行 15 项结构校验（顶层字段 / diagnosis_type / severity / evidence_strength / confidence_level / target_stage / recommendation_type 枚举合法性 + 证据项非空检查 + 安全扫描 14 种危险代码模式 + 9 个禁止字段检查）
+11. `llm_diagnosis_normalizer.normalize_llm_diagnosis()` 归一化 LLM 输出：补齐缺失字段 / 映射规范枚举值 / 调用 `canonical_diagnosis_type()` 将 LLM 变体归一化 / 将整数 `supporting_findings` 强制转为字符串 / 构建标准 `LLMDiagnosisResult`
+12. `refinement_input_builder.build_closed_loop_refinement_input()` 构建下游 Closed-loop Refinement 输入：确定 refinement_focus / 排序 priority_recommendations / 生成 avoid_actions / 构建 suggested_next_iteration_profile / 判断 `ready_for_closed_loop_refinement`
+13. `diagnosis_artifact_manager.save_diagnosis_artifacts()` 保存 7 个 JSON artifacts（diagnosis_result / diagnostic_context / system_diagnostic_checks / llm_diagnosis / evidence_summary / closed_loop_refinement_input / manifest）到 `/app/artifacts/diagnosis/{rd_id}/`
+14. `builder.build_response()` 组装 `ResultDiagnosisResponse`
+15. `persist()` 持久化到数据库：7 个 JSONB 字段（diagnosis_json / closed_loop_refinement_input_json / llm_request_json / llm_response_json / system_checks_json）+ 状态字段（status / main_issue_category / performance_level / should_refine / ready_for_closed_loop_refinement）
+
+**LLM 安全机制**：
+- **Prompt 约束**：System Prompt 声明 "You are not allowed to generate executable code / modify the workflow / start training / create new pipelines / You can only output structured JSON"
+- **Validator 结构校验**：检查 diagnosis_type ∈ VALID_DIAGNOSIS_TYPES + 25 个别名映射（`DIAGNOSIS_TYPE_ALIASES`，如 `baseline_improvement` → `weak_baseline_improvement` / `overfitting` → `overfitting_risk`）
+- **Validator 安全扫描**：扫描 14 种危险代码模式（import / def / class / eval( / exec( / subprocess / os.system / open( / write( / delete / remove / shutil / model.fit / model.predict / Pipeline( / optuna.create_study / __import__ / compile( / globals() / locals()）
+- **Validator 禁止字段**：9 个字段（python_code / code / script / executable / workflow_patch / pipeline_patch / model_fit_code / train_code / shell_command / sql / direct_execution）
+- **Normalizer 防御性转换**：`supporting_findings` 整数强制转字符串（`[str(s) for s in ...]`），防止 Pydantic 校验失败
+- **Fallback 机制**：LLM 调用失败或校验失败时，使用 `system_diagnostic_checker` 输出系统规则诊断结果，状态设为 `fallback_diagnosed`，不影响上游 Metric Evaluation 结果
+
+**LLM 输出 Schema**（[llm_prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/llm_prompt_builder.py)）：
+- overall_assessment（performance_level / baseline_improvement_level / stability_level / main_issue_category / should_refine / summary / confidence_level）
+- diagnostic_findings[]（diagnosis_type / severity / evidence_strength / description / evidence_items[] / affected_models / affected_trials / possible_causes / recommended_actions / refinement_targets / confidence_level）
+- root_cause_hypotheses[]（root_cause_type / description / supporting_findings / likelihood / actionability）
+- refinement_recommendations[]（target_stage / recommendation_type / priority / description / expected_benefit / risk / system_action_hint / requires_human_review）
+- confidence_level
+
+**输出**：
+- `ResultDiagnosisResponse`：含 overall_assessment / diagnostic_findings / evidence_summary / root_cause_hypotheses / refinement_recommendations / closed_loop_refinement_input / llm_diagnosis / system_diagnostic_checks / diagnosis_artifact_manifest
+- `ClosedLoopRefinementInput`：下游闭环优化正式输入（含 should_refine / refinement_focus / priority_recommendations / constraints_to_preserve / avoid_actions / suggested_next_iteration_profile / ready_for_closed_loop_refinement）
+- `ResultDiagnosisSummaryResponse`：摘要（main_issue_category / performance_level / top_findings / top_recommendations）
+
+**API 接口**（[api.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/api.py)）：
+- `POST /api/result-diagnoses/{task_id}` — 创建/运行诊断
+- `GET /api/result-diagnoses/{result_diagnosis_id}` — 获取指定诊断
+- `GET /api/tasks/{task_id}/result-diagnosis` — 获取任务最新诊断
+- `POST /api/result-diagnoses/{task_id}/rerun` — 重新诊断
+- `GET /api/result-diagnoses/{result_diagnosis_id}/summary` — 获取诊断摘要
+- `GET /api/result-diagnoses/{result_diagnosis_id}/closed-loop-refinement-input` — 获取闭环优化输入
+
+**数据模型**（[model.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/model.py)）：
+- `ResultDiagnosis` 表（`result_diagnosis`）：id (PK, `rd_{8hex}`), task_id (indexed), metric_evaluation_id (indexed), pipeline_execution_id (indexed), status (indexed, diagnosing / diagnosed / diagnosed_with_warning / fallback_diagnosed / failed), diagnosis_mode (llm_based / hybrid / system_rule_based), main_issue_category (indexed), performance_level (indexed), should_refine (indexed), ready_for_closed_loop_refinement (indexed), llm_used, llm_confidence_level, diagnosis_json (JSONB), closed_loop_refinement_input_json (JSONB), llm_request_json (JSONB), llm_response_json (JSONB), system_checks_json (JSONB), diagnosis_artifact_dir, error_message, created_at (indexed), updated_at
+
+**关键设计特点**：
+1. **LLM 深度参与但只输出诊断与建议**：LLM 可输出问题诊断 / 可能原因 / 证据引用 / 风险等级 / 改进方向，但禁止输出 Python 代码 / sklearn 代码 / 训练脚本 / 可执行 Pipeline / 直接修改 workflow plan / 直接修改 HPO search space
+2. **诊断必须基于证据**：每个 DiagnosticFinding 必须包含 evidence_items，证据不足时强制标记 `evidence_strength: weak`
+3. **LLM 不做最终决策**：本模块可建议 `should_refine: true` 和 `recommended_refinement_focus: feature_engineering`，但不能决定立即执行下一轮训练 / 直接选择最终模型 / 直接覆盖已有 Workflow Plan。下游 Closed-loop Refinement 需重新经过 System Validator / Registry / Template / Controlled Executor
+4. **诊断类型别名映射**：`DIAGNOSIS_TYPE_ALIASES`（25 条）将 LLM 常见近义表达映射到规范值（如 `baseline_improvement` → `weak_baseline_improvement` / `overfitting` → `overfitting_risk` / `underfit` → `underfitting`），避免 LLM 措辞差异导致整个诊断路径失败
+5. **多级安全防护**：Prompt 约束 → Validator 结构校验 → Validator 枚举值校验 → Validator 安全扫描（14 种危险模式 + 9 个禁止字段）→ Normalizer 防御性类型转换
+6. **LLM 失败降级**：LLM 调用失败 → fallback_diagnosed → 仅使用 system_diagnostic_checker 输出，不影响上游 Metric Evaluation；`ready_for_closed_loop_refinement` 根据系统规则判断
+7. **诊断结果是 Advisory，但进入闭环优化**：区分 diagnostic_facts（系统可验证事实）/ llm_diagnosis（LLM 诊断判断）/ refinement_hints（给下游闭环优化的建议）/ confidence_level（LLM 信心）
+
+**前端面板**（[ResultDiagnosisPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/resultDiagnosis/components/ResultDiagnosisPanel.tsx)）：
+- 提供 "Run Diagnosis" 和 "Re-run Diagnosis" 两个按钮
+- 展示 9 个 Tab 子区：
+  1. **Overview** — Overall Assessment（performance_level / baseline_improvement_level / stability_level / main_issue_category / should_refine / confidence_level / summary）
+  2. **Findings** — Diagnostic Findings 表格（Type / Severity / Evidence / Description / Affected Models / Recommended Actions / Confidence），含 colgroup 列宽控制 + overflowX 滚动
+  3. **Evidence** — 6 类证据详细展示（Metric / Baseline / Fold Stability / Dataset / Feature / Pipeline Evidence）
+  4. **Hypotheses** — Root Cause Hypotheses 卡片（root_cause_type / likelihood / actionability / description / supporting_findings）
+  5. **Recommendations** — Refinement Recommendations 表格（Target Stage / Type / Priority / Description / Expected Benefit / Risk / Human Review）
+  6. **System Checks** — 9 条系统规则检查结果（绿色 OK / 红色 TRIGGERED）
+  7. **LLM Diagnosis** — LLM 诊断状态摘要（confidence / findings 数量 / hypotheses 数量 / recommendations 数量）
+  8. **Closed-loop Input** — 闭环优化输入预览（should_refine / ready / refinement_focus / constraints_to_preserve / avoid_actions / suggested_next_iteration）
+  9. **Full JSON** — 完整诊断 JSON
+- 状态颜色：diagnosed=green / diagnosed_with_warning=orange / fallback_diagnosed=orange / failed=red
+- 诊断类型 11 种颜色映射（underfitting=orange / overfitting_risk=red / feature_insufficiency=purple 等）
+
+**状态与枚举**（[enums.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/enums.py)）：
+- ResultDiagnosisStatus：diagnosing / diagnosed / diagnosed_with_warning / fallback_diagnosed / failed
+- DiagnosisMode：llm_based / hybrid / system_rule_based
+- DiagnosisType（11 种）：underfitting / overfitting_risk / feature_insufficiency / feature_noise / model_mismatch / hpo_insufficient / validation_instability / weak_baseline_improvement / data_quality_limitation / metric_mismatch / limited_pipeline_gain
+- Severity：low / medium / high / critical
+- EvidenceStrength：weak / moderate / strong
+- ConfidenceLevel：low / medium / high
+- TargetStage（6 个优化环节）：workflow_planning / feature_engineering / preprocessing / model_search / hpo / validation
+- RecommendationType（5 种）：expand_features / change_models / increase_hpo / adjust_validation / change_metric
+
+**异常类**（[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/exceptions.py)）：
+- ResultDiagnosisNotFoundException（RESULT_DIAGNOSIS_NOT_FOUND）/ MetricEvaluationRequiredException（METRIC_EVALUATION_REQUIRED）/ MetricEvaluationNotReadyException（METRIC_EVALUATION_NOT_READY_FOR_DIAGNOSIS）/ DiagnosisInputInvalidException（RESULT_DIAGNOSIS_INPUT_INVALID）/ DiagnosticContextBuildException（DIAGNOSTIC_CONTEXT_BUILD_FAILED）/ LLMDiagnosisCallException（LLM_DIAGNOSIS_CALL_FAILED）/ LLMDiagnosisParseException（LLM_DIAGNOSIS_PARSE_FAILED）/ LLMDiagnosisValidationException（LLM_DIAGNOSIS_VALIDATION_FAILED）/ ClosedLoopInputBuildException（CLOSED_LOOP_REFINEMENT_INPUT_BUILD_FAILED）/ DiagnosisArtifactSaveException（DIAGNOSIS_ARTIFACT_SAVE_FAILED）
+
+**完成度**：~90%。核心 15 步流水线完整，LLM + System Rule 双轨诊断链路完整，6 个核心 API 端点就位，11 种诊断类型覆盖 PRD 需求，9 条系统规则检查完整，LLM 输出 parser→validator→normalizer 三道安全防护就位，LLM 失败降级 fallback 机制可用，closed_loop_refinement_input 构建完整，前端 9 Tab 面板集成完毕。
+
+---
+
+### 5.13 Featurizer Registry / Model Registry / HPO Registry / Pipeline Template Registry（共享能力注册表）
 
 **文件位置**：[backend/app/shared/registry/](file:///c:/projects/MLAgent/backend/app/shared/registry/)
 
@@ -1596,11 +1740,65 @@ Metric Evaluation Artifacts → /app/artifacts/evaluation/{me_id}/
 │ 输出: Metric Results + Model Ranking + Baseline Comparison               │
 │        + Result Diagnosis Input (供下游 Result Diagnosis 消费)            │
 └─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 阶段 12: LLM 结果诊断 ★ 最新                                               │
+│                                                                          │
+│ POST /api/result-diagnoses/{task_id}                                     │
+│   └── ResultDiagnosisService.create_result_diagnosis()                   │
+│       ├── context_builder.build_result_diagnosis_context()               │
+│       │   └── 读取模块十一最新 MetricEvaluation → 校验 status +            │
+│       │       ready_for_result_diagnosis = true                           │
+│       ├── diagnosis_input_loader.load_result_diagnosis_input()            │
+│       │   └── 解析 result_diagnosis_input_json（9 个必填字段检查）          │
+│       ├── [_load_optional_context()] 可选加载上游 context                  │
+│       ├── evidence_extractor.extract_evidence()                          │
+│       │   └── 6 类证据提取：metric / baseline / fold_stability /          │
+│       │       dataset / feature / pipeline                                │
+│       ├── system_diagnostic_checker.run_system_checks()                  │
+│       │   └── 9 项规则诊断（含可配置阈值）                                  │
+│       ├── diagnostic_context_builder.build_llm_diagnostic_context()       │
+│       │   └── compact/standard/full 三种 profile                          │
+│       ├── llm_prompt_builder.build_llm_prompt()                          │
+│       │   └── System prompt（14 个诊断维度 + JSON Schema）                  │
+│       ├── llm_result_diagnoser.diagnose() → LLMClient                    │
+│       │   └── httpx POST → 获取结构化诊断 JSON                             │
+│       ├── llm_response_parser.parse_llm_diagnosis()                      │
+│       │   └── 3 种策略：direct json / markdown 提取 / 大括号提取           │
+│       ├── llm_diagnosis_validator.validate_llm_diagnosis()               │
+│       │   ├── 结构校验：required fields + enum values + evidence 非空     │
+│       │   ├── 别名支持：DIAGNOSIS_TYPE_ALIASES（25 条目）                   │
+│       │   └── 安全扫描：14 种代码模式 + 9 个禁止字段                        │
+│       ├── [LLM 失败 → fallback] llm_diagnosis_normalizer.normalize()      │
+│       │   └── canonicalize diagnosis_type + coerce int→str + default fill │
+│       ├── [LLM 成功] llm_diagnosis_normalizer.normalize()                 │
+│       │   └── 标准化为 LLMDiagnosisResult Pydantic 模型                    │
+│       ├── refinement_input_builder.build_closed_loop_refinement_input()   │
+│       │   └── 构建 SuggestedNextIterationProfile（含 LLM 建议 +            │
+│       │       system checks 交叉验证）                                     │
+│       │   └── 设置 ready_for_closed_loop_refinement 标记                   │
+│       ├── diagnosis_artifact_manager.save_all_artifacts()                 │
+│       │   └── → /app/artifacts/diagnosis/{rd_id}/                         │
+│       │       diagnosis_result.json / evidence_summary.json /              │
+│       │       system_checks.json / closed_loop_refinement_input.json /     │
+│       │       llm_request.json / llm_response.json / manifest.json         │
+│       ├── builder.build_result_diagnosis_response()                       │
+│       │   └── 组装 ResultDiagnosisResponse（含 llm_diagnosis /            │
+│       │       system_checks / evidence_summary / refinement_input /       │
+│       │       artifact_manifest / warnings）                               │
+│       └── 持久化到 ResultDiagnosis 表（diagnosis_json +                    │
+│           closed_loop_refinement_input_json + llm_request_json +           │
+│           llm_response_json + system_checks_json）                         │
+│                                                                          │
+│ 输出: Diagnosis Result + Closed-loop Refinement Input                    │
+│        (供下游 Closed-loop Refinement 消费)                                │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 6.2 关键调用链路
 
-**LLM 调用链路**（模块二、四、七、八、九共享模式）：
+**LLM 调用链路**（模块二、四、七、八、九、十二共享模式）：
 ```
 Service.create_*()
   → context_builder.build_*_context()     # 校验上游 + 构建 context
@@ -1683,6 +1881,28 @@ MetricEvaluationService
     → /app/artifacts/evaluation/{me_id}/model_ranking.json
     → /app/artifacts/evaluation/{me_id}/baseline_comparison.json
     → /app/artifacts/evaluation/{me_id}/result_diagnosis_input.json
+
+ResultDiagnosisService
+  → context_builder.build_result_diagnosis_context()
+    ← 读取 MetricEvaluation 表中的 result_diagnosis_input_json + evaluation_json
+    ← 校验 ready_for_result_diagnosis = true
+  → diagnosis_input_loader → evidence_extractor (6 categories)
+  → system_diagnostic_checker (9 rule-based checks)
+  → diagnostic_context_builder → llm_prompt_builder
+  → llm_result_diagnoser (LLMClient) → llm_response_parser (3 strategies)
+  → llm_diagnosis_validator (structure + enum + alias + security scan)
+  → [LLM success] llm_diagnosis_normalizer → refinement_input_builder
+  → [LLM failure] system rule-based fallback → refinement_input_builder
+  → diagnosis_artifact_manager (save 7 JSON artifacts)
+  → builder (response) → persist (diagnosis_json + closed_loop_refinement_input_json + llm_request/response_json + system_checks_json)
+  → 输出 Result Diagnosis + Closed-loop Refinement Input
+    → /app/artifacts/diagnosis/{rd_id}/diagnosis_result.json
+    → /app/artifacts/diagnosis/{rd_id}/evidence_summary.json
+    → /app/artifacts/diagnosis/{rd_id}/system_checks.json
+    → /app/artifacts/diagnosis/{rd_id}/closed_loop_refinement_input.json
+    → /app/artifacts/diagnosis/{rd_id}/llm_request.json
+    → /app/artifacts/diagnosis/{rd_id}/llm_response.json
+    → /app/artifacts/diagnosis/{rd_id}/manifest.json
 ```
 
 ---
@@ -1711,6 +1931,7 @@ class DatabaseException(BusinessException): ...
 - 模块六：[feature_preprocessing/exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/feature_preprocessing/exceptions.py) — 12 个专用异常
 - 模块七：[model_search_context/exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/model_search_context/exceptions.py) — `ModelSearchContextNotFoundException`, `UpstreamNotReadyException`, `LLMCallException` 等
 - 模块十一：[metric_evaluation/exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/metric_evaluation/exceptions.py) — 13 个专用异常（MetricEvaluationException / MetricEvaluationNotFound / PipelineExecutionRequired / PipelineExecutionNotReady / MetricEvaluationInputInvalid / PredictionArtifactLoad / MetricNotSupported / MetricCalculation / MetricAggregation / ModelRanking / BaselineComparison / ResultDiagnosisInputBuild / EvaluationArtifactSave）
+- 模块十二：[result_diagnosis/exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/exceptions.py) — 10 个专用异常（ResultDiagnosisException / ResultDiagnosisNotFound / MetricEvaluationRequired / MetricEvaluationNotReady / DiagnosisInputInvalid / EvidenceExtraction / SystemDiagnosis / DiagnosticContextBuild / LLMDiagnosisCall / LLMDiagnosisParse / RefinementInputBuild / DiagnosisArtifact）
 
 **全局异常处理**（[main.py](file:///c:/projects/MLAgent/backend/app/main.py)）：
 ```python
@@ -1776,7 +1997,7 @@ def on_startup():
 **Settings 类**（[shared/config/settings.py](file:///c:/projects/MLAgent/backend/app/shared/config/settings.py)）：
 - 使用 `pydantic-settings` 的 `BaseSettings`
 - 所有配置项有默认值，可通过环境变量覆盖
-- 配置分组：数据库、LLM、数据上传、特征工程、特征预处理、模型搜索上下文
+- 配置分组：数据库、LLM、数据上传、特征工程、特征预处理、模型搜索上下文、模型搜索计划、流水线生成、流水线执行、指标评估、结果诊断
 
 关键配置项：
 - `DATABASE_URL` — PostgreSQL 连接字符串
@@ -1785,6 +2006,14 @@ def on_startup():
 - `FEATURE_ARTIFACT_DIR` — 特征 artifact 目录（默认 `/app/artifacts/features`）
 - `MODEL_READY_ARTIFACT_DIR` — 模型就绪 artifact 目录（默认 `/app/artifacts/model_ready`）
 - `EVALUATION_ARTIFACT_DIR` — 评估 artifact 目录（默认 `/app/artifacts/evaluation`）
+- `DIAGNOSIS_ARTIFACT_DIR` — 诊断 artifact 目录（默认 `/app/artifacts/diagnosis`）
+- `LLM_MAX_TOKENS` — LLM 最大 Token 数（默认 4096）
+- `LLM_TEMPERATURE` — LLM 温度（默认 0.3）
+- `DEFAULT_LLM_PROFILE` — 默认 LLM 诊断上下文详细程度（默认 `standard`，可选 `compact`/`standard`/`full`）
+- `WEAK_IMPROVEMENT_THRESHOLD` — 弱改善阈值（默认 0.05）
+- `HIGH_CV_THRESHOLD` — 高变异系数阈值（默认 0.15）
+- `SMALL_SAMPLE_THRESHOLD` — 小样本阈值（默认 200）
+- `LOW_FEATURE_THRESHOLD` — 低特征数阈值（默认 10）
 
 ### 7.5 Repository 模式
 
@@ -1819,7 +2048,7 @@ def on_startup():
 
 ### 7.8 前端状态管理
 
-- **无全局路由**：前端只有一个页面 `TaskSpecificationPage`，11 个面板嵌入其中
+- **无全局路由**：前端只有一个页面 `TaskSpecificationPage`，12 个面板嵌入其中
 - **无 Pinia Store 的实际使用**：虽然定义了 `user.js` store，但各面板组件直接调用 API 并管理本地状态（`useState`）
 - **API 层**：每个模块有独立的 API 文件，统一使用 `taskApi.ts` 中的 axios 单例（含 request/response 拦截器）
 - **表单校验**：使用 `react-hook-form` + `zod` 进行前端校验
@@ -1842,8 +2071,11 @@ def on_startup():
 | **Pipeline Generation** | ✅ 已实现 | 模块九已实现：12 步流水线，含 LLM Advisory Review（parse→validate→normalize），消费模块八的 pipeline_generation_input |
 | **Pipeline Execution** | ✅ 已实现 | 模块十已实现：12 步流水线，Controlled Executor 训练链路，消费模块九的 execution_input，输出 training artifacts + metric_evaluation_input |
 | **Metric Evaluation** | ✅ 已实现 | 模块十一已实现：13 步流水线，Fold→Trial→Pipeline 三级聚合，Metric Registry 白名单，Baseline Comparison + Model Ranking，消费模块十的 metric_evaluation_input |
-| **Result Diagnosis** | 未实现 | 需要对结果进行诊断分析（消费模块十一的 result_diagnosis_input） |
-| **Report Generation** | 未实现 | 需要生成最终报告 |
+| **Result Diagnosis** | ✅ 已实现 | 模块十二已实现：15 步流水线，LLM 诊断 + System Rule Fallback，消费模块十一的 result_diagnosis_input，输出 Closed-loop Refinement Input |
+| **Closed-loop Refinement** | 未实现 | 需要对诊断结果进行闭环精炼（消费模块十二的 closed_loop_refinement_input） |
+| **Final Pipeline Selection** | 未实现 | 需要选择最终 Pipeline |
+| **Interpretability Analysis** | 未实现 | 需要对最终模型进行可解释性分析 |
+| **Final Output** | 未实现 | 需要生成最终输出和报告 |
 
 ### 8.2 半成品代码和占位符
 
@@ -1880,8 +2112,8 @@ def on_startup():
 
 ### 8.4 后续开发优先级建议
 
-1. **高优先级**：实现 Result Diagnosis（消费模块十一的 result_diagnosis_input）
-2. **高优先级**：实现 Report Generation 模块
+1. **高优先级**：实现 Closed-loop Refinement（消费模块十二的 closed_loop_refinement_input）
+2. **高优先级**：实现 Final Pipeline Selection 和 Final Output 模块
 3. **中优先级**：补全占位符功能（Structure Featurizer, Categorical Encoder）
 4. **中优先级**：添加前端路由和任务列表页面
 5. **低优先级**：添加 API 版本管理、请求日志、性能监控
@@ -1915,21 +2147,30 @@ def on_startup():
 20. **[metric_evaluation/metric_registry.py](file:///c:/projects/MLAgent/backend/app/modules/metric_evaluation/metric_registry.py)** — 理解 Metric Registry 白名单（5 回归 + 5 分类指标）
 21. **[metric_evaluation/metric_calculator.py](file:///c:/projects/MLAgent/backend/app/modules/metric_evaluation/metric_calculator.py)** — 理解纯 numpy 指标计算实现
 22. **[metric_evaluation/baseline_comparator.py](file:///c:/projects/MLAgent/backend/app/modules/metric_evaluation/baseline_comparator.py)** — 理解 pipeline_role 筛选和基线比较逻辑
-23. **各模块的 `service.py`** — 理解每个模块的核心业务逻辑
-24. **各模块的 `context_builder.py`** — 理解模块间依赖校验逻辑
-25. **[taskApi.ts](file:///c:/projects/MLAgent/frontend/src/api/taskApi.ts)** — 理解前端 API 配置
+23. **[result_diagnosis/service.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/service.py)** — 理解模块十二（15 步流水线 + LLM 诊断 + System Rule Fallback + 15-step pipeline）
+24. **[result_diagnosis/llm_diagnosis_validator.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/llm_diagnosis_validator.py)** — 理解 LLM 诊断三层校验（结构 + 枚举别名 + 安全扫描）
+25. **[result_diagnosis/llm_diagnosis_normalizer.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/llm_diagnosis_normalizer.py)** — 理解 LLM 输出标准化（canonicalize + coerce + default fill）
+26. **[result_diagnosis/system_diagnostic_checker.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/system_diagnostic_checker.py)** — 理解 9 项规则诊断（含可配置阈值）
+27. **[result_diagnosis/evidence_extractor.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/evidence_extractor.py)** — 理解 6 类证据提取
+28. **[result_diagnosis/refinement_input_builder.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/refinement_input_builder.py)** — 理解 ClosedLoopRefinementInput 构建（含 ready 标记）
+29. **[result_diagnosis/enums.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/enums.py)** — 理解 DIAGNOSIS_TYPE_ALIASES（25 条目）和 canonical_diagnosis_type() 函数
+30. **各模块的 `service.py`** — 理解每个模块的核心业务逻辑
+31. **各模块的 `context_builder.py`** — 理解模块间依赖校验逻辑
+32. **[taskApi.ts](file:///c:/projects/MLAgent/frontend/src/api/taskApi.ts)** — 理解前端 API 配置
 
 ### 9.2 开发新模块时应遵循的模式
 
 1. **模块结构模板**：每个模块应包含 `api.py`（路由）、`service.py`（业务逻辑）、`model.py`（数据模型）、`repository.py`（数据访问）、`schemas.py`（请求/响应 DTO）、`enums.py`（枚举）、`exceptions.py`（异常）、`builder.py`（构建响应）
 2. **上游依赖校验**：新模块的 `context_builder.py` 必须校验所有上游模块的输出状态
 3. **失败状态持久化**：失败时必须写入数据库（含 error_message）
-4. **LLM 调用模式**：如需调用 LLM，参考模块二/四/七的 `prompt_builder → LLMClient → parser → validator` 模式；如需顾问式 LLM 审查（LLM 不能影响执行决策），参考模块九的 `prompt_builder → LLMClient → parser → validator → normalizer` 模式
+4. **LLM 调用模式**：如需调用 LLM，参考模块二/四/七的 `prompt_builder → LLMClient → parser → validator` 模式；如需顾问式 LLM 审查（LLM 不能影响执行决策），参考模块九的 `prompt_builder → LLMClient → parser → validator → normalizer` 模式；如需 LLM 诊断 + Fallback（LLM 失败时降级到系统规则），参考模块十二的 `prompt_builder → LLMClient → parser → validator → normalizer → refinement_input` 链路 + `system_diagnostic_checker` fallback
 5. **Artifact 管理**：如需文件持久化，参考模块五/六的 `artifact_manager.py`；如需管理训练 artifacts（模型/预测/日志/元数据），参考模块十的 `training_artifact_manager.py`
 6. **Pipeline Template Registry 模式**：如需定义可执行模板（LLM 不参与生成），参考模块九的 `pipeline_template_registry.py` 和 `pipeline_spec_builder.py`
 7. **非 LLM 执行模块模式**：如需实现纯系统执行模块（不调用 LLM），参考模块十的 12 步流水线模式（context → load_input → execute → collect → build → persist），以及 `controlled_executor → trial_runner → fold_runner` 三层训练链路
 8. **多级聚合模块模式**：如需实现 Fold→Trial→Pipeline 等多级聚合计算链路，参考模块十一的 `fold_metric_evaluator → trial_metric_aggregator → pipeline_metric_aggregator` 三级聚合模式，每级有独立的 DTO 和聚合器文件
 9. **轻量合同 + JSONB 补充模式**：若上游模块的合同数据不完整（如仅含轻量摘要），可参考模块十一从上游 `execution_json` JSONB 中按需补充元数据的模式（`spec_role_map` + `full_trial_map` 交叉引用）
+10. **LLM 诊断 + Fallback 模式**：如需实现 LLM 诊断功能（LLM 调用可能失败），参考模块十二的 `prompt_builder → LLM → parser → validator → normalizer → refinement_input` 链路，以及 LLM 失败时的 `system_diagnostic_checker` fallback 策略（LLM 成功则 status=diagnosed，LLM 失败则 status=fallback_diagnosed 并附带 warnings）
+11. **LLM 诊断三层安全防护模式**：如需对 LLM 输出进行安全校验，参考模块十二的 (1) Prompt 约束（4 条禁止 + JSON Schema）+ (2) Validator 校验（结构/枚举值/别名支持/evidence 非空）+ (3) Security Scan（14 种代码模式 + 9 个禁止字段）三层防护体系
 
 ### 9.3 不要重复实现的功能
 
@@ -1952,16 +2193,19 @@ def on_startup():
 17. **Metric Calculator** — 模块十一的 `metric_calculator.py` 已实现纯 numpy 的指标计算（MAE/MSE/RMSE/R2/MAPE/Accuracy/Precision/Recall/F1），新模块应复用该计算器
 18. **Prediction Artifact Loader** — 模块十一的 `prediction_artifact_loader.py` 已实现完整的预测 parquet 加载和校验链路（路径安全 + 必填列 + 数值校验 + NaN/Inf 检测），新的预测消费模块应复用该加载器
 19. **Metric Evaluation Artifacts** — 模块十一已输出完整的评估结果（metric_results / fold_metrics / trial_metrics / pipeline_metrics / model_ranking / baseline_comparison / result_diagnosis_input），下游 Result Diagnosis 应消费这些 artifacts 而非重新计算指标
+20. **Result Diagnosis Artifacts** — 模块十二已输出完整的诊断结果（diagnosis_result / evidence_summary / system_checks / closed_loop_refinement_input / llm_request / llm_response / manifest），下游 Closed-loop Refinement 应消费这些 artifacts 而非重新诊断
+21. **LLM Diagnosis Validator + Normalizer** — 模块十二已实现完整的三层校验（结构 + 枚举别名 + 安全扫描）+ 标准化器（canonicalize + coerce + default fill），新的 LLM 诊断场景应复用此校验/标准化链路
+22. **DIAGNOSIS_TYPE_ALIASES** — 模块十二已定义 25 个诊断类型别名映射，新的诊断类型需求应扩展此映射
 
 ### 9.4 关键边界和注意事项
 
-1. **管道严格顺序**：模块一 → 二 → 三 → 四 → 五 → 六 → 七 → 八 → 九 → 十 → 十一，不可跳过或乱序
+1. **管道严格顺序**：模块一 → 二 → 三 → 四 → 五 → 六 → 七 → 八 → 九 → 十 → 十一 → 十二，不可跳过或乱序
 2. **状态校验**：每个下游模块的 `context_builder.py` 会检查上游模块的状态值（如 `valid`, `interpreted`, `profiled`, `planned`, `completed`, `preprocessed`, `updated`, `planned`, `generated`, `completed`），状态不符则抛出专用异常
 3. **JSONB 字段**：所有模块的核心数据存储在 JSONB 字段中（如 `task_spec_json`, `interpretation_json`, `plan_json`），读取时需注意可能为 `None`。序列化时使用 `model_dump(mode='json')` 而非普通的 `model_dump()`，否则 datetime 对象无法写入 PostgreSQL JSONB
 4. **LLM 输出不可信**：所有 LLM 输出必须经过 `parser` + `validator` 两步处理；若 LLM 用于顾问式审查，还需经过 `normalizer` 标准化（剥离旧式审批字段、强制 non_blocking 执行影响）
 5. **Featurizer 名称校验**：Workflow Planning 的 Validator 会校验 `executable_featurizers` 中的名称是否在 Registry 中存在，因此 LLM Prompt 必须包含当前 Registry 的 Featurizer 列表
 6. **Artifact 路径**：Feature Engineering 和 Feature Preprocessing 的 artifact 存储在文件系统中，下游模块通过数据库中的 `artifact_path` 字段定位。模块十的 training artifacts 存储在 `/app/artifacts/training/{pe_id}/`，含 predictions/ 和 models/ 子目录
-7. **前端超时配置**：Feature Engineering API 超时 600s，Feature Preprocessing API 超时 600s，Pipeline Execution API 超时 600s（含模型训练），Model Search Context API 超时 300s，Model Search Plan API 超时 300s，Metric Evaluation API 超时 300s，其他 API 超时 120s
+7. **前端超时配置**：Feature Engineering API 超时 600s，Feature Preprocessing API 超时 600s，Pipeline Execution API 超时 600s（含模型训练），Model Search Context API 超时 300s，Model Search Plan API 超时 300s，Metric Evaluation API 超时 300s，Result Diagnosis API 超时 300s，其他 API 超时 120s
 8. **CORS 配置**：后端允许 `http://localhost:5173` 的跨域请求，生产环境需调整
 9. **数据库初始化**：开发环境使用 `docker-compose up` 启动，首次启动会自动建表。如需重置数据，删除 PostgreSQL 卷后重新启动
 10. **测试账号**：admin/password（管理员），2024000001/password（学生），100001/password（教师）— 所有账号密码均为 `password`

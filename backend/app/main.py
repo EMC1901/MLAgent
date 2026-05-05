@@ -18,6 +18,7 @@ from app.modules.model_search.api import router as model_search_router
 from app.modules.pipeline_generation.api import router as pipeline_generation_router
 from app.modules.pipeline_execution.api import router as pipeline_execution_router
 from app.modules.metric_evaluation.api import router as metric_evaluation_router
+from app.modules.result_diagnosis.api import router as result_diagnosis_router
 
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
@@ -54,6 +55,7 @@ app.include_router(model_search_router)
 app.include_router(pipeline_generation_router)
 app.include_router(pipeline_execution_router)
 app.include_router(metric_evaluation_router)
+app.include_router(result_diagnosis_router)
 
 
 @app.exception_handler(BusinessException)
