@@ -23,6 +23,7 @@ import PipelineGenerationPanel from '../../pipelineGeneration/components/Pipelin
 import PipelineExecutionPanel from '../../pipelineExecution/components/PipelineExecutionPanel';
 import MetricEvaluationPanel from '../../metricEvaluation/components/MetricEvaluationPanel';
 import ResultDiagnosisPanel from '../../resultDiagnosis/components/ResultDiagnosisPanel';
+import WorkflowRefinementPanel from '../../workflowRefinement/components/WorkflowRefinementPanel';
 
 interface TaskSpecificationFormProps {
   onSubmitSuccess?: (result: TaskSpecificationResponse) => void;
@@ -462,6 +463,10 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
 
       {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
         <ResultDiagnosisPanel taskId={result.task_id} />
+      )}
+
+      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
+        <WorkflowRefinementPanel taskId={result.task_id} />
       )}
     </div>
   );

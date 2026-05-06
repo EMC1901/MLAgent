@@ -161,6 +161,7 @@ DIAGNOSIS_TYPE_ALIASES: dict[str, str] = {
     "model_not_suitable": DiagnosisType.MODEL_MISMATCH,
     "hpo_limited": DiagnosisType.HPO_INSUFFICIENT,
     "insufficient_hpo": DiagnosisType.HPO_INSUFFICIENT,
+    "hpo_insufficiency": DiagnosisType.HPO_INSUFFICIENT,
     "validation_unstable": DiagnosisType.VALIDATION_INSTABILITY,
     "unstable_validation": DiagnosisType.VALIDATION_INSTABILITY,
     "data_quality": DiagnosisType.DATA_QUALITY_LIMITATION,

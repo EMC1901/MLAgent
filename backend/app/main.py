@@ -19,6 +19,7 @@ from app.modules.pipeline_generation.api import router as pipeline_generation_ro
 from app.modules.pipeline_execution.api import router as pipeline_execution_router
 from app.modules.metric_evaluation.api import router as metric_evaluation_router
 from app.modules.result_diagnosis.api import router as result_diagnosis_router
+from app.modules.workflow_refinement.api import router as workflow_refinement_router
 
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
@@ -56,6 +57,7 @@ app.include_router(pipeline_generation_router)
 app.include_router(pipeline_execution_router)
 app.include_router(metric_evaluation_router)
 app.include_router(result_diagnosis_router)
+app.include_router(workflow_refinement_router)
 
 
 @app.exception_handler(BusinessException)

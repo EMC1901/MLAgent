@@ -5,7 +5,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 120000,
+  timeout: 600000,
 });
 
 api.interceptors.request.use(
@@ -28,7 +28,7 @@ api.interceptors.response.use(
     if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
       console.error('[API] Network Error: Backend at', error.config?.baseURL, 'is not reachable. Is the backend server running?');
     } else if (error.code === 'ERR_CANCELED') {
-      console.error('[API] Request timeout (>15s):', error.config?.url);
+      console.error('[API] Request timeout:', error.config?.url);
     } else if (error.response) {
       console.error(`[API] HTTP ${error.response.status} from ${error.config?.url}:`, error.response.data);
     } else {
