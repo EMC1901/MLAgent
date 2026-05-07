@@ -4,6 +4,19 @@ from typing import Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 
+def _normalize_selection_policy(sp: dict) -> dict:
+    """Normalize LLM output quirks in selection_policy before Pydantic validation."""
+    if not isinstance(sp, dict):
+        return {}
+    # LLM often outputs selection_criteria as a single string instead of a list
+    sc = sp.get("selection_criteria")
+    if isinstance(sc, str):
+        sp["selection_criteria"] = [sc]
+    elif not isinstance(sc, list):
+        sp["selection_criteria"] = []
+    return sp
+
+
 def build_final_selection_input(
     wr_id: str,
     task_id: str,
@@ -33,6 +46,7 @@ def build_final_selection_input(
         }
 
     if llm_fpsi:
+        sp = llm_fpsi.get("selection_policy") or {}
         return {
             "workflow_refinement_id": wr_id,
             "task_id": task_id,
@@ -43,7 +57,7 @@ def build_final_selection_input(
             "current_best_model_id": llm_fpsi.get("current_best_model_id") or best_model_id,
             "current_best_trial_id": llm_fpsi.get("current_best_trial_id") or best_trial_id,
             "current_best_pipeline_spec_id": llm_fpsi.get("current_best_pipeline_spec_id") or best_pipeline_spec_id,
-            "selection_policy": llm_fpsi.get("selection_policy") or {},
+            "selection_policy": _normalize_selection_policy(sp),
             "constraints": llm_fpsi.get("constraints") or {},
             "ready_for_final_pipeline_selection": llm_fpsi.get(
                 "ready_for_final_pipeline_selection",

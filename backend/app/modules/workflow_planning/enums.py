@@ -9,6 +9,7 @@ class WorkflowPlanStatus:
 
 class PlanningMode:
     LLM_GUIDED = "llm_guided"
+    REFINEMENT_ADOPTED = "refinement_adopted"
 
 
 class SplitStrategy:

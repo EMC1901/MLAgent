@@ -97,6 +97,13 @@ def build_response(
     fpsi = None
     if final_selection_input:
         sp = final_selection_input.get("selection_policy") or {}
+        # Normalize: LLM often outputs selection_criteria as a string instead of a list
+        if isinstance(sp, dict):
+            sc = sp.get("selection_criteria")
+            if isinstance(sc, str):
+                sp["selection_criteria"] = [sc]
+            elif not isinstance(sc, list):
+                sp["selection_criteria"] = []
         fpsi = FinalPipelineSelectionInput(
             workflow_refinement_id=final_selection_input.get("workflow_refinement_id"),
             task_id=final_selection_input.get("task_id"),

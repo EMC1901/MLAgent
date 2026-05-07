@@ -336,6 +336,38 @@ class ResultDiagnosisService:
             created_at=record.created_at,
         )
 
+    def needs_fresh_diagnosis(self, session: Session, task_id: str) -> dict:
+        """Check if the latest diagnosis is stale (its metric_evaluation is not the latest)."""
+        existing = self.repo.get_latest_by_task_id(session, task_id)
+        try:
+            me = build_result_diagnosis_context(session, task_id, None)
+            latest_me_id = me.id
+        except Exception:
+            latest_me_id = None
+
+        if not existing:
+            return {"needs_fresh": True, "reason": "No existing diagnosis."}
+
+        if latest_me_id and existing.metric_evaluation_id != latest_me_id:
+            return {
+                "needs_fresh": True,
+                "reason": (
+                    f"Existing diagnosis ({existing.id}) was run against "
+                    f"metric_evaluation {existing.metric_evaluation_id}, "
+                    f"but the latest is {latest_me_id}."
+                ),
+                "existing_diagnosis_id": existing.id,
+                "existing_metric_evaluation_id": existing.metric_evaluation_id,
+                "latest_metric_evaluation_id": latest_me_id,
+            }
+
+        return {
+            "needs_fresh": False,
+            "reason": "Existing diagnosis is up-to-date.",
+            "existing_diagnosis_id": existing.id,
+            "latest_metric_evaluation_id": latest_me_id,
+        }
+
     def get_closed_loop_refinement_input(
         self, session: Session, rd_id: str
     ) -> dict:

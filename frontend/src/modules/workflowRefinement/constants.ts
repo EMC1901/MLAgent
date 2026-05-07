@@ -2,6 +2,7 @@ export const STATUS_COLORS: Record<string, string> = {
   deciding: '#1976d2',
   decided: '#2e7d32',
   decided_with_warning: '#e65100',
+  adopted: '#1565c0',
   failed: '#c62828',
 };
 
@@ -9,6 +10,7 @@ export const STATUS_LABELS: Record<string, string> = {
   deciding: 'Deciding',
   decided: 'Decided',
   decided_with_warning: 'Decided (Warning)',
+  adopted: 'Adopted',
   failed: 'Failed',
 };
 

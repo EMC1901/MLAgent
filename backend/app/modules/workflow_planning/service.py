@@ -3,6 +3,8 @@ from sqlmodel import Session
 from datetime import datetime
 
 from app.modules.task_specification.repository import TaskSpecificationRepository
+from app.modules.task_interpretation.repository import TaskInterpretationRepository
+from app.modules.dataset_profile.repository import DatasetProfileRepository
 from app.modules.workflow_planning.model import WorkflowPlan
 from app.modules.workflow_planning.repository import WorkflowPlanRepository
 from app.modules.workflow_planning.schemas import (
@@ -194,6 +196,86 @@ class WorkflowPlanningService:
         self, session: Session, task_id: str, request: WorkflowPlanCreateRequest
     ) -> WorkflowPlanResponse:
         return self.create_plan(session, task_id, request)
+
+    def adopt_revised_plan(
+        self, session: Session, task_id: str, revised_plan: dict
+    ) -> WorkflowPlanResponse:
+        self._check_task_exists(session, task_id)
+
+        interp_repo = TaskInterpretationRepository()
+        profile_repo = DatasetProfileRepository()
+
+        interp = interp_repo.get_latest_by_task_id(session, task_id)
+        profile = profile_repo.get_latest_by_task_id(session, task_id)
+
+        interpretation_id = interp.id if interp else None
+        dataset_profile_id = profile.id if profile else None
+
+        plan_id = f"plan_{__import__('uuid').uuid4().hex[:8]}"
+        now = datetime.now()
+
+        plan_json = {
+            "workflow_plan_id": plan_id,
+            "task_id": task_id,
+            "interpretation_id": interpretation_id,
+            "dataset_profile_id": dataset_profile_id,
+            "status": WorkflowPlanStatus.PLANNED,
+            "planning_mode": "refinement_adopted",
+            "task_summary": revised_plan.get("task_summary", {}),
+            "data_strategy": revised_plan.get("data_strategy", {}),
+            "feature_strategy": revised_plan.get("feature_strategy", {}),
+            "model_strategy": revised_plan.get("model_strategy", {}),
+            "validation_strategy": revised_plan.get("validation_strategy", {}),
+            "evaluation_strategy": revised_plan.get("evaluation_strategy", {}),
+            "hpo_strategy": revised_plan.get("hpo_strategy", {}),
+            "interpretability_strategy": revised_plan.get("interpretability_strategy", {}),
+            "pipeline_generation_input": revised_plan.get("pipeline_generation_input", {}),
+            "planning_warnings": revised_plan.get("planning_warnings", []),
+            "planning_assumptions": revised_plan.get("planning_assumptions", []),
+            "llm_reasoning_summary": revised_plan.get("llm_reasoning_summary", ""),
+            "confidence_score": revised_plan.get("confidence_score", 0.0),
+            "refinement_metadata": revised_plan.get("refinement_metadata"),
+            "llm_request": {},
+            "llm_response": {},
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        }
+
+        task_summary = plan_json.get("task_summary", {})
+        feature_strategy = plan_json.get("feature_strategy", {})
+        validation_strategy = plan_json.get("validation_strategy", {})
+        evaluation_strategy = plan_json.get("evaluation_strategy", {})
+        hpo_strategy = plan_json.get("hpo_strategy", {})
+        interpretability_strategy = plan_json.get("interpretability_strategy", {})
+
+        plan_model = WorkflowPlan(
+            id=plan_id,
+            task_id=task_id,
+            interpretation_id=interpretation_id,
+            dataset_profile_id=dataset_profile_id,
+            status=WorkflowPlanStatus.PLANNED,
+            planning_mode="refinement_adopted",
+            task_type=task_summary.get("task_type"),
+            input_modality=task_summary.get("input_modality"),
+            primary_metric=evaluation_strategy.get("primary_metric"),
+            feature_type=feature_strategy.get("feature_type"),
+            validation_strategy=validation_strategy.get("split_strategy"),
+            hpo_enabled=hpo_strategy.get("enabled", False),
+            interpretability_enabled=interpretability_strategy.get("enabled", False),
+            confidence_score=plan_json.get("confidence_score"),
+            plan_json=plan_json,
+            llm_request_json=None,
+            llm_response_json=None,
+            error_message=None,
+            created_at=now,
+            updated_at=now,
+        )
+
+        created = self.plan_repo.create(session, plan_model)
+        logger.info(
+            "Adopted revised plan %s for task %s from refinement", plan_id, task_id
+        )
+        return self._to_response(created)
 
     def _check_task_exists(self, session: Session, task_id: str):
         task_spec = self.task_repo.get_by_id(session, task_id)

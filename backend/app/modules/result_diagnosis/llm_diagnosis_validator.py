@@ -44,7 +44,7 @@ def validate_llm_diagnosis(raw_diagnosis: Dict[str, Any]) -> Tuple[bool, List[st
         valid_imp = {"strong", "moderate", "weak", "none", "unknown"}
         if oa.get("baseline_improvement_level") not in valid_imp:
             issues.append(f"Invalid baseline_improvement_level: {oa.get('baseline_improvement_level')}")
-        valid_stab = {"stable", "moderately_unstable", "unstable"}
+        valid_stab = {"stable", "moderately_unstable", "unstable", "unknown"}
         if oa.get("stability_level") not in valid_stab:
             issues.append(f"Invalid stability_level: {oa.get('stability_level')}")
         if oa.get("confidence_level") not in VALID_CONFIDENCE_VALUES:

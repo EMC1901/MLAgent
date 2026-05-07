@@ -2,7 +2,15 @@ import React, { useState } from 'react';
 import {
   createWorkflowRefinement,
   rerunWorkflowRefinement,
+  adoptRevisedPlan,
 } from '../../../api/workflowRefinementApi';
+import { createFeatureEngineering } from '../../../api/featureEngineeringApi';
+import { createFeaturePreprocessing } from '../../../api/featurePreprocessingApi';
+import { createModelSearchContext } from '../../../api/modelSearchContextApi';
+import { createModelSearchPlan } from '../../../api/modelSearchApi';
+import { createPipelineGeneration } from '../../../api/pipelineGenerationApi';
+import { createPipelineExecution } from '../../../api/pipelineExecutionApi';
+import { createMetricEvaluation } from '../../../api/metricEvaluationApi';
 import {
   WorkflowRefinementResponse,
   DecisionReasoning,
@@ -12,6 +20,7 @@ import {
   IterationRerunPlan,
   FinalPipelineSelectionInput,
   WorkflowRefinementValidationResult,
+  AdoptRevisedPlanResult,
 } from '../types';
 import {
   STATUS_COLORS,
@@ -32,6 +41,11 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
   const [result, setResult] = useState<WorkflowRefinementResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('decision');
+  const [adopting, setAdopting] = useState(false);
+  const [adoptResult, setAdoptResult] = useState<AdoptRevisedPlanResult | null>(null);
+  const [rerunProgress, setRerunProgress] = useState<string[]>([]);
+  const [rerunError, setRerunError] = useState<string | null>(null);
+  const [showAdoptConfirm, setShowAdoptConfirm] = useState(false);
 
   const handleRun = async () => {
     setLoading(true);
@@ -70,6 +84,78 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
       setError(msg || err.message || 'Failed to re-run workflow refinement.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAdoptAndRerun = async () => {
+    if (!result?.workflow_refinement_id) return;
+    setAdopting(true);
+    setRerunError(null);
+    setRerunProgress([]);
+    setAdoptResult(null);
+    setShowAdoptConfirm(false);
+
+    try {
+      // Step 1: Adopt the revised plan
+      setRerunProgress(['Adopting revised plan...']);
+      const adoptResp = await adoptRevisedPlan(result.workflow_refinement_id);
+      if (!adoptResp.success || !adoptResp.data.adopted) {
+        setRerunError(adoptResp.message || 'Failed to adopt revised plan.');
+        setAdopting(false);
+        return;
+      }
+      setAdoptResult(adoptResp.data);
+      setRerunProgress(prev => [...prev, 'Plan adopted as ' + adoptResp.data.adopted_workflow_plan_id]);
+
+      // Step 2: Run pipeline stages in sequence
+      const stages = adoptResp.data.rerun_stages || [];
+      const STAGE_API: Record<string, (taskId: string) => Promise<any>> = {
+        workflow_planning: async () => null, // already adopted
+        feature_engineering: createFeatureEngineering,
+        feature_preprocessing: createFeaturePreprocessing,
+        model_search_context: createModelSearchContext,
+        model_search: createModelSearchPlan,
+        pipeline_generation: createPipelineGeneration,
+        pipeline_execution: createPipelineExecution,
+        metric_evaluation: createMetricEvaluation,
+      };
+
+      let hasError = false;
+      for (let i = 0; i < stages.length; i++) {
+        const stage = stages[i];
+        if (stage === 'workflow_planning') continue;
+        const apiFn = STAGE_API[stage];
+        if (!apiFn) {
+          setRerunProgress(prev => [...prev, `${stage}: skipped (no handler)`]);
+          continue;
+        }
+        setRerunProgress(prev => [...prev, `Running ${stage} (${i + 1}/${stages.length})...`]);
+        try {
+          const resp = await apiFn(taskId);
+          if (resp.success) {
+            setRerunProgress(prev => [...prev, `${stage}: completed successfully`]);
+          } else {
+            setRerunProgress(prev => [...prev, `${stage}: ${resp.message || 'completed with issues'}`]);
+          }
+        } catch (err: any) {
+          const detail = err.response?.data?.detail;
+          const msg = typeof detail === 'object' ? (detail?.message ?? JSON.stringify(detail)) : detail;
+          setRerunProgress(prev => [...prev, `${stage}: FAILED - ${msg || err.message}`]);
+          setRerunError(`Rerun stopped at ${stage}: ${msg || err.message}`);
+          hasError = true;
+          break;
+        }
+      }
+
+      if (!hasError) {
+        setRerunProgress(prev => [...prev, 'All stages completed. Ready for next refinement.']);
+      }
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === 'object' ? (detail?.message ?? JSON.stringify(detail)) : detail;
+      setRerunError(msg || err.message || 'Adopt & Rerun failed.');
+    } finally {
+      setAdopting(false);
     }
   };
 
@@ -516,6 +602,132 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
             </div>
           )}
 
+          {/* Adopt & Rerun section — shown when decision is iterate_refinement */}
+          {result.decision === 'iterate_refinement' && result.ready_for_iteration && (
+            <div style={s.adoptSection}>
+              <h4 style={s.cardTitle}>Iterate: Adopt Revised Plan & Rerun Pipeline</h4>
+              <p style={s.description}>
+                The LLM recommends iteration. Adopting the revised plan creates a new WorkflowPlan
+                and re-executes the pipeline stages listed below. Existing results are preserved.
+              </p>
+
+              {result.iteration_rerun_plan && (
+                <div style={s.subCard}>
+                  <div style={s.grid}>
+                    <div style={s.field}>
+                      <strong>Entry Point: </strong>
+                      <Badge
+                        label={RERUN_STAGE_LABELS[result.iteration_rerun_plan.recommended_rerun_from_stage || ''] || result.iteration_rerun_plan.recommended_rerun_from_stage || 'N/A'}
+                        color={RERUN_STAGE_COLORS[result.iteration_rerun_plan.recommended_rerun_from_stage || ''] || '#9e9e9e'}
+                      />
+                    </div>
+                    <div style={s.field}>
+                      <strong>Stop if no gain: </strong>
+                      <span style={{ color: result.iteration_rerun_plan.stop_after_next_iteration_if_no_gain ? '#c62828' : '#2e7d32', fontWeight: 600 }}>
+                        {result.iteration_rerun_plan.stop_after_next_iteration_if_no_gain ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={s.field}>
+                    <strong>Rerun Stages: </strong>
+                    {(result.iteration_rerun_plan.rerun_stages || []).map((s: string) => (
+                      <Badge key={s} label={RERUN_STAGE_LABELS[s] || s} color={RERUN_STAGE_COLORS[s] || '#9e9e9e'} />
+                    ))}
+                  </div>
+                  {result.iteration_rerun_plan.reasoning && (
+                    <div style={{ marginTop: '8px' }}>
+                      <strong>Reasoning: </strong>
+                      <span>{result.iteration_rerun_plan.reasoning}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!showAdoptConfirm ? (
+                <button
+                  onClick={() => setShowAdoptConfirm(true)}
+                  disabled={adopting}
+                  style={s.adoptButton}
+                >
+                  {adopting ? 'Adopting...' : 'Adopt & Rerun'}
+                </button>
+              ) : (
+                <div style={s.confirmBox}>
+                  <p style={{ margin: '0 0 12px 0', fontWeight: 600, color: '#c62828' }}>
+                    This will create a new WorkflowPlan and re-execute the pipeline stages above. Continue?
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={handleAdoptAndRerun} disabled={adopting} style={s.adoptConfirmButton}>
+                      {adopting ? 'Running...' : 'Yes, Adopt & Rerun'}
+                    </button>
+                    <button onClick={() => setShowAdoptConfirm(false)} disabled={adopting} style={s.cancelButton}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {adoptResult && (
+                <div style={{ ...s.subCard, marginTop: '12px', borderLeft: '4px solid #2e7d32' }}>
+                  <strong>Plan Adopted: </strong>
+                  <code>{adoptResult.adopted_workflow_plan_id}</code>
+                </div>
+              )}
+
+              {rerunProgress.length > 0 && (
+                <div style={{ ...s.subCard, marginTop: '12px' }}>
+                  <strong>Rerun Progress:</strong>
+                  <ul style={{ ...s.list, marginTop: '8px' }}>
+                    {rerunProgress.map((msg: string, i: number) => (
+                      <li key={i} style={{
+                        color: msg.includes('FAILED') ? '#c62828' : msg.includes('completed') ? '#2e7d32' : '#333',
+                        fontSize: '13px',
+                        marginBottom: '2px',
+                      }}>
+                        {msg}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {rerunError && (
+                <div style={s.errorBox}>
+                  <strong>Rerun Error:</strong> {rerunError}
+                  <p style={{ margin: '8px 0 0 0', fontSize: '13px' }}>
+                    Some stages may have completed before the error. Check individual module results.
+                  </p>
+                </div>
+              )}
+
+              {!adopting && rerunProgress.some(m => m.includes('All stages completed')) && !rerunError && (
+                <div style={s.guidanceBox}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '15px' }}>Next Steps</h4>
+                  <ol style={{ margin: '0', paddingLeft: '20px', fontSize: '14px', lineHeight: 1.8 }}>
+                    <li>
+                      <strong>Re-run Result Diagnosis</strong> — scroll up to <em>LLM-based Result Diagnosis</em> and
+                      click <strong style={{ color: '#f57c00' }}>Re-run Diagnosis</strong> (the orange button).
+                      This ensures a fresh analysis against the newly created metric results.
+                    </li>
+                    <li>
+                      <strong>Run Workflow Refinement again</strong> — click <strong>Run Workflow Refinement</strong> above.
+                      The LLM will compare results across iterations and decide whether to proceed to Final Selection
+                      or iterate further.
+                    </li>
+                  </ol>
+                  <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#666' }}>
+                    The closed-loop cycle: <strong>Re-run Diagnosis → Workflow Refinement → Adopt &amp; Rerun → repeat</strong> until
+                    the LLM returns <em>Proceed to Final Selection</em>.
+                  </p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#c62828' }}>
+                    Important: Use <strong>Re-run Diagnosis</strong> (not Run Diagnosis) after each Adopt &amp; Rerun.
+                    The Run button may return cached results from a previous iteration.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Tab navigation */}
           <div style={s.tabBar}>
             {tabs.map(t => renderTab(t.id, t.label))}
@@ -617,6 +829,31 @@ const s: Record<string, React.CSSProperties> = {
     backgroundColor: '#263238', color: '#aed581', padding: '12px',
     borderRadius: '4px', overflow: 'auto', fontSize: '11px',
     maxHeight: '500px',
+  },
+  adoptSection: {
+    padding: '16px', backgroundColor: '#fff8e1', border: '2px solid #ff8f00',
+    borderRadius: '8px', marginBottom: '16px',
+  },
+  adoptButton: {
+    padding: '12px 24px', backgroundColor: '#e65100', color: '#fff',
+    border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 700,
+    cursor: 'pointer', marginTop: '12px',
+  },
+  adoptConfirmButton: {
+    padding: '10px 20px', backgroundColor: '#c62828', color: '#fff',
+    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+  },
+  cancelButton: {
+    padding: '10px 20px', backgroundColor: '#9e9e9e', color: '#fff',
+    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+  },
+  confirmBox: {
+    padding: '12px', backgroundColor: '#ffebee', borderRadius: '6px',
+    marginTop: '12px', border: '1px solid #ef9a9a',
+  },
+  guidanceBox: {
+    padding: '16px', backgroundColor: '#e8f5e9', border: '2px solid #4caf50',
+    borderRadius: '8px', marginTop: '12px',
   },
 };
 

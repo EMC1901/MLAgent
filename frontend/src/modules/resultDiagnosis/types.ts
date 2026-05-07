@@ -167,6 +167,16 @@ export interface ResultDiagnosisSummary {
   created_at?: string | null;
 }
 
+export interface IterationContext {
+  is_part_of_iteration: boolean;
+  diagnosis_position: number;
+  total_diagnoses: number;
+  workflow_refinement_id?: string | null;
+  iteration_index?: number | null;
+  decision?: string | null;
+  status?: string | null;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;

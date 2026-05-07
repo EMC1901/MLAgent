@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import {
   createResultDiagnosis,
   rerunResultDiagnosis,
+  getIterationContextForDiagnosis,
+  checkNeedsFreshDiagnosis,
 } from '../../../api/resultDiagnosisApi';
 import {
   ResultDiagnosisResponse,
@@ -14,6 +16,7 @@ import {
   LLMDiagnosisResult,
   ClosedLoopRefinementInput,
   EvidenceSummary,
+  IterationContext,
 } from '../types';
 import {
   STATUS_COLORS,
@@ -40,15 +43,44 @@ const ResultDiagnosisPanel: React.FC<ResultDiagnosisPanelProps> = ({ taskId }) =
   const [result, setResult] = useState<ResultDiagnosisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const [iterationCtx, setIterationCtx] = useState<IterationContext | null>(null);
+
+  const fetchIterationContext = async (rdId: string) => {
+    try {
+      const ctxResp = await getIterationContextForDiagnosis(rdId);
+      if (ctxResp.success) {
+        setIterationCtx(ctxResp.data);
+      } else {
+        setIterationCtx(null);
+      }
+    } catch {
+      setIterationCtx(null);
+    }
+  };
 
   const handleRun = async () => {
     setLoading(true);
     setError(null);
     setResult(null);
+    setIterationCtx(null);
     try {
-      const response = await createResultDiagnosis(taskId);
+      // Check if existing diagnosis is stale — if so, force a fresh run
+      let forceRerun = false;
+      try {
+        const freshCheck = await checkNeedsFreshDiagnosis(taskId);
+        if (freshCheck.success && freshCheck.data.needs_fresh) {
+          forceRerun = true;
+        }
+      } catch {
+        // If check fails, proceed with normal run
+      }
+
+      const response = await createResultDiagnosis(taskId, { force_rerun: forceRerun });
       if (response.success) {
         setResult(response.data);
+        if (response.data.result_diagnosis_id) {
+          await fetchIterationContext(response.data.result_diagnosis_id);
+        }
       } else {
         setError(response.message);
       }
@@ -65,10 +97,14 @@ const ResultDiagnosisPanel: React.FC<ResultDiagnosisPanelProps> = ({ taskId }) =
     setLoading(true);
     setError(null);
     setResult(null);
+    setIterationCtx(null);
     try {
       const response = await rerunResultDiagnosis(taskId);
       if (response.success) {
         setResult(response.data);
+        if (response.data.result_diagnosis_id) {
+          await fetchIterationContext(response.data.result_diagnosis_id);
+        }
       } else {
         setError(response.message);
       }
@@ -493,6 +529,42 @@ const ResultDiagnosisPanel: React.FC<ResultDiagnosisPanelProps> = ({ taskId }) =
               <strong>Mode: </strong>
               <span>{DIAGNOSIS_MODE_LABELS[result.diagnosis_mode] || result.diagnosis_mode}</span>
             </div>
+            {iterationCtx && iterationCtx.is_part_of_iteration && (
+              <div style={s.field}>
+                <strong>Iteration: </strong>
+                <span style={{
+                  display: 'inline-block', padding: '2px 10px', borderRadius: '12px',
+                  color: '#fff', fontSize: '13px', fontWeight: 700,
+                  backgroundColor: '#7b1fa2',
+                }}>
+                  #{iterationCtx.iteration_index}
+                </span>
+                <span style={{ color: '#666', fontSize: '12px', marginLeft: '4px' }}>
+                  (analysis {iterationCtx.diagnosis_position} of {iterationCtx.total_diagnoses})
+                </span>
+              </div>
+            )}
+            {iterationCtx && !iterationCtx.is_part_of_iteration && iterationCtx.total_diagnoses > 1 && (
+              <div style={s.field}>
+                <strong>Iteration: </strong>
+                <span style={{
+                  display: 'inline-block', padding: '2px 10px', borderRadius: '12px',
+                  color: '#fff', fontSize: '13px', fontWeight: 700,
+                  backgroundColor: '#f57c00',
+                }}>
+                  Analysis #{iterationCtx.diagnosis_position}
+                </span>
+                <span style={{ color: '#666', fontSize: '12px', marginLeft: '4px' }}>
+                  of {iterationCtx.total_diagnoses} — run Workflow Refinement next to evaluate
+                </span>
+              </div>
+            )}
+            {iterationCtx && !iterationCtx.is_part_of_iteration && iterationCtx.total_diagnoses <= 1 && (
+              <div style={s.field}>
+                <strong>Iteration: </strong>
+                <span style={{ color: '#999', fontSize: '13px' }}>Initial analysis (not yet refined)</span>
+              </div>
+            )}
             <div style={s.field}>
               <strong>Ready for Closed-loop: </strong>
               <span style={{ color: result.ready_for_closed_loop_refinement ? '#2e7d32' : '#c62828', fontWeight: 600 }}>

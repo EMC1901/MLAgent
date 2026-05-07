@@ -2,6 +2,7 @@ import api from './taskApi';
 import {
   WorkflowRefinementResponse,
   WorkflowRefinementCreateRequest,
+  AdoptRevisedPlanResult,
   ApiResponse,
 } from '../modules/workflowRefinement/types';
 
@@ -67,6 +68,16 @@ export const getFinalPipelineSelectionInput = async (
 ): Promise<ApiResponse<Record<string, unknown>>> => {
   const response = await api.get<ApiResponse<Record<string, unknown>>>(
     `/api/workflow-refinements/${wrId}/final-pipeline-selection-input`,
+  );
+  return response.data;
+};
+
+export const adoptRevisedPlan = async (
+  wrId: string,
+): Promise<ApiResponse<AdoptRevisedPlanResult>> => {
+  const response = await api.post<ApiResponse<AdoptRevisedPlanResult>>(
+    `/api/workflow-refinements/${wrId}/adopt`,
+    {},
   );
   return response.data;
 };

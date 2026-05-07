@@ -159,3 +159,48 @@ def get_final_pipeline_selection_input(
             status_code=status_code,
             detail={"message": e.message, "error_code": e.error_code},
         )
+
+
+@router.get(
+    "/api/result-diagnoses/{rd_id}/iteration-context",
+    response_model=dict,
+)
+def get_iteration_context_for_diagnosis(
+    rd_id: str,
+    session: Session = Depends(get_session),
+):
+    try:
+        result = service.get_iteration_context_for_diagnosis(session, rd_id)
+        return success_response(
+            "Iteration context retrieved successfully.",
+            data=result,
+        )
+    except BusinessException as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": e.message, "error_code": e.error_code},
+        )
+
+
+@router.post(
+    "/api/workflow-refinements/{workflow_refinement_id}/adopt",
+    response_model=dict,
+)
+def adopt_revised_plan(
+    workflow_refinement_id: str,
+    session: Session = Depends(get_session),
+):
+    try:
+        result = service.adopt_revised_plan(session, workflow_refinement_id)
+        return success_response(
+            "Revised plan adopted successfully as new WorkflowPlan.",
+            data=result,
+        )
+    except BusinessException as e:
+        status_code = 404 if e.error_code in (
+            "WORKFLOW_REFINEMENT_NOT_FOUND",
+        ) else 400
+        raise HTTPException(
+            status_code=status_code,
+            detail={"message": e.message, "error_code": e.error_code},
+        )

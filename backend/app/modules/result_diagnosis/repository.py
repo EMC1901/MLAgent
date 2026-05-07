@@ -31,6 +31,13 @@ class ResultDiagnosisRepository:
         )
         return list(session.exec(statement).all())
 
+    def count_by_task_id(self, session: Session, task_id: str) -> int:
+        statement = (
+            select(ResultDiagnosis)
+            .where(ResultDiagnosis.task_id == task_id)
+        )
+        return len(list(session.exec(statement).all()))
+
     def update(self, session: Session, record: ResultDiagnosis) -> ResultDiagnosis:
         session.add(record)
         session.commit()

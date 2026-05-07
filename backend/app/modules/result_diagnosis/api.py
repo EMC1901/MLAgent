@@ -53,6 +53,24 @@ def get_result_diagnosis(
         )
 
 
+@router.get("/api/tasks/{task_id}/result-diagnosis/needs-fresh", response_model=dict)
+def check_needs_fresh_diagnosis(
+    task_id: str,
+    session: Session = Depends(get_session),
+):
+    try:
+        result = service.needs_fresh_diagnosis(session, task_id)
+        return success_response(
+            "Fresh diagnosis check completed.",
+            data=result,
+        )
+    except BusinessException as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": e.message, "error_code": e.error_code},
+        )
+
+
 @router.get("/api/tasks/{task_id}/result-diagnosis", response_model=dict)
 def get_latest_result_diagnosis_by_task(
     task_id: str,

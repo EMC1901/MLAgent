@@ -1,6 +1,6 @@
 # 项目已实现部分说明文档
 
-> 文档生成日期：2026-05-05（全面更新版 — 含模块十二 LLM-based Result Diagnosis）
+> 文档生成日期：2026-05-07（全面更新版 — 含模块十三 LLM-driven Workflow Refinement + Closed-loop Iteration）
 > 项目名称：MLAgent — AI-driven Automated Machine Learning Framework for Materials Science
 > 文档用途：帮助后续 AI Coding 大模型和开发者快速理解当前项目已经完成的部分
 
@@ -10,11 +10,11 @@
 
 ### 1.1 项目定位
 
-MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框架。其核心目标是让用户通过结构化表单提交材料机器学习任务需求，系统自动完成从**任务理解 → 数据加载 → 工作流规划 → 特征工程 → 特征预处理 → 模型搜索上下文更新 → 模型搜索计划生成 → 可执行流水线生成 → 流水线执行与训练 → 指标评估 → LLM 结果诊断**的全流程自动化。当前尚未实现 Closed-loop Refinement / Final Pipeline Selection / Interpretability Analysis / Final Output 等后续阶段。
+MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框架。其核心目标是让用户通过结构化表单提交材料机器学习任务需求，系统自动完成从**任务理解 → 数据加载 → 工作流规划 → 特征工程 → 特征预处理 → 模型搜索上下文更新 → 模型搜索计划生成 → 可执行流水线生成 → 流水线执行与训练 → 指标评估 → LLM 结果诊断 → LLM 工作流精炼（含闭环迭代）**的全流程自动化。当前尚未实现 Final Pipeline Selection / Interpretability Analysis / Final Output 等后续阶段。
 
 ### 1.2 当前实现阶段
 
-当前项目已完成 **十二个核心业务模块** 的端到端实现：
+当前项目已完成 **十三个核心业务模块** 的端到端实现：
 
 | 模块 | 阶段 | 完成度 |
 |------|------|--------|
@@ -29,15 +29,16 @@ MLAgent 是一个面向材料科学领域的 AI 驱动自动化机器学习框�
 | **模块九：Executable Pipeline Generation（可执行流水线生成）** | MVP 已完成 | ~85% |
 | **模块十：Pipeline Execution and Training（流水线执行与训练）** | MVP 已完成 | ~85% |
 | **模块十一：Metric Evaluation（指标评估）** | MVP 已完成 | ~90% |
-| **模块十二：LLM-based Result Diagnosis（基于大模型的结果诊断）** ★ 最新 | MVP 已完成 | ~90% |
+| **模块十二：LLM-based Result Diagnosis（基于大模型的结果诊断）** | MVP 已完成 | ~90% |
+| **模块十三：LLM-driven Workflow Refinement（LLM 驱动的工作流精炼与闭环迭代）** ★ 最新 | MVP 已完成 | ~90% |
 | **Featurizer Registry / Model Registry / HPO Registry / Pipeline Template Registry / Metric Registry（共享能力注册表）** | MVP 已完成 | ~90% |
 
-当前**尚未实现**的后续模块包括：Closed-loop Refinement、Final Pipeline Selection、Interpretability Analysis、Final Output 等。
+当前**尚未实现**的后续模块包括：Final Pipeline Selection、Interpretability Analysis、Final Output 等。**注意**：`closed_loop_refinement/` 目录仅含残留的 `__pycache__` 文件（无源码），其功能已被模块十三（`workflow_refinement/`）取代。`workflow_refinement` 内置的 `iteration_rerun_plan` + `adopt_revised_plan` + 前端 "Adopt & Rerun" 闭环迭代流程实现了原定 Closed-loop Refinement 的全部需求。
 
 ### 1.3 项目整体架构
 
 ```
-用户浏览器 (React SPA — 单一 TaskSpecificationPage，含 12 个嵌入式面板)
+用户浏览器 (React SPA — 单一 TaskSpecificationPage，含 13 个嵌入式面板)
     | HTTP (axios)
 FastAPI 后端 (Python, port 8000)
     | SQLModel
@@ -80,7 +81,14 @@ PostgreSQL 数据库 (port 5432)
             ↓
     Result Diagnosis (15 步流水线：context → load_input → optional_context → extract_evidence → system_checks → build_llm_context → build_prompt → call_llm → parse → validate → normalize → build_refinement_input → save_artifacts → build_response → persist)
             ↓
-        Diagnosis Result + Closed-loop Refinement Input (供下游 Closed-loop Refinement 消费)
+        Diagnosis Result + Closed-loop Refinement Input (供下游 Workflow Refinement 消费)
+            ↓
+    Workflow Refinement (14 步流水线：context → load_input → collect_history → build_llm_context → build_prompt → call_llm → parse → validate → scan_safety → normalize → validate_revised_plan → build_delta → build_rerun_plan_or_fpsi → save_artifacts → build_response → persist)
+            ↓
+        ├── Decision: PROCEED_NEXT_STAGE → Final Pipeline Selection Input (供下游 Final Pipeline Selection 消费)
+        └── Decision: ITERATE_REFINEMENT → Revised WorkflowPlan (新 Plan) + Iteration Rerun Plan
+                ↓ (通过 Adopt & Rerun 闭环)
+            Re-execute pipeline stages from revised entry point → 回到 Result Diagnosis
 ```
 
 ### 1.4 核心设计原则（根据当前代码分析）
@@ -99,7 +107,11 @@ PostgreSQL 数据库 (port 5432)
 12. **轻量合同 + JSONB 补充模式**：模块十一的 metric_evaluation_input_json 中的 trial_results 为轻量摘要（仅 6 个字段），完整的 pipeline_role / model_family / trial_type / params 等元数据从 PipelineExecution 的 execution_json JSONB 中补充。这是一种"上游发轻量合同，下游按需从完整日志中提取"的设计模式，减少了合同字段的冗余。
 13. **LLM 诊断只建议不执行**：模块十二的 LLM 只能输出结构化 JSON 诊断与建议，Prompt 明确禁止代码生成，Validator 扫描 14 种危险代码模式（import / def / class / eval / exec / subprocess 等），Normalizer 将所有 LLM 输出归一化为标准 Schema。LLM 失败时降级到 system rule-based fallback，不影响上游 Metric Evaluation 结果。
 14. **证据驱动诊断**：每个 DiagnosticFinding 必须包含 evidence_items（含 evidence_type / source_module / source_field / value / interpretation），证据不足时强制标记 `evidence_strength: weak`，LLM 不能凭空断言。
-15. **诊断类型别名映射**：模块十二的 `DIAGNOSIS_TYPE_ALIASES`（25 条映射）将 LLM 常见近义表达（如 `baseline_improvement` / `overfitting` / `underfit`）归一化为规范枚举值，避免因 LLM 输出的微小措辞差异导致整个诊断路径失败。
+15. **诊断类型别名映射**：模块十二的 `DIAGNOSIS_TYPE_ALIASES`（26 条映射）将 LLM 常见近义表达（如 `baseline_improvement` / `overfitting` / `underfit`）归一化为规范枚举值，避免因 LLM 输出的微小措辞差异导致整个诊断路径失败。
+16. **LLM 决策双路径**：模块十三的 LLM 输出两种决策路径：`proceed_next_stage`（进入最终 Pipeline 选择）或 `iterate_refinement`（生成修订版 WorkflowPlan + 迭代重跑计划），每条路径有独立的 Pydantic Schema 约束和一致性校验。
+17. **Adopt & Rerun 闭环迭代**：模块十三的 `adopt_revised_plan` 端点将 LLM 修订的 WorkflowPlan 持久化为新 Plan 记录（`planning_mode = "refinement_adopted"`），然后前端按 `iteration_rerun_plan.rerun_stages` 顺序重新执行各 pipeline 阶段，形成完整闭环。该机制完全取代了原有设计中的独立 `closed_loop_refinement` 模块。
+18. **多迭代历史追踪**：模块十三的 `experiment_history_collector` 从 5 个上游模块（WorkflowRefinement, MetricEvaluation, ResultDiagnosis, ModelSearch, PipelineExecution）收集跨迭代的历史数据（最佳指标、指标趋势、重复诊断类型、已尝试模型族、失败率、运行时成本），供 LLM 做出跨迭代比较决策。
+19. **Workflow Plan Delta**：模块十三的 `workflow_plan_delta_builder` 对原始和修订版 WorkflowPlan 逐 section 计算 diff（added / removed / changed），并关联变更原因到具体诊断发现，形成可追溯的变更审计链。
 
 ---
 
@@ -364,11 +376,11 @@ c:\projects\MLAgent/
 │   │   │
 │   │   │   └── result_diagnosis/          # 模块十二：LLM-based Result Diagnosis ★ 最新
 │   │   │       ├── __init__.py
-│   │   │       ├── api.py                # 6 个接口（POST create, GET by id, GET latest by task, POST rerun, GET summary, GET closed-loop-refinement-input）
+│   │   │       ├── api.py                # 7 个接口（POST create, GET by id, GET latest by task, POST rerun, GET summary, GET closed-loop-refinement-input, GET needs-fresh）
 │   │   │       ├── schemas.py            # ResultDiagnosisCreateRequest, EvidenceItem, DiagnosticFinding, RootCauseHypothesis, SystemActionHint, RefinementRecommendation, OverallAssessment, EvidenceSummary, SystemDiagnosticChecks, LLMDiagnosisResult, SuggestedNextIterationProfile, ClosedLoopRefinementInput, DiagnosisArtifactManifest, ResultDiagnosisResponse, ResultDiagnosisSummaryResponse 等 14 个 DTO
-│   │   │       ├── service.py            # 15 步流水线：context → load_input → optional_context → extract_evidence → system_checks → build_llm_context → build_prompt → call_llm → parse → validate → normalize → build_refinement_input → save_artifacts → build_response → persist
+│   │   │       ├── service.py            # 15 步流水线：context → load_input → optional_context → extract_evidence → system_checks → build_llm_context → build_prompt → call_llm → parse → validate → normalize → build_refinement_input → save_artifacts → build_response → persist；含 needs_fresh_diagnosis() 方法
 │   │   │       ├── model.py              # ResultDiagnosis (SQLModel, table=True, JSONB + diagnosis_json + closed_loop_refinement_input_json + llm_request_json + llm_response_json + system_checks_json)
-│   │   │       ├── repository.py         # CRUD + get_latest_by_task_id + list_by_task_id + update
+│   │   │       ├── repository.py         # CRUD + get_latest_by_task_id + list_by_task_id + update + count_by_task_id
 │   │   │       ├── context_builder.py    # 读取模块十一的 MetricEvaluation，校验 status ∈ {evaluated,evaluated_with_warning,partially_evaluated} 且 ready_for_result_diagnosis=True
 │   │   │       ├── diagnosis_input_loader.py # 加载和校验 result_diagnosis_input_json（9 个必填字段检查）
 │   │   │       ├── evidence_extractor.py # 证据提取器：6 类证据（metric/baseline/fold_stability/dataset/feature/pipeline）
@@ -377,13 +389,38 @@ c:\projects\MLAgent/
 │   │   │       ├── llm_prompt_builder.py  # System prompt（14 个诊断维度 + JSON Schema）+ user message 构建
 │   │   │       ├── llm_result_diagnoser.py # LLM Result Diagnoser（复用 LLMClient 调用 LLM）
 │   │   │       ├── llm_response_parser.py  # LLM 响应 JSON 解析（3 种策略：direct json/代码块提取/大括号提取）
-│   │   │       ├── llm_diagnosis_validator.py # 诊断校验器：结构校验 + 枚举值校验 + 安全扫描（14 种代码模式 + 9 个禁止字段 + DIAGNOSIS_TYPE_ALIASES 25 条目别名支持）
+│   │   │       ├── llm_diagnosis_validator.py # 诊断校验器：结构校验 + 枚举值校验 + 安全扫描（14 种代码模式 + 9 个禁止字段 + DIAGNOSIS_TYPE_ALIASES 26 条目别名支持）
 │   │   │       ├── llm_diagnosis_normalizer.py # 诊断标准化器：canonicalize diagnosis_type，coerce supporting_findings int→str，Default fill
 │   │   │       ├── refinement_input_builder.py # 闭环精炼输入构建器（含 ready_for_closed_loop_refinement 标记）
 │   │   │       ├── diagnosis_artifact_manager.py # 诊断 artifact 管理：创建 /app/artifacts/diagnosis/{rd_id}/，保存 7 个 JSON 文件
 │   │   │       ├── builder.py            # 构建 ResultDiagnosisResponse（含 llm_diagnosis / system_checks / evidence_summary / refinement_input / artifact_manifest）
 │   │   │       ├── enums.py              # ResultDiagnosisStatus / DiagnosisMode / DiagnosisType / Severity / Confidence / EvidenceStrength / EvidenceType / TargetStage / RecommendationType / RefinementTarget 等 14 个枚举
 │   │   │       └── exceptions.py         # 10 个专用异常（ResultDiagnosisException / ResultDiagnosisNotFound / MetricEvaluationRequired / MetricEvaluationNotReady / DiagnosisInputInvalid / EvidenceExtraction / SystemDiagnosis / DiagnosticContextBuild / LLMDiagnosisCall / LLMDiagnosisParse / RefinementInputBuild / DiagnosisArtifact 等）
+│   │   │
+│   │   │   └── workflow_refinement/       # 模块十三：LLM-driven Workflow Refinement ★ 最新
+│   │   │       ├── __init__.py
+│   │   │       ├── api.py                # 9 个接口（POST create, GET by id, GET latest by task, POST rerun, GET revised-workflow-plan, GET iteration-rerun-plan, GET final-pipeline-selection-input, GET iteration-context, POST adopt）
+│   │   │       ├── schemas.py           # WorkflowRefinementCreateRequest, WorkflowRefinementDecisionDTO, DecisionReasoning, EvidenceUsed, RefinementMetadata, RevisedWorkflowPlanResponse, WorkflowPlanDelta, IterationRerunPlan, SelectionPolicy, FinalPipelineSelectionInput, ExperimentHistorySummary, WorkflowRefinementValidationResult, LLMWorkflowRefinementResult, ArtifactManifest, WorkflowRefinementResponse 等 15 个 DTO
+│   │   │       ├── service.py            # 14 步流水线：context → load_input → collect_history → build_llm_context → build_prompt → call_llm → parse → validate → scan_safety → normalize → validate_revised_plan → build_delta → build_rerun_or_fpsi → save_artifacts → build_response → persist；含 get_iteration_context_for_diagnosis() 和 adopt_revised_plan()
+│   │   │       ├── model.py              # WorkflowRefinement (JSONB + 10+ JSONB 字段 + iteration_index + decision + ready_for_iteration + ready_for_final_pipeline_selection)
+│   │   │       ├── repository.py         # CRUD + get_latest_by_task_id + list_by_task_id + get_by_result_diagnosis_id + update
+│   │   │       ├── context_builder.py    # 读取模块十二的最新 ResultDiagnosis，校验 status ∈ {diagnosed,diagnosed_with_warning,fallback_diagnosed} 且 ready_for_closed_loop_refinement=True
+│   │   │       ├── refinement_input_loader.py  # 加载和校验 closed_loop_refinement_input_json
+│   │   │       ├── experiment_history_collector.py # 跨迭代实验历史收集：5 个上游模块 → ExperimentHistorySummary（最佳指标/指标趋势/重复诊断/已尝试模型/失败率/运行时成本）
+│   │   │       ├── workflow_refinement_context_builder.py  # 构建 LLM 上下文（含 experiment_history + 10 个上游模块的 lazily loaded data，每个模块独立 try/except）
+│   │   │       ├── llm_prompt_builder.py   # System prompt（11 个决策问题 + 禁止代码 + JSON Schema）+ user message（22 条 CRITICAL RULES）
+│   │   │       ├── llm_workflow_refiner.py  # LLM Workflow Refiner（复用 LLMClient）
+│   │   │       ├── llm_response_parser.py  # LLM 响应 JSON 解析（3 种策略）
+│   │   │       ├── workflow_refinement_validator.py  # 决策校验 + 递归安全扫描（15 种代码模式 + 12 个禁止字段）
+│   │   │       ├── workflow_refinement_normalizer.py  # 决策标准化器（decision/confidence/stage 模糊匹配 + null-consistency 强制 + 对象→字符串列表转换 + 对象→float 转换）
+│   │   │       ├── revised_workflow_plan_validator.py  # 修订版 WorkflowPlan 结构校验（必填字段/子对象/枚举值/范围）
+│   │   │       ├── workflow_plan_delta_builder.py  # Workflow Plan Diff 构建器（7 个 strategy section 逐字段比较）
+│   │   │       ├── iteration_rerun_plan_builder.py  # 迭代重跑计划构建器（标准化列表/阈值/推导 rerun stages）
+│   │   │       ├── final_selection_input_builder.py  # Final Pipeline Selection Input 构建器（含 selection_policy 标准化）
+│   │   │       ├── refinement_artifact_manager.py  # 保存 9 个 JSON artifacts 到 /app/artifacts/workflow_refinement/{wr_id}/
+│   │   │       ├── builder.py            # 构建 WorkflowRefinementResponse
+│   │   │       ├── enums.py              # WorkflowRefinementStatus / WorkflowRefinementDecision / DecisionConfidenceLevel / RerunStage / VALID_* 集合 / RERUN_STAGE_RECOMMENDATIONS
+│   │   │       └── exceptions.py         # 13 个专用异常（WorkflowRefinementException / WorkflowRefinementNotFound / ResultDiagnosisRequired / ResultDiagnosisNotReady / WorkflowRefinementInputInvalid / WorkflowRefinementContextBuild / LLMWorkflowRefinementCall / LLMWorkflowRefinementParse / LLMWorkflowRefinementValidation / RevisedWorkflowPlanValidation / IterationRerunPlanBuild / FinalSelectionInputBuild / WorkflowRefinementArtifactSave）
 │   │   │
 │   │   └── shared/                      # 公共能力
 │   │       ├── __init__.py
@@ -426,13 +463,14 @@ c:\projects\MLAgent/
 │   │   │   ├── modelSearchContextApi.ts # Model Search Context API（超时 300s）
 │   │   │   ├── modelSearchApi.ts        # Model Search Plan API（超时 300s，含 LLM 调用）
 │   │   │   ├── pipelineGenerationApi.ts  # Pipeline Generation API（超时 300s，含 LLM 审查）
-│   │   │   ├── pipelineExecutionApi.ts   # Pipeline Execution API（超时 600s，含模型训练）★ 最新
-│   │   │   └── metricEvaluationApi.ts    # Metric Evaluation API（超时 300s）★ 最新
-│   │   │   └── resultDiagnosisApi.ts       # Result Diagnosis API（超时 300s）★ 最新
-│   │   ├── modules/                     # 业务模块（12 个面板）
+│   │   │   ├── pipelineExecutionApi.ts   # Pipeline Execution API（超时 600s，含模型训练）
+│   │   │   ├── metricEvaluationApi.ts    # Metric Evaluation API（超时 300s）
+│   │   │   ├── resultDiagnosisApi.ts       # Result Diagnosis API（超时 300s，含 needs-fresh + iteration-context）
+│   │   │   └── workflowRefinementApi.ts   # Workflow Refinement API（超时 600s，含 adopt）
+│   │   ├── modules/                     # 业务模块（13 个面板）
 │   │   │   ├── taskSpecification/       # 任务规格表单
-│   │   │   │   ├── pages/TaskSpecificationPage.tsx  # 页面容器（含 12 个嵌入式面板）
-│   │   │   │   ├── components/TaskSpecificationForm.tsx # 主表单（react-hook-form + zod，含 12 个嵌入式面板）
+│   │   │   │   ├── pages/TaskSpecificationPage.tsx  # 页面容器（含 13 个嵌入式面板）
+│   │   │   │   ├── components/TaskSpecificationForm.tsx # 主表单（react-hook-form + zod，含 13 个嵌入式面板）
 │   │   │   │   ├── components/TaskFieldGroup.tsx    # 字段分组容器
 │   │   │   │   └── constants.ts         # Zod Schema + 下拉选项常量
 │   │   │   ├── taskInterpretation/      # 任务理解面板
@@ -485,10 +523,14 @@ c:\projects\MLAgent/
 │   │   │       ├── components/MetricEvaluationPanel.tsx  # 主面板（Run Evaluation / Re-run Evaluation 按钮、11 个展示子区：Summary/Count Boxes/Best Model/Model Ranking/Trial Metrics/Fold Metrics/Baseline Comparison/Metric Validation/Artifact Manifest/Result Diagnosis Input/Warnings & Errors/JSON）
 │   │   │       ├── constants.ts           # 状态颜色 / 方向标签 / 角色颜色
 │   │   │       └── types.ts               # MetricEvaluationResponse, FoldMetricResult, TrialMetricResult, ModelRankingItem, BaselineComparison 等接口
-│   │   │   └── resultDiagnosis/              # LLM 结果诊断面板 ★ 最新
-│   │   │       ├── components/ResultDiagnosisPanel.tsx  # 主面板（Create Diagnosis / Re-run Diagnosis 按钮、9 个 Tab：Overview/Findings/Evidence/Hypotheses/Recommendations/System Checks/LLM Diagnosis/Closed-loop Input/Full JSON）
+│   │   │   └── resultDiagnosis/              # LLM 结果诊断面板
+│   │   │       ├── components/ResultDiagnosisPanel.tsx  # 主面板（Run/Re-run Diagnosis 按钮、9 个 Tab + Iteration Context 显示）
 │   │   │       ├── constants.ts           # 状态颜色 / 诊断类型颜色 / 严重度颜色 / 置信度颜色 / 优先级颜色 / 性能等级颜色
-│   │   │       └── types.ts               # ResultDiagnosisResponse, DiagnosticFinding, EvidenceItem, RootCauseHypothesis, RefinementRecommendation 等接口
+│   │   │       └── types.ts               # ResultDiagnosisResponse, DiagnosticFinding, EvidenceItem, RootCauseHypothesis, RefinementRecommendation, IterationContext 等接口
+│   │   │   └── workflowRefinement/          # LLM 工作流精炼与闭环迭代面板 ★ 最新
+│   │   │       ├── components/WorkflowRefinementPanel.tsx  # 主面板（Run/Re-run 按钮 + Adopt & Rerun 按钮 + 9 个 Tab：Decision/Reasoning/Evidence/Revised Plan/Plan Delta/Rerun Plan/Final Selection/Validation/Full JSON）
+│   │   │       ├── constants.ts           # 状态颜色 / 决策颜色 / 置信度颜色 / 重跑阶段颜色
+│   │   │       └── types.ts               # WorkflowRefinementResponse, WorkflowRefinementDecisionDTO, DecisionReasoning, RevisedWorkflowPlanResponse, WorkflowPlanDelta, IterationRerunPlan, FinalPipelineSelectionInput, AdoptRevisedPlanResult 等接口
 │   │   └── index.tsx
 │   ├── Dockerfile
 │   ├── package.json                     # React 18 + Ant Design 5 + react-hook-form + zod + axios
@@ -531,6 +573,7 @@ c:\projects\MLAgent/
 | Pipeline Generation | 数据库 + API 响应 | JSON | 含 pipeline_bundle (specs + trial_plan + validation/eval plan), pipeline_specs (含 baseline/hpo_candidate 角色), component_binding_result, artifact_manifest, pipeline_validation_result, safety_check_result, llm_advisory_review (顾问式审查), execution_input, ready_for_execution 标记 |
 | Pipeline Execution Result | 数据库 + API 响应 + 文件系统 | JSON + Parquet + Joblib | 含 pipeline_run_results (每 pipeline run 的 trial 统计), trial_results (含 fold_results + 原始指标), training_artifact_manifest (预测/模型/日志/划分元数据路径), metric_evaluation_input (下游 Metric Evaluation 合同), runtime_environment (Python/sklearn/pandas/numpy 版本)；训练 artifacts 存储到 `/app/artifacts/training/{pe_id}/` |
 | Metric Evaluation Result | 数据库 + API 响应 + 文件系统 | JSON | 含 metric_summary (均值/标准差/最小值/最大值/中位数/变异系数), trial_metric_results (跨 fold 聚合), pipeline_metric_results (按 pipeline 聚合), fold_metric_results (每 fold 指标), model_ranking (含 vs Baseline 和 Improvement %), baseline_comparison (最佳基线 vs 最佳候选 + 改善量), metric_validation_result (6 项校验), evaluation_artifact_manifest, result_diagnosis_input (下游 Result Diagnosis 合同)；评估 artifacts 存储到 `/app/artifacts/evaluation/{me_id}/` |
+| Workflow Refinement Result | 数据库 + API 响应 + 文件系统 | JSON | 含 workflow_refinement_decision (proceed_next_stage / iterate_refinement), decision_reasoning (7 维度评估), evidence_used, revised_workflow_plan (修订版 WorkflowPlan), workflow_plan_delta (逐 section diff), iteration_rerun_plan (重跑阶段/可复用/不可复用 artifacts/改善目标/阈值), final_pipeline_selection_input (含 selection_policy), llm_workflow_refinement (完整 LLM 输出), validation_result (5 组件有效性 + 安全扫描结果), artifact_manifest；refinement artifacts 存储到 `/app/artifacts/workflow_refinement/{wr_id}/` |
 
 ### 3.3 中间产物（Artifact 传递链）
 
@@ -577,7 +620,23 @@ Result Diagnosis Artifacts → /app/artifacts/diagnosis/{rd_id}/
     ├── llm_request.json
     ├── llm_response.json
     └── manifest.json
-        ↓ (尚未实现: Closed-loop Refinement)
+        ↓ (模块十三: Workflow Refinement)
+Workflow Refinement Artifacts → /app/artifacts/workflow_refinement/{wr_id}/
+    ├── workflow_refinement_result.json
+    ├── llm_refinement_context.json
+    ├── llm_request.json
+    ├── llm_response.json
+    ├── revised_workflow_plan.json
+    ├── workflow_plan_delta.json
+    ├── iteration_rerun_plan.json
+    ├── final_pipeline_selection_input.json
+    ├── validation_result.json
+    └── manifest.json
+        ↓
+    ┌── Decision: PROCEED_NEXT_STAGE → final_pipeline_selection_input (供 Final Pipeline Selection 消费, 尚未实现)
+    └── Decision: ITERATE_REFINEMENT → Adopt Revised Plan (创建新 WorkflowPlan, mode=refinement_adopted)
+            ↓ (Adopt & Rerun 闭环)
+        Re-execute pipeline stages from revised entry point → 反馈回模块四/五/六/七/八/九/十/十一 → 回到模块十二 (Result Diagnosis)
 ```
 
 ---
@@ -1327,6 +1386,7 @@ Result Diagnosis Artifacts → /app/artifacts/diagnosis/{rd_id}/
 - `POST /api/result-diagnoses/{task_id}` — 创建/运行诊断
 - `GET /api/result-diagnoses/{result_diagnosis_id}` — 获取指定诊断
 - `GET /api/tasks/{task_id}/result-diagnosis` — 获取任务最新诊断
+- `GET /api/tasks/{task_id}/result-diagnosis/needs-fresh` — 检查诊断是否过时（★ 2026-05 新增）
 - `POST /api/result-diagnoses/{task_id}/rerun` — 重新诊断
 - `GET /api/result-diagnoses/{result_diagnosis_id}/summary` — 获取诊断摘要
 - `GET /api/result-diagnoses/{result_diagnosis_id}/closed-loop-refinement-input` — 获取闭环优化输入
@@ -1371,11 +1431,169 @@ Result Diagnosis Artifacts → /app/artifacts/diagnosis/{rd_id}/
 **异常类**（[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/exceptions.py)）：
 - ResultDiagnosisNotFoundException（RESULT_DIAGNOSIS_NOT_FOUND）/ MetricEvaluationRequiredException（METRIC_EVALUATION_REQUIRED）/ MetricEvaluationNotReadyException（METRIC_EVALUATION_NOT_READY_FOR_DIAGNOSIS）/ DiagnosisInputInvalidException（RESULT_DIAGNOSIS_INPUT_INVALID）/ DiagnosticContextBuildException（DIAGNOSTIC_CONTEXT_BUILD_FAILED）/ LLMDiagnosisCallException（LLM_DIAGNOSIS_CALL_FAILED）/ LLMDiagnosisParseException（LLM_DIAGNOSIS_PARSE_FAILED）/ LLMDiagnosisValidationException（LLM_DIAGNOSIS_VALIDATION_FAILED）/ ClosedLoopInputBuildException（CLOSED_LOOP_REFINEMENT_INPUT_BUILD_FAILED）/ DiagnosisArtifactSaveException（DIAGNOSIS_ARTIFACT_SAVE_FAILED）
 
-**完成度**：~90%。核心 15 步流水线完整，LLM + System Rule 双轨诊断链路完整，6 个核心 API 端点就位，11 种诊断类型覆盖 PRD 需求，9 条系统规则检查完整，LLM 输出 parser→validator→normalizer 三道安全防护就位，LLM 失败降级 fallback 机制可用，closed_loop_refinement_input 构建完整，前端 9 Tab 面板集成完毕。
+**完成度**：~90%。核心 15 步流水线完整，LLM + System Rule 双轨诊断链路完整，7 个 API 端点就位，11 种诊断类型 + 26 条别名映射覆盖 PRD 需求，9 条系统规则检查完整，LLM 输出 parser→validator→normalizer 三道安全防护就位，LLM 失败降级 fallback 机制可用，closed_loop_refinement_input 构建完整，`needs_fresh_diagnosis()` 过时检测就位，前端 9 Tab 面板集成完毕（含 iteration context 实时展示）。
 
 ---
 
-### 5.13 Featurizer Registry / Model Registry / HPO Registry / Pipeline Template Registry（共享能力注册表）
+### 5.13 模块十三：LLM-driven Workflow Refinement（LLM 驱动的工作流精炼与闭环迭代）★ 最新
+
+**文件位置**：[backend/app/modules/workflow_refinement/](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/)
+
+**输入**：
+- `WorkflowRefinementCreateRequest`（[schemas.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/schemas.py)）：result_diagnosis_id（可选）, force_rerun, use_llm, max_iterations, current_iteration_index, decision_profile（compact/balanced/full，默认 balanced）, allow_full_workflow_rerun, allow_partial_rerun, minimum_improvement_threshold, notes
+- 上游 `ResultDiagnosis`：必须满足 `status ∈ {diagnosed, diagnosed_with_warning, fallback_diagnosed}` 且 `ready_for_closed_loop_refinement = true`
+- 必须消费 `closed_loop_refinement_input_json`（含 should_refine / refinement_focus / priority_recommendations / constraints_to_preserve / avoid_actions / suggested_next_iteration_profile）
+- 可选/自动读取 10 个上游模块数据和跨迭代实验历史
+
+**处理逻辑**（14 步流水线）：
+1. `context_builder.build_workflow_refinement_context()` — 校验上游 ResultDiagnosis 状态和 `ready_for_closed_loop_refinement` 标记。幂等性检查：若 `force_rerun=False` 且已存在相同 task+diagnosis 的 DECIDED/DECIDED_WITH_WARNING 记录，直接返回已有结果
+2. `refinement_input_loader.load_closed_loop_refinement_input()` — 提取 `closed_loop_refinement_input_json`，校验 `should_refine` 和 `refinement_focus` 必填字段
+3. `experiment_history_collector.collect_experiment_history()` — 从 5 个上游模块仓库收集跨迭代历史：
+   - WorkflowRefinement：已完成迭代次数、历史决策
+   - MetricEvaluation：各迭代最佳指标、指标趋势（improving/degrading/stable）
+   - ResultDiagnosis：重复诊断类型统计（Counter）
+   - ModelSearch：已尝试模型族列表
+   - PipelineExecution：累计失败率和运行时成本
+   - 每个数据源独立 try/except，单个失败不影响整体收集
+4. `workflow_refinement_context_builder.build_llm_workflow_refinement_context()` — 组装 LLM 上下文：decision_profile + diagnosis 数据 + closed_loop_refinement_input + experiment_history + 10 个上游模块的 lazily loaded 数据（TaskSpec/TaskInterpretation/DatasetProfile/WorkflowPlan/FeatureEngineering/FeaturePreprocessing/ModelSearchContext/ModelSearch/PipelineGeneration/PipelineExecution/MetricEvaluation，每个模块独立 try/except 保护）
+5. `llm_prompt_builder.build_llm_prompt()` — 构建 system prompt（LLM 角色定义 + 11 个决策问题 + 禁止代码声明）和 user message（完整 JSON 上下文 + 22 条 CRITICAL RULES + 严格输出 Schema）
+6. `llm_workflow_refiner.LLMWorkflowRefiner.refine()` — 复用 `LLMClient`（定义于 [task_interpretation/llm_client.py](file:///c:/projects/MLAgent/backend/app/modules/task_interpretation/llm_client.py)）调用 LLM
+7. `llm_response_parser.parse_llm_response()` — 3 种策略：正则提取 `{...}` / 直接解析 / 去 markdown fence 重试
+8. `workflow_refinement_validator.validate_workflow_refinement_decision()` — 结构校验 + 语义一致性校验：
+   - decision ∈ {proceed_next_stage, iterate_refinement}
+   - confidence ∈ {low, medium, high}
+   - rerun stage ∈ VALID_RERUN_STAGES（9 个阶段）
+   - 若 decision = proceed_next_stage：revised_workflow_plan 必须为 null，final_pipeline_selection_input 必须非空
+   - 若 decision = iterate_refinement：revised_workflow_plan 必须非空，iteration_rerun_plan 必须非空
+9. `workflow_refinement_validator.scan_for_forbidden_content()` — 递归扫描整个 LLM 响应的禁止内容：
+   - 15 个危险代码模式：import / def / class / eval / exec / subprocess / os.system / model.fit / model.predict / Pipeline( / optuna.create_study / __import__ / compile / globals / locals
+   - 12 个禁止字段：code / python_code / script / shell_command / sql / train_code / executable / workflow_patch / pipeline_patch / model_fit_code / direct_execution
+10. `workflow_refinement_normalizer.normalize_workflow_refinement_result()` — 标准化 LLM 输出：
+    - 模糊匹配 normalization：decision ("proceed"/"final"/"next" → "proceed_next_stage"; "iterate"/"refine"/"revise" → "iterate_refinement")
+    - 模糊匹配 confidence level 和 rerun stage names
+    - null-consistency 强制：根据 decision 类型强制设置 revised_plan / rerun_plan / final_selection_input 为 null
+    - 对象→列表转换：将 LLM 输出的对象数组转为字符串列表
+    - 对象→float 转换：将 LLM 输出的对象类型数值转为 float
+11. `revised_workflow_plan_validator.validate_revised_workflow_plan()` — 若 decision = iterate_refinement，校验修订版 WorkflowPlan 结构：9 个必填 top-level 字段 + 各子对象的必填字段 + 枚举值 + 数值范围（n_splits: 2-10, confidence_score: 0-1）
+12. `workflow_plan_delta_builder.build_workflow_plan_delta()` — 加载原始 WorkflowPlan，逐 section（7 个 strategy section）计算 diff（added / removed / changed 字段级别），关联变更原因到诊断发现，标记 rejected_or_unsafe_changes
+13. 根据 decision 分支构建：
+    - **PROCEED_NEXT_STAGE**：`final_selection_input_builder.build_final_selection_input()` — 构建 FinalPipelineSelectionInput（含 selection_policy 标准化：字符串→列表，workflow_refinement_id / candidate_ids / best_model/trial/pipeline IDs / constraints / ready_for_final_pipeline_selection）
+    - **ITERATE_REFINEMENT**：`iteration_rerun_plan_builder.build_iteration_rerun_plan()` — 构建 IterationRerunPlan（含 next_iteration_index / rerun_stages 标准化 / reuse_artifacts / invalidate_artifacts / expected_improvement_targets / minimum_improvement_threshold / stop_after_next_iteration_if_no_gain）
+14. `refinement_artifact_manager.save_refinement_artifacts()` — 保存 9 个 JSON artifacts 到 `/app/artifacts/workflow_refinement/{wr_id}/`：
+    - workflow_refinement_result.json / llm_refinement_context.json / llm_request.json / llm_response.json / revised_workflow_plan.json / workflow_plan_delta.json / iteration_rerun_plan.json / final_pipeline_selection_input.json / validation_result.json / manifest.json
+15. `builder.build_response()` — 组装 WorkflowRefinementResponse（含所有子 DTO：DecisionReasoning / EvidenceUsed / RevisedWorkflowPlanResponse / WorkflowPlanDelta / IterationRerunPlan / FinalPipelineSelectionInput / LLMWorkflowRefinementResult / WorkflowRefinementValidationResult / ArtifactManifest）
+16. 持久化到数据库：7 个 JSONB 字段（workflow_refinement_json / revised_workflow_plan_json / workflow_plan_delta_json / iteration_rerun_plan_json / final_pipeline_selection_input_json / llm_request_json / llm_response_json / validation_result_json）+ 状态字段
+
+**Adopt & Rerun 闭环机制**：
+- `adopt_revised_plan()`（[service.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/service.py)）：
+  1. 校验 decision = iterate_refinement 且 revised_workflow_plan_json 非空
+  2. 调用 `validate_revised_workflow_plan()` 二次校验
+  3. 调用 `WorkflowPlanningService.adopt_revised_plan()` 将修订版 Plan 持久化为新 WorkflowPlan 记录（`planning_mode = "refinement_adopted"`, `status = "planned"`）
+  4. 更新 WorkflowRefinement 记录状态为 ADOPTED，记录 adopted_workflow_plan_id 和 adopted_at 时间戳
+  5. 返回完整的 adopt 结果：adopted_plan_id / rerun_stages / reuse_artifacts / invalidate_artifacts / expected_improvement_targets
+- 前端 `handleAdoptAndRerun()`（[WorkflowRefinementPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/workflowRefinement/components/WorkflowRefinementPanel.tsx)）：
+  1. 调用 `adoptRevisedPlan()` API
+  2. 按 `rerun_stages` 顺序依次调用各阶段的 create API（feature_engineering → feature_preprocessing → model_search_context → model_search → pipeline_generation → pipeline_execution → metric_evaluation）
+  3. 实时进度日志显示（绿色成功 / 红色失败）
+  4. 任何阶段失败则停止后续执行
+  5. 全部成功后显示下一步指引：Re-run Result Diagnosis → Run Workflow Refinement again
+
+**LLM 安全性**：
+- **Prompt 约束**：System prompt 声明 "You must not output executable code. You cannot start model training. You cannot modify the data_preparation or model registry directly."
+- **Validator 一致性校验**：decision 类型与是否提供 revised_plan/rerun_plan/final_selection_input 的一致性强制检查
+- **递归安全扫描**：`scan_for_forbidden_content()` 递归遍历整个 JSON 响应
+- **三重防护**：Prompt 约束 → Validator 结构校验 → Safety Scanner 禁止内容检测
+
+**LLM 输出 Schema**（[llm_prompt_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/llm_prompt_builder.py)）：
+- workflow_refinement_decision（decision / decision_confidence_level / primary_reason / should_generate_revised_workflow_plan / recommended_rerun_from_stage / should_proceed_to_final_selection）
+- decision_reasoning（7 维度：performance / baseline / stability / diagnosis / cost / risk / final_reasoning_summary）
+- evidence_used[]（evidence_id / source_module / evidence_type / source_field / value / interpretation / supports_decision）
+- revised_workflow_plan（9 个 strategy section + refinement_metadata：changed_sections / preserved_sections）
+- iteration_rerun_plan（next_iteration_index / recommended_rerun_from_stage / rerun_stages / reuse_artifacts / invalidate_artifacts / expected_improvement_targets / minimum_improvement_threshold / stop_after_next_iteration_if_no_gain）
+- final_pipeline_selection_input（candidate_metric_evaluation_ids / current_best_model_id / current_best_trial_id / current_best_pipeline_spec_id / selection_policy / constraints / ready_for_final_pipeline_selection）
+- confidence_level
+
+**输出**：
+- `WorkflowRefinementResponse`：含 workflow_refinement_id / task_id / result_diagnosis_id / iteration_index / status / decision / decision_confidence_level / decision_reasoning / evidence_used / recommended_rerun_from_stage / revised_workflow_plan / workflow_plan_delta / iteration_rerun_plan / final_pipeline_selection_input / llm_workflow_refinement / workflow_refinement_validation_result / artifact_manifest / ready_for_iteration / ready_for_final_pipeline_selection
+- `AdoptRevisedPlanResult`：adopted / workflow_refinement_id / task_id / adopted_workflow_plan_id / recommended_rerun_from_stage / rerun_stages[] / reuse_artifacts[] / invalidate_artifacts[] / expected_improvement_targets[] / reasoning
+- `IterationContext`（用于前端迭代位置显示）：is_part_of_iteration / diagnosis_position / total_diagnoses / workflow_refinement_id / iteration_index / decision / status
+
+**API 接口**（[api.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/api.py)）：
+- `POST /api/workflow-refinements/{task_id}` — 运行工作流精炼（创建 LLM 决策）
+- `GET /api/workflow-refinements/{workflow_refinement_id}` — 获取指定精炼记录
+- `GET /api/tasks/{task_id}/workflow-refinement` — 获取任务的最新精炼
+- `POST /api/workflow-refinements/{task_id}/rerun` — 强制重新精炼
+- `GET /api/workflow-refinements/{workflow_refinement_id}/revised-workflow-plan` — 获取修订版 WorkflowPlan
+- `GET /api/workflow-refinements/{workflow_refinement_id}/iteration-rerun-plan` — 获取迭代重跑计划
+- `GET /api/workflow-refinements/{workflow_refinement_id}/final-pipeline-selection-input` — 获取最终 Pipeline 选择输入
+- `GET /api/result-diagnoses/{rd_id}/iteration-context` — 获取指定诊断的迭代上下文（用于前端显示迭代位置）
+- `POST /api/workflow-refinements/{workflow_refinement_id}/adopt` — 采纳修订版 Plan（持久化为新 WorkflowPlan 并返回重跑指令）
+
+**数据模型**（[model.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/model.py)）：
+- `WorkflowRefinement` 表（`workflow_refinement`）：id (PK, `wr_{8hex}`), task_id (indexed), result_diagnosis_id (indexed), metric_evaluation_id, pipeline_execution_id, source_workflow_plan_id, iteration_index, status (indexed, deciding/decided/decided_with_warning/adopted/failed), decision (indexed), decision_confidence_level, recommended_rerun_from_stage, ready_for_iteration (indexed), ready_for_final_pipeline_selection (indexed), workflow_refinement_json (JSONB), revised_workflow_plan_json (JSONB), workflow_plan_delta_json (JSONB), iteration_rerun_plan_json (JSONB), final_pipeline_selection_input_json (JSONB), llm_request_json (JSONB), llm_response_json (JSONB), validation_result_json (JSONB), artifact_dir, error_message, created_at (indexed), updated_at
+
+**状态与枚举**（[enums.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/enums.py)）：
+- WorkflowRefinementStatus：deciding / decided / decided_with_warning / adopted / failed
+- WorkflowRefinementDecision：proceed_next_stage / iterate_refinement
+- DecisionConfidenceLevel：low / medium / high
+- RerunStage（9 个）：workflow_planning / feature_engineering / feature_preprocessing / model_search_context / model_search / pipeline_generation / pipeline_execution / metric_evaluation / final_pipeline_selection
+- RERUN_STAGE_RECOMMENDATIONS：诊断类型 → 建议重跑入口阶段的映射（如 underfitting→workflow_planning, hpo_insufficient→model_search）
+
+**异常类**（[exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/exceptions.py)）：
+- 13 个专用异常：WorkflowRefinementException / WorkflowRefinementNotFoundException / ResultDiagnosisRequiredException / ResultDiagnosisNotReadyException / WorkflowRefinementInputInvalidException / WorkflowRefinementContextBuildException / LLMWorkflowRefinementCallException / LLMWorkflowRefinementParseException / LLMWorkflowRefinementValidationException / RevisedWorkflowPlanValidationException / IterationRerunPlanBuildException / FinalSelectionInputBuildException / WorkflowRefinementArtifactSaveException
+
+**关键设计约束**：
+1. **LLM 定位于决策顾问**：LLM 输出结构化决策和建议，但不直接修改数据库、不直接训练模型、不生成可执行代码
+2. **双路径输出**：LLM 输出两种互斥决策路径（proceed vs iterate），Validator 强制语义一致性（路径与提供的计划/输入必须匹配）
+3. **多级安全防护**：Prompt 约束 → Validator 一致性校验 → Safety Scanner 递归禁止内容检测
+4. **Normalizer 防御性处理**：处理 LLM 常见输出 quirk（模糊字符串、对象代替字符串/数字），确保 Pydantic 校验不失败
+5. **Adopt & Rerun 闭环**：adopt_revised_plan 将 LLM 修订的 Plan 持久化为新 WorkflowPlan（planning_mode="refinement_adopted"），前端按 plan 顺序自动重跑 pipeline 阶段
+6. **跨迭代历史**：experiment_history_collector 从 5 个模块收集完整迭代数据，供 LLM 做出跨迭代比较决策
+7. **Workflow Plan Delta 可追溯**：逐 section 计算原始 vs 修订计划 diff，关联变更原因到诊断发现
+8. **幂等性**：同一 task+diagnosis 的已决策记录直接返回，避免重复 LLM 调用
+
+**前端面板**（[WorkflowRefinementPanel.tsx](file:///c:/projects/MLAgent/frontend/src/modules/workflowRefinement/components/WorkflowRefinementPanel.tsx)）：
+- 提供 "Run Workflow Refinement"（紫色）和 "Re-run Refinement"（橙色）两个按钮
+- 决策为 iterate_refinement 且 ready_for_iteration 时显示 "Adopt & Rerun" 区域（橙色按钮 → 确认对话框 → 实时进度日志）
+- 9 个 Tab 子区：
+  1. **Decision** — 决策结果（decision / confidence / recommended_rerun_stage / ready_for_iteration / ready_for_final_selection）
+  2. **Reasoning** — 7 维度评估（performance / baseline / stability / diagnosis / cost / risk / final summary）
+  3. **Evidence** — 证据详细表格（6 列：source_module / evidence_type / source_field / value / interpretation / supports）
+  4. **Revised Plan** — 修订版 WorkflowPlan（9 个 strategy section + refinement_metadata）
+  5. **Plan Delta** — 原始 vs 修订 diff（changed/preserved sections + 逐字段变更 + rejected/unsafe changes）
+  6. **Rerun Plan** — 迭代重跑计划（entry point badge / rerun stages badges / reuse/invalidate artifacts / expected improvements）
+  7. **Final Selection** — Final Pipeline Selection Input（ready / best model/trial/pipeline IDs / candidate IDs / selection_policy）
+  8. **Validation** — 5 组件有效性 + safety_scan 结果
+  9. **Full JSON** — 完整精炼结果 JSON
+- Adopt & Rerun 流程包含完整的用户指引（Next Steps 绿色提示框），指导用户在闭环迭代中的后续操作
+
+**完成度**：~90%。核心 14 步流水线完整，9 个 API 端点就位，LLM 决策双路径完整，Adopt & Rerun 闭环迭代机制完整，跨迭代历史收集就位，Workflow Plan Delta 可追溯，前端 9 Tab 面板 + Adopt & Rerun 集成完毕，13 个专用异常覆盖所有故障模式。`closed_loop_refinement/` 目录已成历史残留（仅含 `__pycache__`，无源码），其全部需求已由本模块实现。
+
+---
+
+### 5.14 模块更新说明（相对于上一版文档）
+
+**模块四（Workflow Planning）更新**：
+- `enums.py`：新增 `PlanningMode.REFINEMENT_ADOPTED = "refinement_adopted"`
+- `service.py`：新增 `adopt_revised_plan()` 方法（~90 行），将模块十三的 LLM 修订版 WorkflowPlan 持久化为新 WorkflowPlan 记录（`planning_mode = "refinement_adopted"`, `status = "planned"`），提取所有 9 个 strategy section + refinement_metadata
+
+**模块十二（Result Diagnosis）更新**：
+- `api.py`：新增 `GET /api/tasks/{task_id}/result-diagnosis/needs-fresh`（检查诊断是否过时）+ `GET /api/result-diagnoses/{rd_id}/iteration-context` 被路由到 workflow_refinement 模块
+- `service.py`：新增 `needs_fresh_diagnosis()` 方法——比较现有诊断的 metric_evaluation_id 与最新 metric_evaluation_id 是否一致，若不一致则标记 `needs_fresh: true`
+- `repository.py`：新增 `count_by_task_id()` 方法
+- `enums.py`：`VALID_SEVERITY_VALUES` 新增 `"unknown"` 值；`DIAGNOSIS_TYPE_ALIASES` 新增 `"underfitting_risk" → DiagnosisType.UNDERFITTING` 映射（现共 26 条）
+
+**前端更新**：
+- `resultDiagnosis` 面板：新增 `iteration context` 显示——根据是否属于迭代显示紫色 `#迭代号` badge（含 analysis position 信息）
+- `resultDiagnosis` API：新增 `checkNeedsFreshDiagnosis()` 和 `getIterationContextForDiagnosis()` 两个函数
+- `resultDiagnosis` types：新增 `IterationContext` 接口（is_part_of_iteration / diagnosis_position / total_diagnoses / workflow_refinement_id / iteration_index / decision / status）
+- `workflowRefinement` API：新增 `adoptRevisedPlan()` 函数
+- `workflowRefinement` panel：新增完整 "Adopt & Rerun" 功能（含确认对话框、实时进度日志、各阶段 API 顺序调用、错误处理、下一步指引）
+- `workflowRefinement` constants/type：新增 `adopted` 状态颜色/标签和 `AdoptRevisedPlanResult` 接口
+
+---
+
+### 5.15 Featurizer Registry / Model Registry / HPO Registry / Pipeline Template Registry（共享能力注册表）
 
 **文件位置**：[backend/app/shared/registry/](file:///c:/projects/MLAgent/backend/app/shared/registry/)
 
@@ -1792,20 +2010,102 @@ Result Diagnosis Artifacts → /app/artifacts/diagnosis/{rd_id}/
 │           llm_response_json + system_checks_json）                         │
 │                                                                          │
 │ 输出: Diagnosis Result + Closed-loop Refinement Input                    │
-│        (供下游 Closed-loop Refinement 消费)                                │
+│        (供下游 Workflow Refinement 消费)                                   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 阶段 13: LLM Workflow Refinement（工作流精炼与闭环迭代）★ 最新              │
+│                                                                          │
+│ POST /api/workflow-refinements/{task_id}                                  │
+│   └── WorkflowRefinementService.create_workflow_refinement()              │
+│       ├── context_builder.build_workflow_refinement_context()             │
+│       │   └── 读取模块十二最新 ResultDiagnosis → 校验 status +            │
+│       │       ready_for_closed_loop_refinement = true                      │
+│       │   └── 幂等性检查：已决策的相同记录直接返回                           │
+│       ├── refinement_input_loader → 校验 closed_loop_refinement_input     │
+│       ├── experiment_history_collector → 5 个上游模块跨迭代数据收集        │
+│       │   └── WorkflowRefinement / MetricEvaluation / ResultDiagnosis     │
+│       │       / ModelSearch / PipelineExecution                           │
+│       │   └── 每模块独立 try/except，单点失败不影响整体                     │
+│       ├── workflow_refinement_context_builder → 组装 LLM 上下文            │
+│       │   └── decision_profile + diagnosis + closed_loop_input            │
+│       │       + experiment_history + 10 个 lazily loaded 上游模块          │
+│       ├── llm_prompt_builder.build_llm_prompt()                           │
+│       │   └── System prompt（11 个决策问题 + 禁止代码）                     │
+│       │   └── User message（完整 JSON 上下文 + 22 条 CRITICAL RULES）      │
+│       ├── LLMWorkflowRefiner.refine() → LLMClient                         │
+│       │   └── httpx POST → 获取结构化 Workflow Refinement Decision JSON   │
+│       ├── llm_response_parser → 3 种策略提取 JSON                          │
+│       ├── workflow_refinement_validator                                   │
+│       │   ├── validate_decision()：决策/置信度/重跑阶段枚举 +               │
+│       │   │   语义一致性（proceed→final_selection_input非空,                │
+│       │   │   iterate→revised_plan + rerun_plan 非空）                     │
+│       │   └── scan_for_forbidden_content()：递归扫描 15 种代码模式          │
+│       │       + 12 个禁止字段                                              │
+│       ├── workflow_refinement_normalizer.normalize()                       │
+│       │   ├── 模糊匹配 decision / confidence / stage names                  │
+│       │   ├── 强制 null-consistency（按 decision 类型）                     │
+│       │   ├── 对象→字符串列表 / 对象→float 转换                             │
+│       │   └── 设置 revised_plan.status="planned_by_refinement"             │
+│       ├── [若 decision=iterate_refinement]                                │
+│       │   ├── validate_revised_workflow_plan() → 9 个 top-level 字段      │
+│       │   │   + 子对象必填 + 枚举 + 范围                                    │
+│       │   ├── build_workflow_plan_delta()                                  │
+│       │   │   └── 加载原始 WorkflowPlan → 逐 section diff                  │
+│       │   └── build_iteration_rerun_plan()                                 │
+│       │       └── 标准化列表/阈值/推导 rerun stages                         │
+│       ├── [若 decision=proceed_next_stage]                                │
+│       │   └── build_final_selection_input()                                │
+│       │       └── LLM FPSI + best model/trial IDs 回退                     │
+│       │       └── normalize_selection_policy（字符串→列表）                │
+│       ├── refinement_artifact_manager → 保存 9 个 JSON artifacts           │
+│       │   └── → /app/artifacts/workflow_refinement/{wr_id}/                │
+│       ├── builder.build_response() → 组装 WorkflowRefinementResponse       │
+│       │   └── 含 DecisionReasoning + EvidenceUsed[] +                      │
+│       │       RevisedWorkflowPlanResponse + WorkflowPlanDelta +            │
+│       │       IterationRerunPlan + FinalPipelineSelectionInput +           │
+│       │       LLMWorkflowRefinementResult + ValidationResult +             │
+│       │       ArtifactManifest                                             │
+│       └── 持久化到 WorkflowRefinement 表（7 个 JSONB 字段）                 │
+│                                                                          │
+│ [Closed-loop Iteration]                                                   │
+│   POST /api/workflow-refinements/{wr_id}/adopt                             │
+│     └── adopt_revised_plan()                                               │
+│         ├── 校验 decision = iterate_refinement                             │
+│         ├── validate_revised_workflow_plan() 二次校验                       │
+│         ├── WorkflowPlanningService.adopt_revised_plan()                   │
+│         │   └── 持久化为新 WorkflowPlan（planning_mode=refinement_adopted） │
+│         ├── 更新 WorkflowRefinement status = ADOPTED                       │
+│         └── 返回 rerun_stages / reuse_artifacts / invalidate_artifacts     │
+│                                                                          │
+│ [前端 Adopt & Rerun]                                                      │
+│   └── 依次调用各 stage create API（按 rerun_stages 顺序）                   │
+│       → workflow_planning (跳过，已 adopt)                                  │
+│       → feature_engineering → feature_preprocessing                       │
+│       → model_search_context → model_search                               │
+│       → pipeline_generation → pipeline_execution                          │
+│       → metric_evaluation                                                 │
+│       → 提示用户: Re-run Result Diagnosis                                 │
+│       → 提示用户: Run Workflow Refinement again                           │
+│                                                                          │
+│ 输出: Workflow Refinement Decision + Revised WorkflowPlan                 │
+│        + Iteration Rerun Plan (供闭环迭代消费)                              │
+│        + Final Pipeline Selection Input (供 Final Selection 消费，尚未实现)  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 6.2 关键调用链路
 
-**LLM 调用链路**（模块二、四、七、八、九、十二共享模式）：
+**LLM 调用链路**（模块二、四、七、八、九、十二、十三共享模式）：
 ```
 Service.create_*()
   → context_builder.build_*_context()     # 校验上游 + 构建 context
   → prompt_builder.build_prompt()         # 构建 system/user prompt
   → LLMClient.generate()                  # httpx POST → OpenAI API
   → parser.parse_llm_response()           # 正则提取 JSON
-  → validator.validate_*()                # 结构/枚举/Registry 校验
+  → validator.validate_*()                # 结构/枚举/安全扫描 校验
+  → normalizer.normalize_*()              # 标准化（模块九/十二/十三特有）
   → builder.build_*()                     # 构建完整 JSON
   → repository.create()                   # 持久化
 ```
@@ -1903,6 +2203,32 @@ ResultDiagnosisService
     → /app/artifacts/diagnosis/{rd_id}/llm_request.json
     → /app/artifacts/diagnosis/{rd_id}/llm_response.json
     → /app/artifacts/diagnosis/{rd_id}/manifest.json
+
+WorkflowRefinementService
+  → context_builder.build_workflow_refinement_context()
+    ← 读取 ResultDiagnosis 表中的 closed_loop_refinement_input_json + diagnosis_json
+    ← 校验 ready_for_closed_loop_refinement = true
+  → refinement_input_loader → experiment_history_collector (5 modules)
+  → workflow_refinement_context_builder (lazy load 10 upstream)
+  → llm_prompt_builder → LLMWorkflowRefiner (LLMClient)
+  → llm_response_parser (3 strategies) → workflow_refinement_validator
+  → workflow_refinement_normalizer → [branch: revised_plan_validator + delta_builder | fpsi_builder]
+  → refinement_artifact_manager (save 9 JSON artifacts)
+  → builder (response) → persist (7 JSONB fields)
+  → [If ADOPT] adopt_revised_plan → WorkflowPlanningService.adopt_revised_plan()
+      → 创建新 WorkflowPlan (mode=refinement_adopted)
+      → 返回 rerun plan → 前端顺序重跑 pipeline 阶段
+  → 输出 Workflow Refinement Decision + Revised Plan / Final Selection Input
+    → /app/artifacts/workflow_refinement/{wr_id}/workflow_refinement_result.json
+    → /app/artifacts/workflow_refinement/{wr_id}/llm_refinement_context.json
+    → /app/artifacts/workflow_refinement/{wr_id}/llm_request.json
+    → /app/artifacts/workflow_refinement/{wr_id}/llm_response.json
+    → /app/artifacts/workflow_refinement/{wr_id}/revised_workflow_plan.json
+    → /app/artifacts/workflow_refinement/{wr_id}/workflow_plan_delta.json
+    → /app/artifacts/workflow_refinement/{wr_id}/iteration_rerun_plan.json
+    → /app/artifacts/workflow_refinement/{wr_id}/final_pipeline_selection_input.json
+    → /app/artifacts/workflow_refinement/{wr_id}/validation_result.json
+    → /app/artifacts/workflow_refinement/{wr_id}/manifest.json
 ```
 
 ---
@@ -1932,6 +2258,7 @@ class DatabaseException(BusinessException): ...
 - 模块七：[model_search_context/exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/model_search_context/exceptions.py) — `ModelSearchContextNotFoundException`, `UpstreamNotReadyException`, `LLMCallException` 等
 - 模块十一：[metric_evaluation/exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/metric_evaluation/exceptions.py) — 13 个专用异常（MetricEvaluationException / MetricEvaluationNotFound / PipelineExecutionRequired / PipelineExecutionNotReady / MetricEvaluationInputInvalid / PredictionArtifactLoad / MetricNotSupported / MetricCalculation / MetricAggregation / ModelRanking / BaselineComparison / ResultDiagnosisInputBuild / EvaluationArtifactSave）
 - 模块十二：[result_diagnosis/exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/exceptions.py) — 10 个专用异常（ResultDiagnosisException / ResultDiagnosisNotFound / MetricEvaluationRequired / MetricEvaluationNotReady / DiagnosisInputInvalid / EvidenceExtraction / SystemDiagnosis / DiagnosticContextBuild / LLMDiagnosisCall / LLMDiagnosisParse / RefinementInputBuild / DiagnosisArtifact）
+- 模块十三：[workflow_refinement/exceptions.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/exceptions.py) — 13 个专用异常（WorkflowRefinementException / WorkflowRefinementNotFound / ResultDiagnosisRequired / ResultDiagnosisNotReady / WorkflowRefinementInputInvalid / WorkflowRefinementContextBuild / LLMWorkflowRefinementCall / LLMWorkflowRefinementParse / LLMWorkflowRefinementValidation / RevisedWorkflowPlanValidation / IterationRerunPlanBuild / FinalSelectionInputBuild / WorkflowRefinementArtifactSave）
 
 **全局异常处理**（[main.py](file:///c:/projects/MLAgent/backend/app/main.py)）：
 ```python
@@ -1997,7 +2324,7 @@ def on_startup():
 **Settings 类**（[shared/config/settings.py](file:///c:/projects/MLAgent/backend/app/shared/config/settings.py)）：
 - 使用 `pydantic-settings` 的 `BaseSettings`
 - 所有配置项有默认值，可通过环境变量覆盖
-- 配置分组：数据库、LLM、数据上传、特征工程、特征预处理、模型搜索上下文、模型搜索计划、流水线生成、流水线执行、指标评估、结果诊断
+- 配置分组：数据库、LLM、数据上传、特征工程、特征预处理、模型搜索上下文、模型搜索计划、流水线生成、流水线执行、指标评估、结果诊断、工作流精炼
 
 关键配置项：
 - `DATABASE_URL` — PostgreSQL 连接字符串
@@ -2007,6 +2334,7 @@ def on_startup():
 - `MODEL_READY_ARTIFACT_DIR` — 模型就绪 artifact 目录（默认 `/app/artifacts/model_ready`）
 - `EVALUATION_ARTIFACT_DIR` — 评估 artifact 目录（默认 `/app/artifacts/evaluation`）
 - `DIAGNOSIS_ARTIFACT_DIR` — 诊断 artifact 目录（默认 `/app/artifacts/diagnosis`）
+- `WORKFLOW_REFINEMENT_ARTIFACT_DIR` — 工作流精炼 artifact 目录（默认 `/app/artifacts/workflow_refinement`）
 - `LLM_MAX_TOKENS` — LLM 最大 Token 数（默认 4096）
 - `LLM_TEMPERATURE` — LLM 温度（默认 0.3）
 - `DEFAULT_LLM_PROFILE` — 默认 LLM 诊断上下文详细程度（默认 `standard`，可选 `compact`/`standard`/`full`）
@@ -2031,6 +2359,8 @@ def on_startup():
 - 记录 `llm_request_json` 和 `llm_response_json` 到数据库
 - 模块四通过 `llm_client_adapter.py` 复用
 - 模块七通过 `llm_strategy_advisor.py` 独立实现（含自己的重试逻辑）
+- 模块十二通过 `llm_result_diagnoser.py` 复用
+- 模块十三通过 `llm_workflow_refiner.py` 复用
 
 ### 7.7 策略模式应用
 
@@ -2048,7 +2378,7 @@ def on_startup():
 
 ### 7.8 前端状态管理
 
-- **无全局路由**：前端只有一个页面 `TaskSpecificationPage`，12 个面板嵌入其中
+- **无全局路由**：前端只有一个页面 `TaskSpecificationPage`，13 个面板嵌入其中
 - **无 Pinia Store 的实际使用**：虽然定义了 `user.js` store，但各面板组件直接调用 API 并管理本地状态（`useState`）
 - **API 层**：每个模块有独立的 API 文件，统一使用 `taskApi.ts` 中的 axios 单例（含 request/response 拦截器）
 - **表单校验**：使用 `react-hook-form` + `zod` 进行前端校验
@@ -2072,8 +2402,8 @@ def on_startup():
 | **Pipeline Execution** | ✅ 已实现 | 模块十已实现：12 步流水线，Controlled Executor 训练链路，消费模块九的 execution_input，输出 training artifacts + metric_evaluation_input |
 | **Metric Evaluation** | ✅ 已实现 | 模块十一已实现：13 步流水线，Fold→Trial→Pipeline 三级聚合，Metric Registry 白名单，Baseline Comparison + Model Ranking，消费模块十的 metric_evaluation_input |
 | **Result Diagnosis** | ✅ 已实现 | 模块十二已实现：15 步流水线，LLM 诊断 + System Rule Fallback，消费模块十一的 result_diagnosis_input，输出 Closed-loop Refinement Input |
-| **Closed-loop Refinement** | 未实现 | 需要对诊断结果进行闭环精炼（消费模块十二的 closed_loop_refinement_input） |
-| **Final Pipeline Selection** | 未实现 | 需要选择最终 Pipeline |
+| **Workflow Refinement (Closed-loop)** | ✅ 已实现 | 模块十三已实现：14 步流水线，LLM 决策双路径 + Adopt & Rerun 闭环迭代，消费模块十二的 closed_loop_refinement_input。完全取代原独立 `closed_loop_refinement` 模块。 |
+| **Final Pipeline Selection** | 未实现 | 需要选择最终 Pipeline（模块十三已输出 `final_pipeline_selection_input` 供其消费） |
 | **Interpretability Analysis** | 未实现 | 需要对最终模型进行可解释性分析 |
 | **Final Output** | 未实现 | 需要生成最终输出和报告 |
 
@@ -2109,11 +2439,12 @@ def on_startup():
 9. **并发和异步**：当前所有 Service 方法为同步方法，LLM 调用和特征工程可能阻塞。建议将耗时操作改为异步。
 
 10. **测试覆盖**：项目中未发现单元测试或集成测试代码。
+11. **残留目录**：`backend/app/modules/closed_loop_refinement/` 仅含 `__pycache__` 残留（`.pyc` 编译文件），所有源码文件已删除。该目录的功能已由 `workflow_refinement/` 模块完全取代。建议清理该目录以避免混淆。
 
 ### 8.4 后续开发优先级建议
 
-1. **高优先级**：实现 Closed-loop Refinement（消费模块十二的 closed_loop_refinement_input）
-2. **高优先级**：实现 Final Pipeline Selection 和 Final Output 模块
+1. **高优先级**：实现 Final Pipeline Selection（消费模块十三的 `final_pipeline_selection_input`）
+2. **高优先级**：实现 Final Output 模块
 3. **中优先级**：补全占位符功能（Structure Featurizer, Categorical Encoder）
 4. **中优先级**：添加前端路由和任务列表页面
 5. **低优先级**：添加 API 版本管理、请求日志、性能监控
@@ -2154,9 +2485,14 @@ def on_startup():
 27. **[result_diagnosis/evidence_extractor.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/evidence_extractor.py)** — 理解 6 类证据提取
 28. **[result_diagnosis/refinement_input_builder.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/refinement_input_builder.py)** — 理解 ClosedLoopRefinementInput 构建（含 ready 标记）
 29. **[result_diagnosis/enums.py](file:///c:/projects/MLAgent/backend/app/modules/result_diagnosis/enums.py)** — 理解 DIAGNOSIS_TYPE_ALIASES（25 条目）和 canonical_diagnosis_type() 函数
-30. **各模块的 `service.py`** — 理解每个模块的核心业务逻辑
-31. **各模块的 `context_builder.py`** — 理解模块间依赖校验逻辑
-32. **[taskApi.ts](file:///c:/projects/MLAgent/frontend/src/api/taskApi.ts)** — 理解前端 API 配置
+30. **[workflow_refinement/service.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/service.py)** — 理解模块十三（14 步流水线 + adopt_revised_plan + 幂等性检查）
+31. **[workflow_refinement/experiment_history_collector.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/experiment_history_collector.py)** — 理解跨迭代历史收集（5 模块独立 try/except 模式）
+32. **[workflow_refinement/workflow_refinement_normalizer.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/workflow_refinement_normalizer.py)** — 理解 LLM 决策标准化（模糊匹配 + null-consistency + 类型转换）
+33. **[workflow_refinement/workflow_plan_delta_builder.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_refinement/workflow_plan_delta_builder.py)** — 理解 WorkflowPlan diff 计算（7 section 逐字段比较）
+34. **[workflow_planning/service.py](file:///c:/projects/MLAgent/backend/app/modules/workflow_planning/service.py)** — 理解 adopt_revised_plan() 方法（模块十三的持久化接收端）
+35. **各模块的 `service.py`** — 理解每个模块的核心业务逻辑
+36. **各模块的 `context_builder.py`** — 理解模块间依赖校验逻辑
+37. **[taskApi.ts](file:///c:/projects/MLAgent/frontend/src/api/taskApi.ts)** — 理解前端 API 配置
 
 ### 9.2 开发新模块时应遵循的模式
 
@@ -2171,6 +2507,10 @@ def on_startup():
 9. **轻量合同 + JSONB 补充模式**：若上游模块的合同数据不完整（如仅含轻量摘要），可参考模块十一从上游 `execution_json` JSONB 中按需补充元数据的模式（`spec_role_map` + `full_trial_map` 交叉引用）
 10. **LLM 诊断 + Fallback 模式**：如需实现 LLM 诊断功能（LLM 调用可能失败），参考模块十二的 `prompt_builder → LLM → parser → validator → normalizer → refinement_input` 链路，以及 LLM 失败时的 `system_diagnostic_checker` fallback 策略（LLM 成功则 status=diagnosed，LLM 失败则 status=fallback_diagnosed 并附带 warnings）
 11. **LLM 诊断三层安全防护模式**：如需对 LLM 输出进行安全校验，参考模块十二的 (1) Prompt 约束（4 条禁止 + JSON Schema）+ (2) Validator 校验（结构/枚举值/别名支持/evidence 非空）+ (3) Security Scan（14 种代码模式 + 9 个禁止字段）三层防护体系
+12. **LLM 决策双路径模式**：如需 LLM 做出二元决策 + 每条路径有不同的数据结构要求，参考模块十三的 `workflow_refinement_validator` 的决策一致性校验（proceed_next_stage → revised_plan 必须 null + fpsi 必须非空；iterate_refinement → 反之）和 `workflow_refinement_normalizer` 的 null-consistency 强制设置
+13. **跨模块历史收集模式**：如需从多个上游模块收集跨迭代历史数据，参考模块十三的 `experiment_history_collector` 的独立 try/except per module 模式，确保单模块失败不影响整体收集
+14. **Adopt & Persist 模式**：如需将 LLM 修订/建议内容持久化为正式记录（而非仅 advisory），参考模块十三的 `adopt_revised_plan()` → `WorkflowPlanningService.adopt_revised_plan()` 的跨模块持久化链路
+15. **前端闭环迭代模式**：如需前端实现多步骤顺序执行 + 实时进度日志，参考模块十三前端的 `handleAdoptAndRerun()` 的 `for...of` 顺序调用 + `setRerunProgress(prev => [...prev, msg])` 累加进度 + 每步独立 try/catch + 完成后的指引提示
 
 ### 9.3 不要重复实现的功能
 
@@ -2195,18 +2535,22 @@ def on_startup():
 19. **Metric Evaluation Artifacts** — 模块十一已输出完整的评估结果（metric_results / fold_metrics / trial_metrics / pipeline_metrics / model_ranking / baseline_comparison / result_diagnosis_input），下游 Result Diagnosis 应消费这些 artifacts 而非重新计算指标
 20. **Result Diagnosis Artifacts** — 模块十二已输出完整的诊断结果（diagnosis_result / evidence_summary / system_checks / closed_loop_refinement_input / llm_request / llm_response / manifest），下游 Closed-loop Refinement 应消费这些 artifacts 而非重新诊断
 21. **LLM Diagnosis Validator + Normalizer** — 模块十二已实现完整的三层校验（结构 + 枚举别名 + 安全扫描）+ 标准化器（canonicalize + coerce + default fill），新的 LLM 诊断场景应复用此校验/标准化链路
-22. **DIAGNOSIS_TYPE_ALIASES** — 模块十二已定义 25 个诊断类型别名映射，新的诊断类型需求应扩展此映射
+22. **DIAGNOSIS_TYPE_ALIASES** — 模块十二已定义 26 个诊断类型别名映射，新的诊断类型需求应扩展此映射
+23. **Workflow Refinement Decision** — 模块十三已实现完整的 LLM 决策双路径（proceed_next_stage / iterate_refinement）+ Adopt & Rerun 闭环迭代，新的闭环优化场景应复用此决策链路而非重新实现独立的 Closed-loop Refinement 模块
+24. **Experiment History Collector** — 模块十三已实现从 5 个上游模块收集跨迭代历史，新的历史数据分析功能应复用或扩展此收集器
+25. **Workflow Plan Delta** — 模块十三已实现原始 vs 修订 WorkflowPlan 的逐 section diff 计算，新的 Plan 比较场景应复用此 diff 构建器
+26. **Revised Workflow Plan Validator** — 模块十三已实现修订版 WorkflowPlan 的结构校验（9 个 top-level + 子对象 + 枚举 + 范围），新的 Plan 校验场景应复用此校验器
 
 ### 9.4 关键边界和注意事项
 
-1. **管道严格顺序**：模块一 → 二 → 三 → 四 → 五 → 六 → 七 → 八 → 九 → 十 → 十一 → 十二，不可跳过或乱序
-2. **状态校验**：每个下游模块的 `context_builder.py` 会检查上游模块的状态值（如 `valid`, `interpreted`, `profiled`, `planned`, `completed`, `preprocessed`, `updated`, `planned`, `generated`, `completed`），状态不符则抛出专用异常
+1. **管道严格顺序**：模块一 → 二 → 三 → 四 → 五 → 六 → 七 → 八 → 九 → 十 → 十一 → 十二 → 十三，不可跳过或乱序。闭环迭代路径：十三（iterate_refinement）→ adopt → re-execute 四起 → 回到十二
+2. **状态校验**：每个下游模块的 `context_builder.py` 会检查上游模块的状态值（如 `valid`, `interpreted`, `profiled`, `planned`, `completed`, `preprocessed`, `updated`, `planned`, `generated`, `completed`, `evaluated`, `diagnosed`, `decided`），状态不符则抛出专用异常
 3. **JSONB 字段**：所有模块的核心数据存储在 JSONB 字段中（如 `task_spec_json`, `interpretation_json`, `plan_json`），读取时需注意可能为 `None`。序列化时使用 `model_dump(mode='json')` 而非普通的 `model_dump()`，否则 datetime 对象无法写入 PostgreSQL JSONB
 4. **LLM 输出不可信**：所有 LLM 输出必须经过 `parser` + `validator` 两步处理；若 LLM 用于顾问式审查，还需经过 `normalizer` 标准化（剥离旧式审批字段、强制 non_blocking 执行影响）
 5. **Featurizer 名称校验**：Workflow Planning 的 Validator 会校验 `executable_featurizers` 中的名称是否在 Registry 中存在，因此 LLM Prompt 必须包含当前 Registry 的 Featurizer 列表
 6. **Artifact 路径**：Feature Engineering 和 Feature Preprocessing 的 artifact 存储在文件系统中，下游模块通过数据库中的 `artifact_path` 字段定位。模块十的 training artifacts 存储在 `/app/artifacts/training/{pe_id}/`，含 predictions/ 和 models/ 子目录
 7. **前端超时配置**：Feature Engineering API 超时 600s，Feature Preprocessing API 超时 600s，Pipeline Execution API 超时 600s（含模型训练），Model Search Context API 超时 300s，Model Search Plan API 超时 300s，Metric Evaluation API 超时 300s，Result Diagnosis API 超时 300s，其他 API 超时 120s
-8. **CORS 配置**：后端允许 `http://localhost:5173` 的跨域请求，生产环境需调整
+8. **CORS 配置**：后端允许 `http://localhost:5173` 和 `http://localhost:3000` 的跨域请求，生产环境需调整
 9. **数据库初始化**：开发环境使用 `docker-compose up` 启动，首次启动会自动建表。如需重置数据，删除 PostgreSQL 卷后重新启动
 10. **测试账号**：admin/password（管理员），2024000001/password（学生），100001/password（教师）— 所有账号密码均为 `password`
 11. **上游 split strategy 标准化**：上游模块（pipeline_generation/model_search/workflow_planning）使用 `k_fold_cross_validation` 作为标准名称，模块十的 `validation_splitter._normalize_strategy()` 会自动映射为内部 `k_fold`，新增下游模块时需注意此兼容逻辑
@@ -2214,6 +2558,13 @@ def on_startup():
 13. **轻量合同 + JSONB 补充**：模块十的 metric_evaluation_input_json 中 trial_results 仅为轻量摘要（6 个字段：trial_id, model_id, status, prediction_artifact_path, model_artifact_path, duration_seconds），完整元数据（pipeline_role, model_family, trial_type, params, pipeline_spec_id）需从 execution_json 的 pipeline_run_results 和 trial_results 中补充。下游模块消费上游轻量合同时，应检查是否需要从 JSONB 补充数据
 14. **Metric Registry 白名单**：新增指标必须在 Metric Registry 中注册，含明确的 direction（minimize/maximize）和 allowed_task_types。Metric Calculator 仅计算 Registry 中已注册的指标
 15. **预测 Artifact 路径格式**：prediction parquet 存储在 `/app/artifacts/training/{pe_id}/predictions/`，文件名格式为 `trial_{model_id}_{trial_id}_fold_{k}.parquet`。路径安全校验使用 `os.path.normpath` 实现跨平台兼容（Windows 反斜杠 vs Linux 正斜杠）
+16. **Workflow Refinement 幂等性**：`create_workflow_refinement()` 在第一阶段执行幂等性检查——若同一 task+diagnosis 已存在 DECIDED/DECIDED_WITH_WARNING 记录，直接返回已有结果。使用 `force_rerun=True` 跳过此检查
+17. **决策双路径 null-consistency**：Validator 和 Normalizer 都强制执行 decision 与对应输出结构的 null-consistency。proceed_next_stage → revised_workflow_plan=null + iteration_rerun_plan=null + final_selection_input≠null。iterate_refinement → 反之
+18. **Adopt 前置条件**：`adopt_revised_plan()` 要求 decision 必须为 `iterate_refinement` 且 `revised_workflow_plan_json` 非空且通过 `validate_revised_workflow_plan()` 校验。adopt 后状态变为 ADOPTED，不可重复 adopt
+19. **前端超时配置**：Workflow Refinement API 超时 600s（含 LLM 调用和跨模块数据收集），Adopt API 和 Rerun 也一样
+20. **closed_loop_refinement 模块已废弃**：不要在该目录下开发新功能。该目录仅含 `__pycache__` 残留，所有源码已迁移至 `workflow_refinement/` 模块
+21. **WorkflowPlan 的 planning_mode 枚举**：原始 LLM 规划的 Plan 为 `llm_guided`，模块十三采纳的修订版 Plan 为 `refinement_adopted`。下游模块可根据 planning_mode 区分 Plan 来源
+22. **RERUN_STAGE_RECOMMENDATIONS 映射**：`enums.py` 中的 `RERUN_STAGE_RECOMMENDATIONS` 将诊断类型映射到建议的重跑入口阶段（如 underfitting→workflow_planning, feature_insufficiency→feature_engineering），LLM 建议的 rerun stage 需经过 fuzzy match normalization 后才能与枚举值比较
 
 ---
 

@@ -2,6 +2,7 @@ class WorkflowRefinementStatus:
     DECIDING = "deciding"
     DECIDED = "decided"
     DECIDED_WITH_WARNING = "decided_with_warning"
+    ADOPTED = "adopted"
     FAILED = "failed"
 
 
@@ -55,6 +56,7 @@ VALID_STATUSES = {
     WorkflowRefinementStatus.DECIDING,
     WorkflowRefinementStatus.DECIDED,
     WorkflowRefinementStatus.DECIDED_WITH_WARNING,
+    WorkflowRefinementStatus.ADOPTED,
     WorkflowRefinementStatus.FAILED,
 }
 

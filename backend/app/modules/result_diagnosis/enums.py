@@ -125,7 +125,7 @@ VALID_DIAGNOSIS_TYPES = {
     DiagnosisType.LIMITED_PIPELINE_GAIN,
 }
 
-VALID_SEVERITY_VALUES = {Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL}
+VALID_SEVERITY_VALUES = {Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL, "unknown"}
 VALID_CONFIDENCE_VALUES = {ConfidenceLevel.LOW, ConfidenceLevel.MEDIUM, ConfidenceLevel.HIGH}
 VALID_EVIDENCE_STRENGTH_VALUES = {EvidenceStrength.WEAK, EvidenceStrength.MODERATE, EvidenceStrength.STRONG}
 VALID_TARGET_STAGES = {
@@ -153,6 +153,7 @@ DIAGNOSIS_TYPE_ALIASES: dict[str, str] = {
     "overfitting": DiagnosisType.OVERFITTING_RISK,
     "overfit": DiagnosisType.OVERFITTING_RISK,
     "underfit": DiagnosisType.UNDERFITTING,
+    "underfitting_risk": DiagnosisType.UNDERFITTING,
     "feature_insufficient": DiagnosisType.FEATURE_INSUFFICIENCY,
     "insufficient_features": DiagnosisType.FEATURE_INSUFFICIENCY,
     "feature_noisy": DiagnosisType.FEATURE_NOISE,

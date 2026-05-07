@@ -3,6 +3,7 @@ import {
   ResultDiagnosisResponse,
   ResultDiagnosisCreateRequest,
   ResultDiagnosisSummary,
+  IterationContext,
   ApiResponse,
   ClosedLoopRefinementInput,
 } from '../modules/resultDiagnosis/types';
@@ -61,5 +62,23 @@ export const getClosedLoopRefinementInput = async (
   const response = await api.get<ApiResponse<ClosedLoopRefinementInput>>(
     `/api/result-diagnoses/${rdId}/closed-loop-refinement-input`,
   );
+  return response.data;
+};
+
+export const getIterationContextForDiagnosis = async (
+  rdId: string,
+): Promise<ApiResponse<IterationContext>> => {
+  const response = await api.get<ApiResponse<IterationContext>>(
+    `/api/result-diagnoses/${rdId}/iteration-context`,
+  );
+  return response.data;
+};
+
+export const checkNeedsFreshDiagnosis = async (
+  taskId: string,
+): Promise<ApiResponse<{ needs_fresh: boolean; reason: string }>> => {
+  const response = await api.get<
+    ApiResponse<{ needs_fresh: boolean; reason: string }>
+  >(`/api/tasks/${taskId}/result-diagnosis/needs-fresh`);
   return response.data;
 };

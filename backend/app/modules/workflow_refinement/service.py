@@ -78,7 +78,7 @@ class WorkflowRefinementService:
         iteration_index = request.current_iteration_index
         if iteration_index is None:
             prev = self.repo.get_latest_by_task_id(session, task_id)
-            iteration_index = (prev.iteration_index or -1) + 1 if prev else 0
+            iteration_index = (prev.iteration_index if prev.iteration_index is not None else -1) + 1 if prev else 0
 
         # Create record
         wr_id = f"wr_{uuid.uuid4().hex[:8]}"
@@ -353,6 +353,119 @@ class WorkflowRefinementService:
                 f"WorkflowRefinement '{wr_id}' not found."
             )
         return record.final_pipeline_selection_input_json or {}
+
+    def get_iteration_context_for_diagnosis(
+        self, session: Session, rd_id: str
+    ) -> dict:
+        """Return iteration context for a given result diagnosis."""
+        wr = self.repo.get_by_result_diagnosis_id(session, rd_id)
+
+        # Count total diagnoses for this task to determine the analysis number
+        from app.modules.result_diagnosis.repository import ResultDiagnosisRepository
+        rd_repo = ResultDiagnosisRepository()
+        rd_record = rd_repo.get_by_id(session, rd_id)
+        task_id = rd_record.task_id if rd_record else None
+
+        total_diagnoses = 0
+        diagnosis_position = 0
+        if task_id:
+            all_diags = rd_repo.list_by_task_id(session, task_id)
+            total_diagnoses = len(all_diags)
+            # Determine position (1-indexed, oldest = 1)
+            for i, d in enumerate(reversed(all_diags)):
+                if d.id == rd_id:
+                    diagnosis_position = i + 1
+                    break
+            if diagnosis_position == 0:
+                diagnosis_position = total_diagnoses  # fallback: newest
+
+        result = {
+            "is_part_of_iteration": wr is not None,
+            "diagnosis_position": diagnosis_position,
+            "total_diagnoses": total_diagnoses,
+        }
+
+        if wr:
+            result["workflow_refinement_id"] = wr.id
+            result["iteration_index"] = wr.iteration_index
+            result["decision"] = wr.decision
+            result["status"] = wr.status
+
+        return result
+
+    def adopt_revised_plan(
+        self, session: Session, wr_id: str
+    ) -> dict:
+        """Adopt the revised workflow plan: validate, persist as new WorkflowPlan,
+        update refinement status to ADOPTED, and return rerun instructions."""
+        record = self.repo.get_by_id(session, wr_id)
+        if not record:
+            raise WorkflowRefinementNotFoundException(
+                f"WorkflowRefinement '{wr_id}' not found."
+            )
+
+        task_id = record.task_id
+        if not task_id:
+            raise WorkflowRefinementNotFoundException(
+                "WorkflowRefinement record has no task_id."
+            )
+
+        if record.decision != WorkflowRefinementDecision.ITERATE_REFINEMENT:
+            from app.shared.common.exceptions import BusinessException
+            raise BusinessException(
+                f"Cannot adopt plan: decision is '{record.decision}', not 'iterate_refinement'.",
+                "ADOPT_NOT_ALLOWED",
+            )
+
+        revised_plan = record.revised_workflow_plan_json
+        if not revised_plan or not isinstance(revised_plan, dict):
+            from app.shared.common.exceptions import BusinessException
+            raise BusinessException(
+                "Cannot adopt plan: no revised_workflow_plan_json found.",
+                "ADOPT_NO_REVISED_PLAN",
+            )
+
+        # Validate revised plan structure
+        plan_validation = validate_revised_workflow_plan(revised_plan)
+        if not plan_validation["is_valid"]:
+            from app.shared.common.exceptions import BusinessException
+            raise BusinessException(
+                f"Revised plan validation failed: {'; '.join(plan_validation['errors'][:5])}",
+                "ADOPT_PLAN_INVALID",
+            )
+
+        # Persist as new WorkflowPlan
+        from app.modules.workflow_planning.service import WorkflowPlanningService
+        wp_service = WorkflowPlanningService()
+        wp_response = wp_service.adopt_revised_plan(session, task_id, revised_plan)
+        new_plan_id = wp_response.workflow_plan_id
+
+        # Update refinement record
+        wr_json = record.workflow_refinement_json or {}
+        if isinstance(wr_json, dict):
+            wr_json["adopted_workflow_plan_id"] = new_plan_id
+            wr_json["adopted_at"] = datetime.now(timezone.utc).isoformat()
+
+        record.status = WorkflowRefinementStatus.ADOPTED
+        record.source_workflow_plan_id = new_plan_id
+        record.workflow_refinement_json = wr_json
+        record.updated_at = datetime.now(timezone.utc)
+        self.repo.update(session, record)
+
+        rerun_plan = record.iteration_rerun_plan_json or {}
+
+        return {
+            "adopted": True,
+            "workflow_refinement_id": wr_id,
+            "task_id": task_id,
+            "adopted_workflow_plan_id": new_plan_id,
+            "recommended_rerun_from_stage": record.recommended_rerun_from_stage,
+            "rerun_stages": rerun_plan.get("rerun_stages", []),
+            "reuse_artifacts": rerun_plan.get("reuse_artifacts", []),
+            "invalidate_artifacts": rerun_plan.get("invalidate_artifacts", []),
+            "expected_improvement_targets": rerun_plan.get("expected_improvement_targets", []),
+            "reasoning": rerun_plan.get("reasoning", ""),
+        }
 
     def _record_to_response(self, record: WorkflowRefinement) -> WorkflowRefinementResponse:
         wr_json = record.workflow_refinement_json or {}

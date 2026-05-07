@@ -176,6 +176,19 @@ export interface WorkflowRefinementResponse {
   updated_at?: string | null;
 }
 
+export interface AdoptRevisedPlanResult {
+  adopted: boolean;
+  workflow_refinement_id: string;
+  task_id: string;
+  adopted_workflow_plan_id: string;
+  recommended_rerun_from_stage?: string | null;
+  rerun_stages: string[];
+  reuse_artifacts: string[];
+  invalidate_artifacts: string[];
+  expected_improvement_targets: string[];
+  reasoning: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
