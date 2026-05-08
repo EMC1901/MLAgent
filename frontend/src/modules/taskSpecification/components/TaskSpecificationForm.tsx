@@ -26,6 +26,7 @@ import ResultDiagnosisPanel from '../../resultDiagnosis/components/ResultDiagnos
 import WorkflowRefinementPanel from '../../workflowRefinement/components/WorkflowRefinementPanel';
 import FinalPipelineSelectionPanel from '../../finalPipelineSelection/components/FinalPipelineSelectionPanel';
 import InterpretabilityAnalysisPanel from '../../interpretabilityAnalysis/components/InterpretabilityAnalysisPanel';
+import FinalOutputPanel from '../../finalOutput/components/FinalOutputPanel';
 
 interface TaskSpecificationFormProps {
   onSubmitSuccess?: (result: TaskSpecificationResponse) => void;
@@ -477,6 +478,10 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
 
       {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
         <InterpretabilityAnalysisPanel taskId={result.task_id} />
+      )}
+
+      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
+        <FinalOutputPanel taskId={result.task_id} />
       )}
     </div>
   );

@@ -68,7 +68,9 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(npx -p typescript tsc --noEmit)",
       "Bash(/c/projects/MLAgent/frontend/node_modules/.bin/tsc --noEmit)",
-      "Bash(node_modules/.bin/tsc --noEmit)"
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(echo \"Exit: $?\")"
     ]
   }
 }
