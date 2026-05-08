@@ -1,0 +1,104 @@
+import os
+import json
+import logging
+from typing import Dict, Any, Optional
+
+from app.modules.interpretability_analysis.schemas import ArtifactManifest
+from app.modules.interpretability_analysis.exceptions import InterpretabilityArtifactSaveException
+
+logger = logging.getLogger(__name__)
+
+ARTIFACT_BASE_DIR = "/app/artifacts/interpretability"
+
+
+def save_interpretability_artifacts(
+    interpretability_analysis_id: str,
+    analysis_result: Dict[str, Any],
+    global_feature_importance: Optional[Dict[str, Any]] = None,
+    permutation_importance: Optional[Dict[str, Any]] = None,
+    shap_summary: Optional[Dict[str, Any]] = None,
+    shap_values_data: Optional[Dict[str, Any]] = None,
+    local_explanations: Optional[Dict[str, Any]] = None,
+    high_error_sample_analysis: Optional[Dict[str, Any]] = None,
+    feature_group_summary: Optional[Dict[str, Any]] = None,
+    material_insight_summary: Optional[Dict[str, Any]] = None,
+    llm_interpretability_summary: Optional[Dict[str, Any]] = None,
+    final_output_input: Optional[Dict[str, Any]] = None,
+) -> ArtifactManifest:
+    ia_dir = os.path.join(ARTIFACT_BASE_DIR, interpretability_analysis_id)
+    shap_dir = os.path.join(ia_dir, "shap")
+    os.makedirs(shap_dir, exist_ok=True)
+
+    manifest = ArtifactManifest(manifest_path=os.path.join(ia_dir, "manifest.json"))
+
+    try:
+        manifest.interpretability_analysis_result_path = _write_json(
+            ia_dir, "interpretability_analysis_result.json", analysis_result
+        )
+        if global_feature_importance:
+            manifest.global_feature_importance_path = _write_json(
+                ia_dir, "global_feature_importance.json", global_feature_importance
+            )
+        if permutation_importance:
+            manifest.permutation_importance_path = _write_json(
+                ia_dir, "permutation_importance.json", permutation_importance
+            )
+        if shap_summary:
+            manifest.shap_summary_path = _write_json(
+                shap_dir, "shap_summary.json", shap_summary
+            )
+        if shap_values_data:
+            manifest.shap_values_path = _write_json(
+                shap_dir, "shap_values_meta.json", shap_values_data
+            )
+        if local_explanations:
+            manifest.local_explanations_path = _write_json(
+                ia_dir, "local_explanations.json", local_explanations
+            )
+        if high_error_sample_analysis:
+            manifest.high_error_sample_analysis_path = _write_json(
+                ia_dir, "high_error_sample_analysis.json", high_error_sample_analysis
+            )
+        if feature_group_summary:
+            manifest.feature_group_summary_path = _write_json(
+                ia_dir, "feature_group_summary.json", feature_group_summary
+            )
+        if material_insight_summary:
+            manifest.material_insight_summary_path = _write_json(
+                ia_dir, "material_insight_summary.json", material_insight_summary
+            )
+        if llm_interpretability_summary:
+            manifest.llm_interpretability_summary_path = _write_json(
+                ia_dir, "llm_interpretability_summary.json", llm_interpretability_summary
+            )
+        if final_output_input:
+            manifest.final_output_input_path = _write_json(
+                ia_dir, "final_output_input.json", final_output_input
+            )
+
+        _write_json(ia_dir, "manifest.json", manifest.model_dump())
+
+    except Exception as e:
+        raise InterpretabilityArtifactSaveException(
+            f"Failed to save interpretability artifacts: {str(e)}"
+        )
+
+    logger.info("Saved interpretability artifacts to %s", ia_dir)
+    return manifest
+
+
+def _write_json(dir_path: str, filename: str, data: Any) -> str:
+    path = os.path.join(dir_path, filename)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(_safe_serialize(data), f, indent=2, default=str)
+    return path
+
+
+def _safe_serialize(obj: Any) -> Any:
+    if hasattr(obj, "model_dump"):
+        return _safe_serialize(obj.model_dump())
+    if isinstance(obj, dict):
+        return {k: _safe_serialize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_safe_serialize(item) for item in obj]
+    return obj

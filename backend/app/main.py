@@ -21,6 +21,7 @@ from app.modules.metric_evaluation.api import router as metric_evaluation_router
 from app.modules.result_diagnosis.api import router as result_diagnosis_router
 from app.modules.workflow_refinement.api import router as workflow_refinement_router
 from app.modules.final_pipeline_selection.api import router as final_pipeline_selection_router
+from app.modules.interpretability_analysis.api import router as interpretability_analysis_router
 
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
@@ -60,6 +61,7 @@ app.include_router(metric_evaluation_router)
 app.include_router(result_diagnosis_router)
 app.include_router(workflow_refinement_router)
 app.include_router(final_pipeline_selection_router)
+app.include_router(interpretability_analysis_router)
 
 
 @app.exception_handler(BusinessException)
