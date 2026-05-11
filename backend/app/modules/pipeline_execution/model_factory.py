@@ -73,8 +73,15 @@ except ImportError:
     pass
 
 try:
-    from sklearn.svm import SVR
+    from sklearn.svm import SVR, SVC
     _REGRESSION_MODELS["svr"] = lambda **kw: SVR(**kw)
+    _CLASSIFICATION_MODELS["svc"] = lambda **kw: SVC(probability=True, **kw)
+except ImportError:
+    pass
+
+try:
+    from sklearn.linear_model import LogisticRegression
+    _CLASSIFICATION_MODELS["logistic_regression"] = lambda **kw: LogisticRegression(max_iter=1000, **kw)
 except ImportError:
     pass
 
@@ -85,11 +92,65 @@ try:
 except ImportError:
     pass
 
+try:
+    from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
+    _REGRESSION_MODELS["decision_tree"] = lambda **kw: DecisionTreeRegressor(**kw)
+    _CLASSIFICATION_MODELS["decision_tree"] = lambda **kw: DecisionTreeClassifier(**kw)
+except ImportError:
+    pass
+
+try:
+    from sklearn.gaussian_process import GaussianProcessRegressor
+    from sklearn.gaussian_process.kernels import RBF, WhiteKernel, ConstantKernel, Matern
+
+    def _make_gp(**kw):
+        kernel_str = kw.pop("kernel", "rbf")
+        alpha = kw.pop("alpha", 1e-5)
+        if kernel_str == "matern":
+            kernel = ConstantKernel(1.0) * Matern(length_scale=1.0) + WhiteKernel(1e-3)
+        elif kernel_str == "rbf_white":
+            kernel = RBF(length_scale=1.0) + WhiteKernel(1e-3)
+        else:
+            kernel = ConstantKernel(1.0) * RBF(length_scale=1.0) + WhiteKernel(1e-3)
+        return GaussianProcessRegressor(
+            kernel=kernel,
+            alpha=alpha,
+            normalize_y=True,
+            random_state=kw.pop("random_state", 42),
+            **kw,
+        )
+
+    _REGRESSION_MODELS["gaussian_process"] = _make_gp
+except ImportError:
+    pass
+
+try:
+    from sklearn.ensemble import ExtraTreesRegressor, ExtraTreesClassifier
+    _REGRESSION_MODELS["extra_trees"] = lambda **kw: ExtraTreesRegressor(**kw)
+    _CLASSIFICATION_MODELS["extra_trees"] = lambda **kw: ExtraTreesClassifier(**kw)
+except ImportError:
+    pass
+
 # XGBoost is optional
 try:
     from xgboost import XGBRegressor, XGBClassifier
     _REGRESSION_MODELS["xgboost"] = lambda **kw: XGBRegressor(**kw)
     _CLASSIFICATION_MODELS["xgboost"] = lambda **kw: XGBClassifier(**kw)
+except ImportError:
+    pass
+
+# LightGBM is optional
+try:
+    from lightgbm import LGBMRegressor, LGBMClassifier
+    _REGRESSION_MODELS["lightgbm"] = lambda **kw: LGBMRegressor(verbose=-1, **kw)
+    _CLASSIFICATION_MODELS["lightgbm"] = lambda **kw: LGBMClassifier(verbose=-1, **kw)
+except ImportError:
+    pass
+
+try:
+    from sklearn.neural_network import MLPRegressor, MLPClassifier
+    _REGRESSION_MODELS["mlp"] = lambda **kw: MLPRegressor(max_iter=1000, early_stopping=True, **kw)
+    _CLASSIFICATION_MODELS["mlp"] = lambda **kw: MLPClassifier(max_iter=1000, early_stopping=True, **kw)
 except ImportError:
     pass
 

@@ -106,12 +106,18 @@ def _compute_interpretability_score(c: CandidateSelectionItem) -> float:
 
 def _compute_cost_score(c: CandidateSelectionItem) -> float:
     family = (c.model_family or "").lower()
-    if family in ("linear", "ridge", "lasso", "elastic_net", "elasticnet", "dummy_mean", "dummy"):
+    if family in ("linear", "ridge", "lasso", "elastic_net", "elasticnet", "logistic_regression", "logisticregression", "dummy_mean", "dummy"):
         return 1.0
-    if family in ("random_forest", "randomforest", "knn", "kneighbors"):
+    if family in ("decision_tree", "decisiontree"):
+        return 1.0
+    if family in ("random_forest", "randomforest", "extra_trees", "extratrees", "knn", "kneighbors"):
         return 0.7
-    if family in ("gradient_boosting", "gradientboosting", "xgboost", "xgb"):
+    if family in ("gradient_boosting", "gradientboosting", "xgboost", "xgb", "lightgbm", "lgbm"):
         return 0.4
-    if family in ("svr", "svm"):
+    if family in ("gaussian_process", "gaussianprocess", "gp"):
+        return 0.2
+    if family in ("svr", "svm", "svc"):
         return 0.5
+    if family in ("mlp"):
+        return 0.15
     return 0.6

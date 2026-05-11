@@ -76,6 +76,19 @@ _SEARCH_SPACE_TEMPLATES: dict = {
             {"name": "gamma", "param_type": "float", "low": 1e-4, "high": 1e0, "sampling": "log_uniform", "default_value": "scale"},
         ],
     },
+    "svc": {
+        "classification": [
+            {"name": "C", "param_type": "float", "low": 1e-3, "high": 1e3, "sampling": "log_uniform", "default_value": "1.0"},
+            {"name": "kernel", "param_type": "categorical", "choices": ["linear", "rbf", "poly"], "sampling": "choice", "default_value": "rbf"},
+            {"name": "gamma", "param_type": "float", "low": 1e-4, "high": 1e0, "sampling": "log_uniform", "default_value": "scale"},
+        ],
+    },
+    "logistic_regression": {
+        "classification": [
+            {"name": "C", "param_type": "float", "low": 1e-3, "high": 1e3, "sampling": "log_uniform", "default_value": "1.0"},
+            {"name": "penalty", "param_type": "categorical", "choices": ["l1", "l2"], "sampling": "choice", "default_value": "l2"},
+        ],
+    },
     "knn": {
         "regression": [
             {"name": "n_neighbors", "param_type": "int", "low": 1, "high": 30, "sampling": "uniform", "default_value": "5"},
@@ -89,6 +102,68 @@ _SEARCH_SPACE_TEMPLATES: dict = {
     "linear_regression": {
         "regression": [
             {"name": "fit_intercept", "param_type": "bool", "choices": ["true", "false"], "sampling": "choice", "default_value": "true"},
+        ],
+    },
+    "gaussian_process": {
+        "regression": [
+            {"name": "alpha", "param_type": "float", "low": 1e-8, "high": 1e-2, "sampling": "log_uniform", "default_value": "1e-5"},
+            {"name": "kernel", "param_type": "categorical", "choices": ["rbf", "matern", "rbf_white"], "sampling": "choice", "default_value": "rbf"},
+        ],
+    },
+    "decision_tree": {
+        "regression": [
+            {"name": "max_depth", "param_type": "int", "low": 2, "high": 20, "sampling": "uniform", "default_value": "None"},
+            {"name": "min_samples_split", "param_type": "int", "low": 2, "high": 20, "sampling": "uniform", "default_value": "2"},
+            {"name": "min_samples_leaf", "param_type": "int", "low": 1, "high": 10, "sampling": "uniform", "default_value": "1"},
+        ],
+        "classification": [
+            {"name": "max_depth", "param_type": "int", "low": 2, "high": 20, "sampling": "uniform", "default_value": "None"},
+            {"name": "min_samples_split", "param_type": "int", "low": 2, "high": 20, "sampling": "uniform", "default_value": "2"},
+            {"name": "min_samples_leaf", "param_type": "int", "low": 1, "high": 10, "sampling": "uniform", "default_value": "1"},
+            {"name": "criterion", "param_type": "categorical", "choices": ["gini", "entropy"], "sampling": "choice", "default_value": "gini"},
+        ],
+    },
+    "lightgbm": {
+        "regression": [
+            {"name": "n_estimators", "param_type": "int", "low": 50, "high": 500, "sampling": "uniform", "default_value": "100"},
+            {"name": "learning_rate", "param_type": "float", "low": 0.01, "high": 0.3, "sampling": "log_uniform", "default_value": "0.1"},
+            {"name": "num_leaves", "param_type": "int", "low": 8, "high": 64, "sampling": "uniform", "default_value": "31"},
+            {"name": "max_depth", "param_type": "int", "low": 3, "high": 12, "sampling": "uniform", "default_value": "-1"},
+            {"name": "subsample", "param_type": "float", "low": 0.5, "high": 1.0, "sampling": "uniform", "default_value": "1.0"},
+        ],
+        "classification": [
+            {"name": "n_estimators", "param_type": "int", "low": 50, "high": 500, "sampling": "uniform", "default_value": "100"},
+            {"name": "learning_rate", "param_type": "float", "low": 0.01, "high": 0.3, "sampling": "log_uniform", "default_value": "0.1"},
+            {"name": "num_leaves", "param_type": "int", "low": 8, "high": 64, "sampling": "uniform", "default_value": "31"},
+            {"name": "max_depth", "param_type": "int", "low": 3, "high": 12, "sampling": "uniform", "default_value": "-1"},
+        ],
+    },
+    "mlp": {
+        "regression": [
+            {"name": "hidden_layer_sizes", "param_type": "categorical", "choices": ["(50,)", "(100,)", "(100,50)", "(50,25)"], "sampling": "choice", "default_value": "(100,)"},
+            {"name": "activation", "param_type": "categorical", "choices": ["relu", "tanh"], "sampling": "choice", "default_value": "relu"},
+            {"name": "alpha", "param_type": "float", "low": 1e-5, "high": 1e-1, "sampling": "log_uniform", "default_value": "0.0001"},
+            {"name": "learning_rate_init", "param_type": "float", "low": 1e-4, "high": 1e-2, "sampling": "log_uniform", "default_value": "0.001"},
+        ],
+        "classification": [
+            {"name": "hidden_layer_sizes", "param_type": "categorical", "choices": ["(50,)", "(100,)", "(100,50)", "(50,25)"], "sampling": "choice", "default_value": "(100,)"},
+            {"name": "activation", "param_type": "categorical", "choices": ["relu", "tanh"], "sampling": "choice", "default_value": "relu"},
+            {"name": "alpha", "param_type": "float", "low": 1e-5, "high": 1e-1, "sampling": "log_uniform", "default_value": "0.0001"},
+            {"name": "learning_rate_init", "param_type": "float", "low": 1e-4, "high": 1e-2, "sampling": "log_uniform", "default_value": "0.001"},
+        ],
+    },
+    "extra_trees": {
+        "regression": [
+            {"name": "n_estimators", "param_type": "int", "low": 50, "high": 500, "sampling": "uniform", "default_value": "100"},
+            {"name": "max_depth", "param_type": "int", "low": 3, "high": 30, "sampling": "uniform", "default_value": "None"},
+            {"name": "min_samples_split", "param_type": "int", "low": 2, "high": 20, "sampling": "uniform", "default_value": "2"},
+            {"name": "min_samples_leaf", "param_type": "int", "low": 1, "high": 10, "sampling": "uniform", "default_value": "1"},
+        ],
+        "classification": [
+            {"name": "n_estimators", "param_type": "int", "low": 50, "high": 500, "sampling": "uniform", "default_value": "100"},
+            {"name": "max_depth", "param_type": "int", "low": 3, "high": 30, "sampling": "uniform", "default_value": "None"},
+            {"name": "min_samples_split", "param_type": "int", "low": 2, "high": 20, "sampling": "uniform", "default_value": "2"},
+            {"name": "criterion", "param_type": "categorical", "choices": ["gini", "entropy"], "sampling": "choice", "default_value": "gini"},
         ],
     },
     "dummy_mean": {},
