@@ -1,6 +1,10 @@
 import json
 from typing import Tuple
 from app.shared.registry.featurizer_registry import get_available_featurizers, get_planned_featurizers
+from app.shared.registry.fe_capability_registry import (
+    get_available_fe_capabilities,
+    get_registry_snapshot,
+)
 
 
 OUTPUT_JSON_SCHEMA = {
@@ -9,12 +13,14 @@ OUTPUT_JSON_SCHEMA = {
         "task_summary",
         "data_strategy",
         "feature_strategy",
+        "preprocessing_intent",
         "model_strategy",
         "validation_strategy",
         "evaluation_strategy",
         "hpo_strategy",
         "interpretability_strategy",
         "pipeline_generation_input",
+        "workflow_rationale",
         "planning_warnings",
         "planning_assumptions",
         "llm_reasoning_summary",
@@ -52,16 +58,96 @@ OUTPUT_JSON_SCHEMA = {
         },
         "feature_strategy": {
             "type": "object",
-            "required": ["feature_type", "executable_featurizers", "recommended_featurizers", "requires_structure_features", "feature_selection_required", "feature_scaling_required"],
+            "required": ["feature_type", "executable_featurizers", "selected_feature_actions", "rejected_feature_actions"],
             "properties": {
                 "feature_type": {"type": "string"},
-                "executable_featurizers": {"type": "array", "items": {"type": "string"}, "description": "Must be valid featurizer IDs from available_featurizers list only."},
-                "semantic_featurizers": {"type": "array", "items": {"type": "string"}, "description": "Scientific/semantic concept names for human readability."},
-                "unsupported_future_featurizers": {"type": "array", "items": {"type": "string"}, "description": "Featurizers from planned list that could be useful but are not yet available."},
-                "recommended_featurizers": {"type": "array", "items": {"type": "string"}, "description": "DEPRECATED: legacy field for backwards compatibility."},
+                "executable_featurizers": {"type": "array", "items": {"type": "string"}},
+                "semantic_featurizers": {"type": "array", "items": {"type": "string"}},
+                "unsupported_future_featurizers": {"type": "array", "items": {"type": "string"}},
+                "recommended_featurizers": {"type": "array", "items": {"type": "string"}},
                 "requires_structure_features": {"type": "boolean"},
                 "feature_selection_required": {"type": "boolean"},
                 "feature_scaling_required": {"type": "boolean"},
+                "strategy_id": {"type": "string"},
+                "strategy_version": {"type": "string"},
+                "input_modality_assessment": {
+                    "type": "object",
+                    "properties": {
+                        "detected_modalities": {"type": "array", "items": {"type": "string"}},
+                        "usable_modalities": {"type": "array", "items": {"type": "string"}},
+                        "unusable_modalities": {"type": "array", "items": {"type": "string"}},
+                        "rationale": {"type": "string"},
+                    },
+                },
+                "selected_feature_actions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["action_id", "capability_id", "priority", "decision_rationale"],
+                        "properties": {
+                            "action_id": {"type": "string"},
+                            "capability_id": {"type": "string", "description": "Must match a capability_id from the FE Capability Registry with status=available"},
+                            "priority": {"type": "string", "enum": ["required", "recommended", "optional", "fallback"]},
+                            "input_columns": {"type": "array", "items": {"type": "string"}},
+                            "parameters": {"type": "object"},
+                            "output_feature_group": {"type": "string"},
+                            "decision_rationale": {
+                                "type": "object",
+                                "required": ["reason", "evidence", "material_science_basis", "expected_benefit", "risk", "fallback"],
+                                "properties": {
+                                    "reason": {"type": "string"},
+                                    "evidence": {"type": "array", "items": {"type": "string"}},
+                                    "material_science_basis": {"type": "string"},
+                                    "expected_benefit": {"type": "string"},
+                                    "risk": {"type": "string"},
+                                    "fallback": {"type": "string"},
+                                },
+                            },
+                        },
+                    },
+                },
+                "rejected_feature_actions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "capability_id": {"type": "string"},
+                            "reason": {"type": "string"},
+                            "evidence": {"type": "array", "items": {"type": "string"}},
+                        },
+                    },
+                },
+                "fallback_strategy": {
+                    "type": "object",
+                    "properties": {
+                        "fallback_actions": {"type": "array", "items": {"type": "string"}},
+                        "trigger_conditions": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+                "feature_group_expectations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "feature_group": {"type": "string"},
+                            "expected_signal": {"type": "string"},
+                            "known_limitations": {"type": "string"},
+                        },
+                    },
+                },
+            },
+        },
+        "preprocessing_intent": {
+            "type": "object",
+            "required": ["high_level_goals"],
+            "properties": {
+                "intent_id": {"type": "string"},
+                "high_level_goals": {"type": "array", "items": {"type": "string"}},
+                "risks_to_check_after_feature_engineering": {"type": "array", "items": {"type": "string"}},
+                "non_final_notes": {
+                    "type": "string",
+                    "const": "Final executable preprocessing decisions will be made by Feature Preprocessing after Feature Engineering output is available.",
+                },
             },
         },
         "model_strategy": {
@@ -129,6 +215,14 @@ OUTPUT_JSON_SCHEMA = {
                 },
             },
         },
+        "workflow_rationale": {
+            "type": "object",
+            "properties": {
+                "overall_reasoning_summary": {"type": "string"},
+                "key_assumptions": {"type": "array", "items": {"type": "string"}},
+                "known_risks": {"type": "array", "items": {"type": "string"}},
+            },
+        },
         "planning_warnings": {"type": "array", "items": {"type": "string"}},
         "planning_assumptions": {"type": "array", "items": {"type": "string"}},
         "llm_reasoning_summary": {"type": "string"},
@@ -137,7 +231,11 @@ OUTPUT_JSON_SCHEMA = {
 }
 
 
-SYSTEM_PROMPT = """You are an expert AutoML workflow planner for materials science. Your task is to generate a structured machine learning workflow plan based on task specifications, task interpretation, and dataset profiling results.
+SYSTEM_PROMPT = """You are an expert AutoML workflow planner for materials science. Your task is to generate a COMPLETE structured machine learning workflow plan based on task specifications, task interpretation, dataset profiling results, and the Feature Engineering Capability Registry.
+
+**CRITICAL: You MUST generate a COMPLETE WorkflowPlan.**
+You must NOT only generate FeatureStrategy. FeatureStrategy is ONE section of the full WorkflowPlan.
+The full WorkflowPlan must include: task_summary, data_strategy, feature_strategy, preprocessing_intent, model_strategy, hpo_strategy, evaluation_strategy, validation_strategy, pipeline_generation_input, workflow_rationale.
 
 **CRITICAL BOUNDARY RULES — You MUST follow these:**
 
@@ -152,49 +250,45 @@ SYSTEM_PROMPT = """You are an expert AutoML workflow planner for materials scien
 9. If there are risks or limitations, put them in "planning_warnings".
 10. You MUST output ONLY valid JSON matching the exact schema provided. No other text.
 
-Your planning should cover:
+**Feature Engineering Capability Rules:**
 
-- **Task Summary**: Summarize what this ML task is about.
-- **Data Strategy**: Plan data cleaning, missing value handling, duplicate handling, target transformation checks.
-- **Feature Strategy**: Based on input modality, recommend featurizers and whether scaling/selection is needed.
-- **Model Strategy**: Recommend candidate model families, baseline models, and any excluded models.
-- **Validation Strategy**: Recommend split strategy, number of folds, random state.
-- **Evaluation Strategy**: Define primary and secondary metrics, and metric direction (minimize or maximize).
-- **HPO Strategy**: Decide whether hyperparameter optimization is needed, and if so which method and budget.
-- **Interpretability Strategy**: Decide which interpretability methods to use (feature importance, SHAP, etc.).
-- **Pipeline Generation Input**: List the pipeline steps in order and which components are required.
-- **Planning Warnings**: List any concerns based on data quality, sample size, task complexity, etc.
-- **Planning Assumptions**: List any assumptions made during planning.
-- **LLM Reasoning Summary**: A brief paragraph explaining the key planning decisions.
-- **Confidence Score**: A number between 0 and 1 indicating your confidence in this plan.
+- You MUST select capability_id values ONLY from the provided Feature Engineering Capability Registry.
+- Only capabilities with status="available" may be used as selected_feature_actions.
+- Each selected_feature_action MUST have a complete decision_rationale with: reason, evidence, material_science_basis, expected_benefit, risk, fallback.
+- Rejected capabilities MUST have a reason explaining why they were rejected.
+- "planned" capabilities CANNOT be used as required or recommended actions.
+- You MUST NOT invent capability_ids that are not in the Registry.
 
-**Featurizer Selection Rules (CRITICAL):**
+**PreprocessingIntent Rules:**
 
-- You MUST select executable_featurizers ONLY from the available_featurizers list provided in the prompt.
-- Use the exact featurizer "id" values from available_featurizers — do NOT invent new IDs.
-- If you want to mention scientific or semantic feature concepts, put them into semantic_featurizers.
-- If a planned featurizer (like matminer_magpie) might be useful but is not yet available, put it in unsupported_future_featurizers.
-- Only executable_featurizers will be consumed by the Feature Engineering module.
-- recommended_featurizers is a DEPRECATED legacy field; always provide executable_featurizers.
+- preprocessing_intent must ONLY contain high_level_goals (e.g., "handle_missing_values", "standardize_numeric_features").
+- preprocessing_intent must NOT contain column-level operations or executable PreprocessingPlan.
+- The actual PreprocessingPlan will be generated by the Feature Preprocessing module after Feature Engineering output is available.
+
+**Featurizer Selection Rules:**
+
+- You MUST select executable_featurizers ONLY from the available_featurizers list.
+- Use exact featurizer "id" values — do NOT invent new IDs.
+- Scientific/semantic concepts go into semantic_featurizers.
+- Planned featurizers go into unsupported_future_featurizers.
 
 For materials science tasks:
-
-- **composition** input modality -> recommend composition-based featurizers from available_featurizers
-- **structure** input modality -> recommend structure-based featurizers if available, otherwise use descriptor fallback
-- **descriptor** input modality -> use existing numeric descriptors with scaling and feature selection
-- **regression** tasks -> recommend MAE/RMSE/R2 metrics, tree-based + linear models
-- **classification** tasks -> recommend Accuracy/F1/ROC-AUC metrics, tree-based + linear models
-- Small samples (n < 100) -> prefer simple models, fewer CV folds, limited HPO
-- Medium samples (100 <= n < 1000) -> allow moderate complexity
-- Large samples (n >= 1000) -> allow complex models, more HPO budget"""
+- **composition** -> composition-based featurizers + descriptor fallback
+- **structure** -> structure-based featurizers if available, descriptor fallback otherwise
+- **descriptor** -> numeric descriptors with scaling and feature selection
+- **regression** -> MAE/RMSE/R2 metrics, tree-based + linear models
+- **classification** -> Accuracy/F1/ROC-AUC metrics, tree-based + linear models
+- Small samples (n < 100) -> simple models, fewer CV folds, limited HPO
+- Medium samples (100 <= n < 1000) -> moderate complexity
+- Large samples (n >= 1000) -> complex models, more HPO budget"""
 
 
 def build_prompt(context: dict) -> Tuple[str, str]:
-    # Gather available and planned featurizers from the Registry
     data_ctx = context.get("data_context") or {}
     input_modality = data_ctx.get("input_modality")
     task_type = (context.get("task_context") or {}).get("task_type")
 
+    # Featurizers from legacy registry
     available_featurizers = get_available_featurizers(
         input_modality=input_modality,
         task_type=task_type,
@@ -223,6 +317,23 @@ def build_prompt(context: dict) -> Tuple[str, str]:
         for s in planned_featurizers
     ]
 
+    # FE Capability Registry for capability-aware FeatureStrategy
+    fe_capabilities = get_available_fe_capabilities(
+        input_modality=input_modality,
+        task_type=task_type,
+    )
+    fe_caps_for_prompt = [c.model_dump() for c in fe_capabilities]
+
+    # All capabilities (for rejection reference)
+    all_fe_caps = get_available_fe_capabilities()
+    all_fe_caps_for_prompt = [
+        {"capability_id": c.capability_id, "display_name": c.display_name, "status": c.status, "feature_family": c.feature_family}
+        for c in all_fe_caps
+    ]
+
+    # Registry snapshot
+    registry_snapshot = get_registry_snapshot()
+
     user_message_parts = [
         "## Task Context",
         json.dumps(context.get("task_context", {}), indent=2, ensure_ascii=False),
@@ -233,17 +344,32 @@ def build_prompt(context: dict) -> Tuple[str, str]:
         "## Data Context",
         json.dumps(context.get("data_context", {}), indent=2, ensure_ascii=False),
         "",
-        "## Available Featurizers (you MUST select executable_featurizers ONLY from this list)",
+        "## Feature Engineering Capability Registry",
+        "### All Registered Capabilities (for reference)",
+        json.dumps(all_fe_caps_for_prompt, indent=2, ensure_ascii=False),
+        "",
+        "### Available Capabilities for This Task (you MUST use capability_id from this list for selected_feature_actions)",
+        json.dumps(fe_caps_for_prompt, indent=2, ensure_ascii=False),
+        "",
+        "### Registry Snapshot Version",
+        registry_snapshot["snapshot_version"],
+        "",
+        "## Available Featurizers (for executable_featurizers field)",
         json.dumps(available_for_prompt, indent=2, ensure_ascii=False),
         "",
-        "## Planned / Future Featurizers (not yet executable — put in unsupported_future_featurizers if relevant)",
+        "## Planned / Future Featurizers (for unsupported_future_featurizers)",
         json.dumps(planned_for_prompt, indent=2, ensure_ascii=False),
         "",
         "## Output JSON Schema",
         "You MUST output a single JSON object that strictly follows this schema:",
         json.dumps(OUTPUT_JSON_SCHEMA, indent=2),
         "",
-        "Remember: output ONLY the JSON object. No markdown, no code blocks, no explanatory text.",
+        "Remember:",
+        "1. Output ONLY the JSON object. No markdown, no code blocks, no explanatory text.",
+        "2. Generate a COMPLETE WorkflowPlan — not just FeatureStrategy.",
+        "3. FeatureStrategy.selected_feature_actions must use capability_id from the FE Capability Registry.",
+        "4. Each selected action MUST have complete decision_rationale.",
+        "5. preprocessing_intent must ONLY contain high-level goals.",
     ]
 
     user_message = "\n".join(user_message_parts)

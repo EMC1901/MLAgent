@@ -1,3 +1,5 @@
+// ---- Core Workflow Plan sub-types ----
+
 export interface TaskSummary {
   task_type?: string;
   input_modality?: string;
@@ -20,6 +22,86 @@ export interface DataStrategy {
   missing_value_strategy?: string;
 }
 
+// ---- Decision Rationale (new capability-aware) ----
+
+export interface DecisionRationale {
+  reason: string;
+  evidence: string[];
+  material_science_basis: string;
+  expected_benefit: string;
+  risk: string;
+  fallback: string;
+}
+
+// ---- Feature Strategy (new capability-aware) ----
+
+export interface SelectedFeatureAction {
+  action_id: string;
+  capability_id: string;
+  priority: string;
+  input_columns: string[];
+  parameters: Record<string, unknown>;
+  output_feature_group: string;
+  decision_rationale: DecisionRationale;
+}
+
+export interface RejectedFeatureAction {
+  capability_id: string;
+  reason: string;
+  evidence: string[];
+}
+
+export interface FallbackStrategy {
+  fallback_actions: string[];
+  trigger_conditions: string[];
+}
+
+export interface FeatureGroupExpectation {
+  feature_group: string;
+  expected_signal: string;
+  known_limitations: string;
+}
+
+export interface InputModalityAssessment {
+  detected_modalities: string[];
+  usable_modalities: string[];
+  unusable_modalities: string[];
+  rationale: string;
+}
+
+// ---- Preprocessing Intent (new) ----
+
+export interface PreprocessingIntent {
+  intent_id?: string;
+  high_level_goals: string[];
+  risks_to_check_after_feature_engineering: string[];
+  non_final_notes: string;
+}
+
+// ---- Workflow Rationale (new) ----
+
+export interface WorkflowRationale {
+  overall_reasoning_summary: string;
+  key_assumptions: string[];
+  known_risks: string[];
+}
+
+// ---- Execution Hints (new) ----
+
+export interface FallbackRule {
+  trigger: string;
+  action: string;
+  rationale: string;
+}
+
+export interface ExecutionHints {
+  module_order: string[];
+  fallback_rules: FallbackRule[];
+  resource_guidance: string;
+}
+
+// ---- Legacy Feature Strategy (backward compat) ----
+
 export interface FeatureStrategy {
   feature_type?: string;
   executable_featurizers?: string[];
@@ -29,6 +111,13 @@ export interface FeatureStrategy {
   requires_structure_features?: boolean;
   feature_selection_required?: boolean;
   feature_scaling_required?: boolean;
+
+  // New capability-aware fields
+  selected_feature_actions?: SelectedFeatureAction[];
+  rejected_feature_actions?: RejectedFeatureAction[];
+  fallback_strategy?: FallbackStrategy;
+  feature_group_expectations?: FeatureGroupExpectation[];
+  input_modality_assessment?: InputModalityAssessment;
 }
 
 export interface ModelStrategy {
@@ -77,6 +166,8 @@ export interface PipelineGenerationInput {
   required_components?: RequiredComponents;
 }
 
+// ---- Main Workflow Plan Response ----
+
 export interface WorkflowPlanResponse {
   workflow_plan_id: string;
   task_id: string;
@@ -93,6 +184,13 @@ export interface WorkflowPlanResponse {
   hpo_strategy?: HPOStrategy;
   interpretability_strategy?: InterpretabilityStrategy;
   pipeline_generation_input?: PipelineGenerationInput;
+
+  // New fields
+  preprocessing_intent?: PreprocessingIntent;
+  workflow_rationale?: WorkflowRationale;
+  execution_hints?: ExecutionHints;
+  fe_registry_snapshot_version?: string;
+
   planning_warnings?: string[];
   planning_assumptions?: string[];
   llm_reasoning_summary?: string;
@@ -106,6 +204,24 @@ export interface WorkflowPlanCreateRequest {
   planning_mode?: string;
   llm_provider?: string;
   model_name?: string;
+}
+
+// ---- Sub-resource responses ----
+
+export interface FeatureStrategyResponse {
+  plan_id: string;
+  feature_strategy: FeatureStrategy;
+}
+
+export interface FeatureStrategyRationaleResponse {
+  plan_id: string;
+  rationales: DecisionRationale[];
+  rejected_rationales: RejectedFeatureAction[];
+}
+
+export interface PreprocessingIntentResponse {
+  plan_id: string;
+  preprocessing_intent: PreprocessingIntent;
 }
 
 export interface ApiResponse<T> {

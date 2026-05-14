@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createWorkflowPlan, rerunWorkflowPlan } from '../../../api/workflowPlanningApi';
-import { WorkflowPlanResponse } from '../types';
+import { WorkflowPlanResponse, FeatureStrategy, DecisionRationale, SelectedFeatureAction, RejectedFeatureAction } from '../types';
 
 interface WorkflowPlanPanelProps {
   taskId: string;
@@ -72,6 +72,22 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId }) => {
     </div>
   );
 
+  const renderRationale = (r: DecisionRationale | null | undefined, compact?: boolean) => {
+    if (!r) return <span style={{ color: '#999', fontSize: '11px' }}>No rationale provided</span>;
+    return (
+      <div style={compact ? styles.rationaleCompact : styles.rationale}>
+        {r.reason && <div><strong>Reason:</strong> {r.reason}</div>}
+        {r.material_science_basis && <div><strong>Material Science Basis:</strong> {r.material_science_basis}</div>}
+        {r.expected_benefit && <div><strong>Expected Benefit:</strong> {r.expected_benefit}</div>}
+        {r.risk && <div><strong>Risk:</strong> {r.risk}</div>}
+        {r.fallback && <div><strong>Fallback:</strong> {r.fallback}</div>}
+        {r.evidence && r.evidence.length > 0 && (
+          <div><strong>Evidence:</strong> {r.evidence.join('; ')}</div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div style={styles.container}>
       <h3 style={styles.title}>LLM-guided Workflow Planning</h3>
@@ -106,6 +122,9 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId }) => {
               <span style={{ color: getStatusColor(result.status), fontWeight: 600 }}>{result.status}</span>
             </div>
             <div style={styles.field}><strong>Confidence:</strong> {result.confidence_score}</div>
+            {result.fe_registry_snapshot_version && (
+              <div style={styles.field}><strong>Registry:</strong> {result.fe_registry_snapshot_version}</div>
+            )}
           </div>
 
           {/* Task Summary */}
@@ -144,6 +163,49 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId }) => {
           {result.feature_strategy && (
             <Section title="Feature Strategy">
               <div>Feature Type: {result.feature_strategy.feature_type}</div>
+
+              {/* New: Capability-aware selected actions */}
+              {result.feature_strategy.selected_feature_actions && result.feature_strategy.selected_feature_actions.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <strong style={{ color: '#2e7d32' }}>Selected Feature Actions (Capability Registry):</strong>
+                  <table style={styles.smallTable}>
+                    <thead>
+                      <tr style={styles.tableHeaderRow}>
+                        <th style={{ ...styles.th, width: '14%' }}>Action ID</th>
+                        <th style={{ ...styles.th, width: '20%' }}>Capability</th>
+                        <th style={{ ...styles.th, width: '10%' }}>Priority</th>
+                        <th style={{ ...styles.th, width: '16%' }}>Output Group</th>
+                        <th style={{ ...styles.th, width: '40%' }}>Rationale</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.feature_strategy.selected_feature_actions.map((a: SelectedFeatureAction, i: number) => (
+                        <tr key={i} style={styles.tableRow}>
+                          <td style={styles.td}>{a.action_id}</td>
+                          <td style={styles.td}><Badge label={a.capability_id} color="#2e7d32" /></td>
+                          <td style={styles.td}>{a.priority}</td>
+                          <td style={styles.td}>{a.output_feature_group}</td>
+                          <td style={styles.tdCompact}>{renderRationale(a.decision_rationale, true)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Rejected actions */}
+              {result.feature_strategy.rejected_feature_actions && result.feature_strategy.rejected_feature_actions.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <strong style={{ color: '#c62828' }}>Rejected Feature Actions:</strong>
+                  {result.feature_strategy.rejected_feature_actions.map((a: RejectedFeatureAction, i: number) => (
+                    <div key={i} style={{ marginLeft: '8px', fontSize: '12px' }}>
+                      {a.capability_id}: {a.reason}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Legacy: executable featurizers */}
               {result.feature_strategy.executable_featurizers && result.feature_strategy.executable_featurizers.length > 0 && (
                 <div>
                   Executable Featurizers:{' '}
@@ -179,6 +241,106 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId }) => {
               <div>Structure Features Required: {result.feature_strategy.requires_structure_features ? 'Yes' : 'No'}</div>
               <div>Feature Selection: {result.feature_strategy.feature_selection_required ? 'Yes' : 'No'}</div>
               <div>Feature Scaling: {result.feature_strategy.feature_scaling_required ? 'Yes' : 'No'}</div>
+
+              {/* Fallback strategy */}
+              {result.feature_strategy.fallback_strategy && (
+                <div style={{ marginTop: '4px' }}>
+                  <strong>Fallback Strategy:</strong>
+                  {result.feature_strategy.fallback_strategy.fallback_actions && result.feature_strategy.fallback_strategy.fallback_actions.length > 0 && (
+                    <div>Fallback Actions: {result.feature_strategy.fallback_strategy.fallback_actions.join(', ')}</div>
+                  )}
+                  {result.feature_strategy.fallback_strategy.trigger_conditions && result.feature_strategy.fallback_strategy.trigger_conditions.length > 0 && (
+                    <div>Triggers: {result.feature_strategy.fallback_strategy.trigger_conditions.join(', ')}</div>
+                  )}
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* Preprocessing Intent (NEW) */}
+          {result.preprocessing_intent && (
+            <Section title="Preprocessing Intent">
+              {result.preprocessing_intent.high_level_goals && result.preprocessing_intent.high_level_goals.length > 0 && (
+                <div>
+                  <strong>High-Level Goals:</strong>
+                  <ul style={styles.list}>
+                    {result.preprocessing_intent.high_level_goals.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {result.preprocessing_intent.risks_to_check_after_feature_engineering && result.preprocessing_intent.risks_to_check_after_feature_engineering.length > 0 && (
+                <div>
+                  <strong>Risks to Check After Feature Engineering:</strong>
+                  <ul style={styles.list}>
+                    {result.preprocessing_intent.risks_to_check_after_feature_engineering.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {result.preprocessing_intent.non_final_notes && (
+                <div>
+                  <strong>Notes:</strong>
+                  <div style={{ fontSize: '11px', color: '#888', marginLeft: '8px' }}>{result.preprocessing_intent.non_final_notes}</div>
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* Workflow Rationale (NEW) */}
+          {result.workflow_rationale && (
+            <Section title="Workflow Rationale">
+              {result.workflow_rationale.overall_reasoning_summary && (
+                <div style={{ marginTop: '6px', padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px', fontSize: '12px' }}>
+                  <strong>Overall Reasoning:</strong> {result.workflow_rationale.overall_reasoning_summary}
+                </div>
+              )}
+              {result.workflow_rationale.key_assumptions && result.workflow_rationale.key_assumptions.length > 0 && (
+                <div>
+                  <strong>Key Assumptions:</strong>
+                  <ul style={styles.list}>
+                    {result.workflow_rationale.key_assumptions.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {result.workflow_rationale.known_risks && result.workflow_rationale.known_risks.length > 0 && (
+                <div>
+                  <strong>Known Risks:</strong>
+                  <ul style={styles.list}>
+                    {result.workflow_rationale.known_risks.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* Execution Hints (NEW) */}
+          {result.execution_hints && (
+            <Section title="Execution Hints">
+              {result.execution_hints.module_order && result.execution_hints.module_order.length > 0 && (
+                <div>Module Order: {result.execution_hints.module_order.map((s, i) => (
+                  <Badge key={i} label={`${i + 1}. ${s}`} color="#00838f" />
+                ))}</div>
+              )}
+              {result.execution_hints.resource_guidance && (
+                <div>Resource Guidance: {result.execution_hints.resource_guidance}</div>
+              )}
+              {result.execution_hints.fallback_rules && result.execution_hints.fallback_rules.length > 0 && (
+                <div style={{ marginTop: '4px' }}>
+                  <strong>Fallback Rules:</strong>
+                  {result.execution_hints.fallback_rules.map((r, i) => (
+                    <div key={i} style={{ fontSize: '12px', marginLeft: '8px' }}>
+                      <Badge label={r.trigger} color="#e65100" /> → {r.action}: {r.rationale}
+                    </div>
+                  ))}
+                </div>
+              )}
             </Section>
           )}
 
@@ -325,168 +487,92 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #9e9e9e',
     borderRadius: '8px',
   },
-  title: {
-    margin: '0 0 8px 0',
-    fontSize: '18px',
-    fontWeight: 600,
-    color: '#333',
-  },
-  description: {
-    margin: '0 0 16px 0',
-    fontSize: '14px',
-    color: '#666',
-  },
-  buttonRow: {
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '16px',
-  },
+  title: { margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600, color: '#333' },
+  description: { margin: '0 0 16px 0', fontSize: '14px', color: '#666' },
+  buttonRow: { display: 'flex', gap: '12px', marginBottom: '16px' },
   runButton: {
-    padding: '10px 20px',
-    backgroundColor: '#1976d2',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
+    padding: '10px 20px', backgroundColor: '#1976d2', color: '#fff',
+    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
   },
   rerunButton: {
-    padding: '10px 20px',
-    backgroundColor: '#6c757d',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
+    padding: '10px 20px', backgroundColor: '#6c757d', color: '#fff',
+    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
   },
   errorBox: {
-    marginBottom: '16px',
-    padding: '12px',
-    backgroundColor: '#ffebee',
-    border: '1px solid #f44336',
-    borderRadius: '4px',
-    color: '#c62828',
-    fontSize: '14px',
+    marginBottom: '16px', padding: '12px', backgroundColor: '#ffebee',
+    border: '1px solid #f44336', borderRadius: '4px', color: '#c62828', fontSize: '14px',
   },
   resultBox: {
-    padding: '16px',
-    backgroundColor: '#e8f5e9',
-    border: '1px solid #4caf50',
-    borderRadius: '4px',
+    padding: '16px', backgroundColor: '#e8f5e9', border: '1px solid #4caf50', borderRadius: '4px',
   },
-  resultTitle: {
-    margin: '0 0 12px 0',
-    fontSize: '16px',
-    fontWeight: 600,
-  },
-  fieldRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '24px',
-    marginBottom: '12px',
-  },
-  field: {
-    fontSize: '14px',
-  },
+  resultTitle: { margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600 },
+  fieldRow: { display: 'flex', flexWrap: 'wrap', gap: '24px', marginBottom: '12px' },
+  field: { fontSize: '14px' },
   section: {
-    marginTop: '12px',
-    padding: '10px',
-    backgroundColor: '#fff',
-    borderRadius: '4px',
-    border: '1px solid #e0e0e0',
+    marginTop: '12px', padding: '10px', backgroundColor: '#fff',
+    borderRadius: '4px', border: '1px solid #e0e0e0',
   },
   sectionTitle: {
-    fontSize: '13px',
-    fontWeight: 600,
-    color: '#555',
-    textTransform: 'uppercase' as const,
-    display: 'block',
-    marginBottom: '6px',
+    fontSize: '13px', fontWeight: 600, color: '#555',
+    textTransform: 'uppercase' as const, display: 'block', marginBottom: '6px',
   },
   sectionContent: {
-    fontSize: '13px',
-    color: '#333',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '3px',
+    fontSize: '13px', color: '#333', display: 'flex',
+    flexDirection: 'column' as const, gap: '3px',
   },
   badge: {
-    display: 'inline-block',
-    color: '#fff',
-    padding: '1px 8px',
-    borderRadius: '10px',
-    fontSize: '11px',
-    marginLeft: '4px',
-    marginBottom: '2px',
+    display: 'inline-block', color: '#fff', padding: '1px 8px',
+    borderRadius: '10px', fontSize: '11px', marginLeft: '4px', marginBottom: '2px',
   },
-  pipelineSteps: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px',
-  },
-  pipelineStep: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '13px',
-  },
+  pipelineSteps: { display: 'flex', flexDirection: 'column' as const, gap: '4px' },
+  pipelineStep: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' },
   stepNumber: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '20px',
-    height: '20px',
-    borderRadius: '50%',
-    backgroundColor: '#1976d2',
-    color: '#fff',
-    fontSize: '11px',
-    fontWeight: 600,
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    width: '20px', height: '20px', borderRadius: '50%',
+    backgroundColor: '#1976d2', color: '#fff', fontSize: '11px', fontWeight: 600,
   },
-  reasoning: {
-    fontSize: '13px',
-    fontStyle: 'italic',
-    color: '#555',
-    lineHeight: '1.5',
+  reasoning: { fontSize: '13px', fontStyle: 'italic', color: '#555', lineHeight: '1.5' },
+  rationale: {
+    fontSize: '12px', color: '#555', marginTop: '4px', padding: '6px',
+    backgroundColor: '#fafafa', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '2px',
   },
+  rationaleCompact: {
+    fontSize: '11px', color: '#777', display: 'flex', flexDirection: 'column', gap: '1px',
+  },
+  smallTable: {
+    width: '100%', borderCollapse: 'collapse', marginTop: '4px', fontSize: '11px',
+    tableLayout: 'fixed' as const,
+  },
+  tableHeaderRow: {},
+  th: {
+    textAlign: 'left', padding: '4px 6px', borderBottom: '2px solid #e0e0e0',
+    backgroundColor: '#f5f5f5', fontWeight: 600, fontSize: '11px',
+    overflow: 'hidden', textOverflow: 'ellipsis',
+  },
+  tableRow: { borderBottom: '1px solid #f0f0f0' },
+  td: {
+    padding: '4px 6px', verticalAlign: 'top', fontSize: '11px',
+    wordBreak: 'break-word' as const, overflowWrap: 'break-word' as const,
+  },
+  tdCompact: {
+    padding: '4px 6px', verticalAlign: 'top', fontSize: '11px',
+    maxWidth: '300px',
+  },
+  list: { margin: '2px 0', paddingLeft: '20px', fontSize: '12px' },
   warningSection: {
-    marginTop: '12px',
-    padding: '10px',
-    backgroundColor: '#fff3e0',
-    borderRadius: '4px',
-    border: '1px solid #ffcc02',
-    fontSize: '13px',
+    marginTop: '12px', padding: '10px', backgroundColor: '#fff3e0',
+    borderRadius: '4px', border: '1px solid #ffcc02', fontSize: '13px',
   },
-  warningItem: {
-    marginTop: '4px',
-    marginLeft: '8px',
-    fontSize: '12px',
-  },
+  warningItem: { marginTop: '4px', marginLeft: '8px', fontSize: '12px' },
   assumptionSection: {
-    marginTop: '8px',
-    padding: '10px',
-    backgroundColor: '#e3f2fd',
-    borderRadius: '4px',
-    border: '1px solid #90caf9',
-    fontSize: '13px',
+    marginTop: '8px', padding: '10px', backgroundColor: '#e3f2fd',
+    borderRadius: '4px', border: '1px solid #90caf9', fontSize: '13px',
   },
-  assumptionItem: {
-    marginTop: '4px',
-    marginLeft: '8px',
-    fontSize: '12px',
-  },
-  jsonSection: {
-    marginTop: '16px',
-  },
+  assumptionItem: { marginTop: '4px', marginLeft: '8px', fontSize: '12px' },
+  jsonSection: { marginTop: '16px' },
   pre: {
-    backgroundColor: '#fff',
-    padding: '12px',
-    borderRadius: '4px',
-    overflow: 'auto',
-    fontSize: '12px',
-    marginTop: '8px',
-    maxHeight: '400px',
+    backgroundColor: '#fff', padding: '12px', borderRadius: '4px',
+    overflow: 'auto', fontSize: '12px', marginTop: '8px', maxHeight: '400px',
   },
 };
 

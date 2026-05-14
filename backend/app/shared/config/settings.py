@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_BASE_URL: str = "https://api.openai.com/v1"
     LLM_TIMEOUT: int = 120
-    LLM_MAX_RETRIES: int = 2
+    LLM_MAX_RETRIES: int = 3
     LLM_TEMPERATURE: float = 0.0
 
     # Dataset upload configuration
@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     MODEL_CONTEXT_ENABLE_LLM_ADVISOR: bool = True
     MODEL_CONTEXT_LLM_TEMPERATURE: float = 0.0
     MODEL_CONTEXT_LLM_TIMEOUT: int = 60
-    MODEL_CONTEXT_LLM_MAX_RETRIES: int = 2
+    MODEL_CONTEXT_LLM_MAX_RETRIES: int = 3
 
     MODEL_CONTEXT_LOW_FEATURE_THRESHOLD: int = 20
     MODEL_CONTEXT_HIGH_REDUCTION_RATIO: float = 0.8

@@ -87,6 +87,97 @@ export interface DownstreamInput {
   ready_for_pipeline_generation: boolean;
 }
 
+// ---- New: Feature Quality Profile ----
+
+export interface GlobalQualitySummary {
+  row_count: number;
+  feature_count: number;
+  numeric_feature_count: number;
+  categorical_feature_count: number;
+  missing_value_ratio: number;
+  constant_feature_count: number;
+  near_constant_feature_count: number;
+  low_information_feature_count: number;
+  high_missing_feature_count: number;
+  high_correlation_pair_count: number;
+  high_skewness_feature_count: number;
+}
+
+export interface PerFeatureSummary {
+  feature_name: string;
+  dtype: string;
+  missing_ratio: number;
+  variance?: number | null;
+  skewness?: number | null;
+  unique_ratio: number;
+  is_constant: boolean;
+  is_near_constant: boolean;
+  is_low_variance: boolean;
+  source_feature_group: string;
+}
+
+export interface PerGroupSummary {
+  group_name: string;
+  feature_count: number;
+  missing_ratio: number;
+  constant_feature_count: number;
+  near_constant_feature_count: number;
+  avg_variance?: number | null;
+  avg_skewness?: number | null;
+}
+
+export interface QualityWarning {
+  warning_type: string;
+  severity: string;
+  message: string;
+}
+
+export interface FeatureQualityProfile {
+  global_summary: GlobalQualitySummary;
+  per_feature_summary: PerFeatureSummary[];
+  per_group_summary: PerGroupSummary[];
+  quality_warnings: QualityWarning[];
+}
+
+// ---- New: Execution Report ----
+
+export interface ActionResult {
+  action_id: string;
+  capability_id: string;
+  status: string;
+  generated_feature_count: number;
+  warnings: string[];
+  error_message?: string | null;
+  fallback_action_id?: string | null;
+}
+
+export interface ExecutionReport {
+  action_results: ActionResult[];
+}
+
+// ---- New: Feature Provenance ----
+
+export interface FeatureProvenance {
+  registry_snapshot_version: string;
+  input_artifact_hash: string;
+  featurizer_versions: Record<string, string>;
+  dependency_versions: Record<string, string>;
+  created_at?: string | null;
+}
+
+// ---- New: Feature Preprocessing Decision Input ----
+
+export interface FeaturePreprocessingDecisionInput {
+  task_context: Record<string, unknown>;
+  dataset_context: Record<string, unknown>;
+  workflow_context: Record<string, unknown>;
+  feature_matrix_context: Record<string, unknown>;
+  execution_context: Record<string, unknown>;
+  known_preprocessing_risks: (string | null)[];
+}
+
+// ---- Registry types (existing) ----
+
 export interface FeaturizerSpec {
   id: string;
   display_name: string;
@@ -122,6 +213,8 @@ export interface DependenciesStatusResponse {
   dependencies: Record<string, DependencyStatus>;
 }
 
+// ---- Main Response ----
+
 export interface FeatureEngineeringResponse {
   feature_engineering_id: string;
   task_id: string;
@@ -131,12 +224,23 @@ export interface FeatureEngineeringResponse {
   status: string;
   input_modality?: string | null;
   feature_type?: string | null;
+
+  // Legacy
   feature_generation?: FeatureGeneration | null;
   feature_matrix?: FeatureMatrixInfo | null;
   feature_schema?: FeatureSchemaInfo | null;
   feature_quality?: FeatureQuality | null;
   preprocessing_requirements?: PreprocessingRequirements | null;
   downstream_input?: DownstreamInput | null;
+
+  // New fields
+  executed_feature_strategy_id?: string | null;
+  feature_groups?: FeatureGroup[] | null;
+  feature_quality_profile?: FeatureQualityProfile | null;
+  execution_report?: ExecutionReport | null;
+  feature_provenance?: FeatureProvenance | null;
+  feature_preprocessing_decision_input?: FeaturePreprocessingDecisionInput | null;
+
   warnings: string[];
   errors: string[];
   created_at?: string | null;

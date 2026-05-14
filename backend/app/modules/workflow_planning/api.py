@@ -56,3 +56,35 @@ def rerun_workflow_plan(
     except BusinessException as e:
         status_code = 404 if e.error_code in ("NOT_FOUND", "WORKFLOW_PLAN_NOT_FOUND") else 400
         raise HTTPException(status_code=status_code, detail={"message": e.message, "error_code": e.error_code})
+
+
+# ---- New endpoints ----
+
+@router.get("/api/workflow-plans/{workflow_plan_id}/feature-strategy", response_model=dict)
+def get_feature_strategy(workflow_plan_id: str, session: Session = Depends(get_session)):
+    try:
+        result = service.get_feature_strategy(session, workflow_plan_id)
+        return success_response("Feature strategy retrieved.", data=result.model_dump())
+    except BusinessException as e:
+        status_code = 404 if e.error_code in ("NOT_FOUND", "WORKFLOW_PLAN_NOT_FOUND") else 400
+        raise HTTPException(status_code=status_code, detail={"message": e.message, "error_code": e.error_code})
+
+
+@router.get("/api/workflow-plans/{workflow_plan_id}/feature-strategy-rationale", response_model=dict)
+def get_feature_strategy_rationale(workflow_plan_id: str, session: Session = Depends(get_session)):
+    try:
+        result = service.get_feature_strategy_rationale(session, workflow_plan_id)
+        return success_response("Feature strategy rationale retrieved.", data=result.model_dump())
+    except BusinessException as e:
+        status_code = 404 if e.error_code in ("NOT_FOUND", "WORKFLOW_PLAN_NOT_FOUND") else 400
+        raise HTTPException(status_code=status_code, detail={"message": e.message, "error_code": e.error_code})
+
+
+@router.get("/api/workflow-plans/{workflow_plan_id}/preprocessing-intent", response_model=dict)
+def get_preprocessing_intent(workflow_plan_id: str, session: Session = Depends(get_session)):
+    try:
+        result = service.get_preprocessing_intent(session, workflow_plan_id)
+        return success_response("Preprocessing intent retrieved.", data=result.model_dump())
+    except BusinessException as e:
+        status_code = 404 if e.error_code in ("NOT_FOUND", "WORKFLOW_PLAN_NOT_FOUND") else 400
+        raise HTTPException(status_code=status_code, detail={"message": e.message, "error_code": e.error_code})

@@ -14,6 +14,15 @@ from app.modules.workflow_planning.schemas import (
     DataStrategy,
     TargetHandling,
     FeatureStrategy,
+    PreprocessingIntent,
+    WorkflowRationale,
+    ExecutionHints,
+    SelectedFeatureAction,
+    RejectedFeatureAction,
+    DecisionRationale,
+    InputModalityAssessment,
+    FallbackStrategy,
+    FeatureGroupExpectation,
     ModelStrategy,
     ValidationStrategy,
     EvaluationStrategy,
@@ -21,6 +30,9 @@ from app.modules.workflow_planning.schemas import (
     InterpretabilityStrategy,
     PipelineGenerationInput,
     RequiredComponents,
+    FeatureStrategyResponse,
+    FeatureStrategyRationaleResponse,
+    PreprocessingIntentResponse,
 )
 from app.modules.workflow_planning.context_builder import build_workflow_planning_context
 from app.modules.workflow_planning.prompt_builder import build_prompt
@@ -31,7 +43,6 @@ from app.modules.workflow_planning.builder import build_workflow_plan
 from app.modules.workflow_planning.enums import WorkflowPlanStatus
 from app.modules.workflow_planning.exceptions import (
     WorkflowPlanNotFoundException,
-    UpstreamNotReadyException,
     WorkflowPlanningLLMCallException,
     WorkflowPlanParseException,
     WorkflowPlanValidationException,
@@ -141,14 +152,6 @@ class WorkflowPlanningService:
             status=status,
         )
 
-        task_summary = plan_dict.get("task_summary", {})
-        data_strategy = plan_dict.get("data_strategy", {})
-        feature_strategy = plan_dict.get("feature_strategy", {})
-        validation_strategy = plan_dict.get("validation_strategy", {})
-        evaluation_strategy = plan_dict.get("evaluation_strategy", {})
-        hpo_strategy = plan_dict.get("hpo_strategy", {})
-        interpretability_strategy = plan_dict.get("interpretability_strategy", {})
-
         plan_model = WorkflowPlan(
             id=plan_dict["workflow_plan_id"],
             task_id=plan_dict["task_id"],
@@ -156,17 +159,21 @@ class WorkflowPlanningService:
             dataset_profile_id=plan_dict["dataset_profile_id"],
             status=plan_dict["status"],
             planning_mode=plan_dict["planning_mode"],
-            task_type=task_summary.get("task_type"),
-            input_modality=task_summary.get("input_modality"),
-            primary_metric=evaluation_strategy.get("primary_metric"),
-            feature_type=feature_strategy.get("feature_type"),
-            validation_strategy=validation_strategy.get("split_strategy"),
-            hpo_enabled=hpo_strategy.get("enabled", False),
-            interpretability_enabled=interpretability_strategy.get("enabled", False),
+            task_type=(plan_dict.get("task_summary") or {}).get("task_type"),
+            input_modality=(plan_dict.get("task_summary") or {}).get("input_modality"),
+            primary_metric=(plan_dict.get("evaluation_strategy") or {}).get("primary_metric"),
+            feature_type=(plan_dict.get("feature_strategy") or {}).get("feature_type"),
+            validation_strategy=(plan_dict.get("validation_strategy") or {}).get("split_strategy"),
+            hpo_enabled=(plan_dict.get("hpo_strategy") or {}).get("enabled", False),
+            interpretability_enabled=(plan_dict.get("interpretability_strategy") or {}).get("enabled", False),
             confidence_score=plan_dict["confidence_score"],
             plan_json=plan_dict,
             llm_request_json=llm_request_json,
             llm_response_json=llm_response_json,
+            fe_registry_snapshot_version=plan_dict.get("fe_registry_snapshot_version"),
+            feature_strategy_json=plan_dict.get("feature_strategy"),
+            preprocessing_intent_json=plan_dict.get("preprocessing_intent"),
+            workflow_rationale_json=plan_dict.get("workflow_rationale"),
             error_message=None,
             created_at=datetime.fromisoformat(plan_dict["created_at"]),
             updated_at=datetime.fromisoformat(plan_dict["updated_at"]),
@@ -197,6 +204,56 @@ class WorkflowPlanningService:
     ) -> WorkflowPlanResponse:
         return self.create_plan(session, task_id, request)
 
+    def get_feature_strategy(self, session: Session, plan_id: str) -> FeatureStrategyResponse:
+        plan = self.plan_repo.get_by_id(session, plan_id)
+        if not plan:
+            raise WorkflowPlanNotFoundException(f"Workflow plan with id {plan_id} not found.")
+        plan_json = plan.plan_json or {}
+        fs_raw = plan_json.get("feature_strategy") or {}
+        feature_strategy_data = FeatureStrategy(**fs_raw) if fs_raw else FeatureStrategy()
+        return FeatureStrategyResponse(
+            workflow_plan_id=plan.id or "",
+            feature_strategy=feature_strategy_data,
+            fe_registry_snapshot_version=plan.fe_registry_snapshot_version,
+        )
+
+    def get_feature_strategy_rationale(self, session: Session, plan_id: str) -> FeatureStrategyRationaleResponse:
+        plan = self.plan_repo.get_by_id(session, plan_id)
+        if not plan:
+            raise WorkflowPlanNotFoundException(f"Workflow plan with id {plan_id} not found.")
+        plan_json = plan.plan_json or {}
+        fs_raw = plan_json.get("feature_strategy") or {}
+        selected_actions = fs_raw.get("selected_feature_actions", [])
+        rationales = []
+        for action in selected_actions:
+            dr = action.get("decision_rationale", {})
+            rationales.append(DecisionRationale(
+                reason=dr.get("reason", ""),
+                evidence=dr.get("evidence", []),
+                material_science_basis=dr.get("material_science_basis", ""),
+                expected_benefit=dr.get("expected_benefit", ""),
+                risk=dr.get("risk", ""),
+                fallback=dr.get("fallback", ""),
+            ))
+        rejected = [RejectedFeatureAction(**ra) for ra in fs_raw.get("rejected_feature_actions", [])]
+        return FeatureStrategyRationaleResponse(
+            workflow_plan_id=plan.id or "",
+            rationales=rationales,
+            rejected_rationales=rejected,
+        )
+
+    def get_preprocessing_intent(self, session: Session, plan_id: str) -> PreprocessingIntentResponse:
+        plan = self.plan_repo.get_by_id(session, plan_id)
+        if not plan:
+            raise WorkflowPlanNotFoundException(f"Workflow plan with id {plan_id} not found.")
+        plan_json = plan.plan_json or {}
+        intent_raw = plan_json.get("preprocessing_intent") or {}
+        intent = PreprocessingIntent(**intent_raw) if intent_raw else PreprocessingIntent()
+        return PreprocessingIntentResponse(
+            workflow_plan_id=plan.id or "",
+            preprocessing_intent=intent,
+        )
+
     def adopt_revised_plan(
         self, session: Session, task_id: str, revised_plan: dict
     ) -> WorkflowPlanResponse:
@@ -224,12 +281,14 @@ class WorkflowPlanningService:
             "task_summary": revised_plan.get("task_summary", {}),
             "data_strategy": revised_plan.get("data_strategy", {}),
             "feature_strategy": revised_plan.get("feature_strategy", {}),
+            "preprocessing_intent": revised_plan.get("preprocessing_intent", {}),
             "model_strategy": revised_plan.get("model_strategy", {}),
             "validation_strategy": revised_plan.get("validation_strategy", {}),
             "evaluation_strategy": revised_plan.get("evaluation_strategy", {}),
             "hpo_strategy": revised_plan.get("hpo_strategy", {}),
             "interpretability_strategy": revised_plan.get("interpretability_strategy", {}),
             "pipeline_generation_input": revised_plan.get("pipeline_generation_input", {}),
+            "workflow_rationale": revised_plan.get("workflow_rationale", {}),
             "planning_warnings": revised_plan.get("planning_warnings", []),
             "planning_assumptions": revised_plan.get("planning_assumptions", []),
             "llm_reasoning_summary": revised_plan.get("llm_reasoning_summary", ""),
@@ -241,13 +300,6 @@ class WorkflowPlanningService:
             "updated_at": now.isoformat(),
         }
 
-        task_summary = plan_json.get("task_summary", {})
-        feature_strategy = plan_json.get("feature_strategy", {})
-        validation_strategy = plan_json.get("validation_strategy", {})
-        evaluation_strategy = plan_json.get("evaluation_strategy", {})
-        hpo_strategy = plan_json.get("hpo_strategy", {})
-        interpretability_strategy = plan_json.get("interpretability_strategy", {})
-
         plan_model = WorkflowPlan(
             id=plan_id,
             task_id=task_id,
@@ -255,26 +307,18 @@ class WorkflowPlanningService:
             dataset_profile_id=dataset_profile_id,
             status=WorkflowPlanStatus.PLANNED,
             planning_mode="refinement_adopted",
-            task_type=task_summary.get("task_type"),
-            input_modality=task_summary.get("input_modality"),
-            primary_metric=evaluation_strategy.get("primary_metric"),
-            feature_type=feature_strategy.get("feature_type"),
-            validation_strategy=validation_strategy.get("split_strategy"),
-            hpo_enabled=hpo_strategy.get("enabled", False),
-            interpretability_enabled=interpretability_strategy.get("enabled", False),
-            confidence_score=plan_json.get("confidence_score"),
             plan_json=plan_json,
-            llm_request_json=None,
-            llm_response_json=None,
+            fe_registry_snapshot_version=revised_plan.get("fe_registry_snapshot_version"),
+            feature_strategy_json=revised_plan.get("feature_strategy"),
+            preprocessing_intent_json=revised_plan.get("preprocessing_intent"),
+            workflow_rationale_json=revised_plan.get("workflow_rationale"),
             error_message=None,
             created_at=now,
             updated_at=now,
         )
 
         created = self.plan_repo.create(session, plan_model)
-        logger.info(
-            "Adopted revised plan %s for task %s from refinement", plan_id, task_id
-        )
+        logger.info("Adopted revised plan %s for task %s", plan_id, task_id)
         return self._to_response(created)
 
     def _check_task_exists(self, session: Session, task_id: str):
@@ -287,13 +331,7 @@ class WorkflowPlanningService:
         plan_json = plan.plan_json or {}
 
         task_summary_raw = plan_json.get("task_summary") or {}
-        task_summary = TaskSummary(
-            task_type=task_summary_raw.get("task_type"),
-            input_modality=task_summary_raw.get("input_modality"),
-            prediction_target=task_summary_raw.get("prediction_target"),
-            material_domain=task_summary_raw.get("material_domain"),
-            primary_goal=task_summary_raw.get("primary_goal"),
-        )
+        task_summary = TaskSummary(**task_summary_raw) if task_summary_raw else TaskSummary()
 
         data_strategy_raw = plan_json.get("data_strategy") or {}
         target_handling_raw = data_strategy_raw.get("target_handling") or {}
@@ -301,79 +339,46 @@ class WorkflowPlanningService:
             input_columns=data_strategy_raw.get("input_columns", []),
             target_column=data_strategy_raw.get("target_column"),
             required_cleaning_steps=data_strategy_raw.get("required_cleaning_steps", []),
-            target_handling=TargetHandling(
-                requires_transformation_check=target_handling_raw.get("requires_transformation_check", False),
-                recommended_transformation=target_handling_raw.get("recommended_transformation", "none"),
-            ),
+            target_handling=TargetHandling(**target_handling_raw) if target_handling_raw else TargetHandling(),
             duplicate_handling=data_strategy_raw.get("duplicate_handling", "none"),
             missing_value_strategy=data_strategy_raw.get("missing_value_strategy", "no_missing_values_detected"),
         )
 
         feature_strategy_raw = plan_json.get("feature_strategy") or {}
-        feature_strategy = FeatureStrategy(
-            feature_type=feature_strategy_raw.get("feature_type"),
-            executable_featurizers=feature_strategy_raw.get("executable_featurizers", []),
-            semantic_featurizers=feature_strategy_raw.get("semantic_featurizers", []),
-            unsupported_future_featurizers=feature_strategy_raw.get("unsupported_future_featurizers", []),
-            recommended_featurizers=feature_strategy_raw.get("recommended_featurizers", []),
-            requires_structure_features=feature_strategy_raw.get("requires_structure_features", False),
-            feature_selection_required=feature_strategy_raw.get("feature_selection_required", False),
-            feature_scaling_required=feature_strategy_raw.get("feature_scaling_required", False),
-        )
+        feature_strategy = FeatureStrategy(**feature_strategy_raw) if feature_strategy_raw else FeatureStrategy()
+
+        preprocessing_intent_raw = plan_json.get("preprocessing_intent") or {}
+        preprocessing_intent = PreprocessingIntent(**preprocessing_intent_raw) if preprocessing_intent_raw else PreprocessingIntent()
+
+        workflow_rationale_raw = plan_json.get("workflow_rationale") or {}
+        workflow_rationale = WorkflowRationale(**workflow_rationale_raw) if workflow_rationale_raw else WorkflowRationale()
 
         model_strategy_raw = plan_json.get("model_strategy") or {}
-        model_strategy = ModelStrategy(
-            candidate_model_families=model_strategy_raw.get("candidate_model_families", []),
-            baseline_models=model_strategy_raw.get("baseline_models", []),
-            preferred_model_bias=model_strategy_raw.get("preferred_model_bias", "balance_accuracy_and_interpretability"),
-            excluded_model_families=model_strategy_raw.get("excluded_model_families", []),
-        )
+        model_strategy = ModelStrategy(**model_strategy_raw) if model_strategy_raw else ModelStrategy()
 
         validation_strategy_raw = plan_json.get("validation_strategy") or {}
-        validation_strategy = ValidationStrategy(
-            split_strategy=validation_strategy_raw.get("split_strategy", "k_fold_cross_validation"),
-            n_splits=validation_strategy_raw.get("n_splits", 5),
-            test_size=validation_strategy_raw.get("test_size"),
-            random_state=validation_strategy_raw.get("random_state", 42),
-            stratification_required=validation_strategy_raw.get("stratification_required", False),
-        )
+        validation_strategy = ValidationStrategy(**validation_strategy_raw) if validation_strategy_raw else ValidationStrategy()
 
         evaluation_strategy_raw = plan_json.get("evaluation_strategy") or {}
-        evaluation_strategy = EvaluationStrategy(
-            primary_metric=evaluation_strategy_raw.get("primary_metric"),
-            secondary_metrics=evaluation_strategy_raw.get("secondary_metrics", []),
-            metric_direction=evaluation_strategy_raw.get("metric_direction", "minimize"),
-        )
+        evaluation_strategy = EvaluationStrategy(**evaluation_strategy_raw) if evaluation_strategy_raw else EvaluationStrategy()
 
         hpo_strategy_raw = plan_json.get("hpo_strategy") or {}
-        hpo_strategy = HPOStrategy(
-            enabled=hpo_strategy_raw.get("enabled", True),
-            search_method=hpo_strategy_raw.get("search_method", "random_search"),
-            budget_level=hpo_strategy_raw.get("budget_level", "medium"),
-            max_trials=hpo_strategy_raw.get("max_trials", 30),
-        )
+        hpo_strategy = HPOStrategy(**hpo_strategy_raw) if hpo_strategy_raw else HPOStrategy()
 
         interpretability_strategy_raw = plan_json.get("interpretability_strategy") or {}
-        interpretability_strategy = InterpretabilityStrategy(
-            enabled=interpretability_strategy_raw.get("enabled", True),
-            methods=interpretability_strategy_raw.get("methods", []),
-            priority=interpretability_strategy_raw.get("priority", "medium"),
-        )
+        interpretability_strategy = InterpretabilityStrategy(**interpretability_strategy_raw) if interpretability_strategy_raw else InterpretabilityStrategy()
 
         pipeline_input_raw = plan_json.get("pipeline_generation_input") or {}
-        required_components_raw = pipeline_input_raw.get("required_components") or {}
         pipeline_generation_input = PipelineGenerationInput(
             pipeline_steps=pipeline_input_raw.get("pipeline_steps", []),
-            required_components=RequiredComponents(
-                data_cleaner=required_components_raw.get("data_cleaner", False),
-                featurizer=required_components_raw.get("featurizer", False),
-                model_trainer=required_components_raw.get("model_trainer", False),
-                evaluator=required_components_raw.get("evaluator", False),
-            ),
+            required_components=RequiredComponents(**pipeline_input_raw.get("required_components", {})),
         )
 
+        execution_hints_raw = plan_json.get("execution_hints") or {}
+        execution_hints = ExecutionHints(**execution_hints_raw) if execution_hints_raw else None
+
         return WorkflowPlanResponse(
-            workflow_plan_id=plan.id,
+            workflow_plan_id=plan.id or "",
             task_id=plan.task_id or "",
             interpretation_id=plan.interpretation_id,
             dataset_profile_id=plan.dataset_profile_id,
@@ -382,12 +387,16 @@ class WorkflowPlanningService:
             task_summary=task_summary,
             data_strategy=data_strategy,
             feature_strategy=feature_strategy,
+            preprocessing_intent=preprocessing_intent,
             model_strategy=model_strategy,
             validation_strategy=validation_strategy,
             evaluation_strategy=evaluation_strategy,
             hpo_strategy=hpo_strategy,
             interpretability_strategy=interpretability_strategy,
             pipeline_generation_input=pipeline_generation_input,
+            workflow_rationale=workflow_rationale,
+            execution_hints=execution_hints,
+            fe_registry_snapshot_version=plan.fe_registry_snapshot_version,
             planning_warnings=plan_json.get("planning_warnings", []),
             planning_assumptions=plan_json.get("planning_assumptions", []),
             llm_reasoning_summary=plan_json.get("llm_reasoning_summary"),

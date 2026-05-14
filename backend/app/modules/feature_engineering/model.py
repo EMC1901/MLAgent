@@ -24,6 +24,13 @@ class FeatureEngineering(SQLModel, table=True):
     is_ready_for_pipeline: Optional[bool] = Field(default=None)
     feature_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
     preview_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
+    # New columns
+    executed_feature_strategy_id: Optional[str] = Field(default=None, max_length=255)
+    feature_groups_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
+    quality_profile_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
+    execution_report_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
+    provenance_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
+    preprocessing_decision_input_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
     error_message: Optional[str] = Field(default=None)
     created_at: Optional[datetime] = Field(default=None, index=True)
     updated_at: Optional[datetime] = Field(default=None)

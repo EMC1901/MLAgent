@@ -69,6 +69,11 @@ def build_pipeline_generation_context(session: Session, task_id: str) -> dict:
     allowed_model_families = get_all_model_families()
     allowed_hpo_methods = get_all_hpo_methods()
 
+    feature_columns = pg_input.get("feature_columns", [])
+    if not feature_columns and feature_preprocessing and feature_preprocessing.preprocessing_json:
+        ms_input = feature_preprocessing.preprocessing_json.get("model_search_input") or {}
+        feature_columns = ms_input.get("feature_columns", [])
+
     return {
         "task_id": task_id,
         "model_search_plan_id": model_search_plan.id,
@@ -76,7 +81,7 @@ def build_pipeline_generation_context(session: Session, task_id: str) -> dict:
         "task_type": task_type,
         "primary_metric": primary_metric,
         "target_column": model_search_plan.target_column or pg_input.get("target_column"),
-        "feature_columns": pg_input.get("feature_columns", []),
+        "feature_columns": feature_columns,
         "n_samples": model_search_plan.n_samples or 0,
         "n_features": model_search_plan.n_features or 0,
         "model_ready_matrix_path": model_ready_matrix_path,

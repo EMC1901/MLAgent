@@ -1,5 +1,6 @@
 import httpx
 import logging
+import time
 from typing import List, Dict, Any
 from app.shared.config.settings import settings
 from app.modules.task_interpretation.exceptions import LLMCallException
@@ -17,6 +18,13 @@ class LLMClient:
         self.timeout = settings.LLM_TIMEOUT
         self.max_retries = settings.LLM_MAX_RETRIES
         self.temperature = settings.LLM_TEMPERATURE
+
+    def _backoff_delay(self, attempt: int, status_code: int = 0, retry_after: str | None = None) -> float:
+        """Calculate backoff delay. 429 uses longer delays and may respect Retry-After header."""
+        if retry_after and retry_after.isdigit():
+            return float(retry_after)
+        base = 5.0 if status_code == 429 else 1.0
+        return base * (2 ** (attempt - 1))
 
     def generate(self, system_prompt: str, user_message: str) -> str:
         messages: List[Dict[str, Any]] = [
@@ -62,9 +70,23 @@ class LLMClient:
                 logger.error("LLM API error: status=%d body=%s", e.response.status_code, e.response.text)
                 if e.response.status_code in (401, 403):
                     break
+                if e.response.status_code == 429:
+                    retry_after = e.response.headers.get("Retry-After")
+                    delay = self._backoff_delay(attempt + 1, 429, retry_after)
+                    logger.warning(
+                        "LLM rate limited (429). Waiting %.1fs before retry %d/%d (Retry-After: %s)",
+                        delay, attempt + 1, self.max_retries + 1, retry_after or "none",
+                    )
+                    time.sleep(delay)
+                    continue
             except Exception as e:
                 last_error = e
                 logger.error("LLM call unexpected error: %s", str(e))
+
+            if attempt < self.max_retries:
+                delay = self._backoff_delay(attempt + 1)
+                logger.info("Retrying LLM call in %.1fs (attempt %d/%d)", delay, attempt + 1, self.max_retries + 1)
+                time.sleep(delay)
 
         raise LLMCallException(
             f"LLM call failed after {self.max_retries + 1} attempt(s): {str(last_error)}"

@@ -11,6 +11,13 @@ class FeaturePreprocessingRepository:
         session.refresh(record)
         return record
 
+    def save(self, session: Session, record: FeaturePreprocessing) -> FeaturePreprocessing:
+        """INSERT if new, UPDATE if existing (uses session.merge)."""
+        merged = session.merge(record)
+        session.commit()
+        session.refresh(merged)
+        return merged
+
     def get_by_id(self, session: Session, fmp_id: str) -> Optional[FeaturePreprocessing]:
         return session.get(FeaturePreprocessing, fmp_id)
 

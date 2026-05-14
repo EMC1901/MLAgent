@@ -70,7 +70,8 @@
       "Bash(/c/projects/MLAgent/frontend/node_modules/.bin/tsc --noEmit)",
       "Bash(node_modules/.bin/tsc --noEmit)",
       "Bash(echo \"Exit code: $?\")",
-      "Bash(echo \"Exit: $?\")"
+      "Bash(echo \"Exit: $?\")",
+      "Bash(npx --yes tsc --noEmit --pretty)"
     ]
   }
 }

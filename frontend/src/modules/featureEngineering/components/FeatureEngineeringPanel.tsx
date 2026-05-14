@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createFeatureEngineering, rerunFeatureEngineering } from '../../../api/featureEngineeringApi';
-import { FeatureEngineeringResponse } from '../types';
+import { FeatureEngineeringResponse, FeatureQualityProfile, ExecutionReport, FeatureProvenance, FeaturePreprocessingDecisionInput, PerFeatureSummary } from '../types';
 
 interface FeatureEngineeringPanelProps {
   taskId: string;
@@ -107,6 +107,9 @@ const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskI
             </div>
             <div style={styles.field}><strong>Input Modality:</strong> {result.input_modality}</div>
             <div style={styles.field}><strong>Feature Type:</strong> {result.feature_type}</div>
+            {result.executed_feature_strategy_id && (
+              <div style={styles.field}><strong>Feat Strategy:</strong> {result.executed_feature_strategy_id}</div>
+            )}
           </div>
 
           {/* Feature Generation */}
@@ -159,8 +162,8 @@ const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskI
                   {' '}({ef.n_features_generated} features, {ef.failed_sample_count} failed
                   {ef.execution_time_ms != null ? `, ${ef.execution_time_ms}ms` : ''})
                   {ef.dependency_versions && Object.keys(ef.dependency_versions).length > 0 && (
-                    <span style={{ fontSize: '11px', color: '#888' }}>
-                      {' '}deps: {JSON.stringify(ef.dependency_versions)}
+                    <span style={{ fontSize: '11px', color: '#888', wordBreak: 'break-word' }}>
+                      {' '}deps: {Object.entries(ef.dependency_versions).map(([k, v]) => `${k}=${v}`).join(', ')}
                     </span>
                   )}
                 </div>
@@ -208,22 +211,201 @@ const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskI
 
           {/* Feature Quality */}
           {result.feature_quality && (
-            <Section title="Feature Quality">
-              <div>Valid Matrix: {result.feature_quality.is_valid_feature_matrix ? 'Yes' : 'No'}</div>
-              <div>Total Missing: {result.feature_quality.missing_values?.total_missing}</div>
-              {result.feature_quality.dropped_features && result.feature_quality.dropped_features.length > 0 && (
-                <div>Dropped Features: {result.feature_quality.dropped_features.join(', ')}</div>
+            <div style={{ ...styles.section, maxHeight: '180px', overflowY: 'auto' }}>
+              <strong style={styles.sectionTitle}>Feature Quality</strong>
+              <div style={styles.sectionContent}>
+                <div>Valid Matrix: {result.feature_quality.is_valid_feature_matrix ? 'Yes' : 'No'}</div>
+                <div>Total Missing: {result.feature_quality.missing_values?.total_missing}</div>
+                {result.feature_quality.dropped_features && result.feature_quality.dropped_features.length > 0 && (
+                  <div>Dropped Features: {result.feature_quality.dropped_features.join(', ')}</div>
+                )}
+                {result.feature_quality.constant_features && result.feature_quality.constant_features.length > 0 && (
+                  <div>Constant Features: {result.feature_quality.constant_features.join(', ')}</div>
+                )}
+                {result.feature_quality.invalid_features && result.feature_quality.invalid_features.length > 0 && (
+                  <div>Invalid Features: {result.feature_quality.invalid_features.join(', ')}</div>
+                )}
+                {result.feature_quality.all_missing_features && result.feature_quality.all_missing_features.length > 0 && (
+                  <div>All-missing Features: {result.feature_quality.all_missing_features.join(', ')}</div>
+                )}
+                {result.feature_quality.failed_samples && result.feature_quality.failed_samples.length > 0 && (
+                  <div>Failed Samples: {result.feature_quality.failed_samples.join(', ')}</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* NEW: Feature Quality Profile */}
+          {result.feature_quality_profile && (
+            <div style={{ ...styles.section, maxHeight: '350px', overflowY: 'auto' }}>
+              <strong style={styles.sectionTitle}>Quality Profile (Detailed)</strong>
+              <div style={styles.sectionContent}>
+                {result.feature_quality_profile.global_summary && (
+                  <div style={{ marginBottom: '8px' }}>
+                    <strong>Global Summary:</strong>
+                    <div style={styles.grid2Col}>
+                      <div>Rows: {result.feature_quality_profile.global_summary.row_count}</div>
+                      <div>Features: {result.feature_quality_profile.global_summary.feature_count}</div>
+                      <div>Numeric: {result.feature_quality_profile.global_summary.numeric_feature_count}</div>
+                      <div>Categorical: {result.feature_quality_profile.global_summary.categorical_feature_count}</div>
+                      <div>Missing Ratio: {(result.feature_quality_profile.global_summary.missing_value_ratio * 100).toFixed(2)}%</div>
+                      <div>Constant: {result.feature_quality_profile.global_summary.constant_feature_count}</div>
+                      <div>Near-Constant: {result.feature_quality_profile.global_summary.near_constant_feature_count}</div>
+                      <div>Low Info: {result.feature_quality_profile.global_summary.low_information_feature_count}</div>
+                      <div>High Missing: {result.feature_quality_profile.global_summary.high_missing_feature_count}</div>
+                      <div>High Skewness: {result.feature_quality_profile.global_summary.high_skewness_feature_count}</div>
+                      <div>High Correlation Pairs: {result.feature_quality_profile.global_summary.high_correlation_pair_count}</div>
+                    </div>
+                  </div>
+                )}
+                {result.feature_quality_profile.per_feature_summary && result.feature_quality_profile.per_feature_summary.length > 0 && (
+                  <div style={{ marginBottom: '8px' }}>
+                    <strong>Per-Feature Summary ({result.feature_quality_profile.per_feature_summary.length} features):</strong>
+                    <div style={{ maxHeight: '150px', overflowY: 'auto', marginTop: '4px' }}>
+                      <table style={styles.smallTable}>
+                        <thead>
+                          <tr>
+                            <th style={{ ...styles.th, width: '35%' }}>Feature</th>
+                            <th style={{ ...styles.th, width: '12%' }}>Type</th>
+                            <th style={{ ...styles.th, width: '12%' }}>Missing%</th>
+                            <th style={{ ...styles.th, width: '12%' }}>Variance</th>
+                            <th style={{ ...styles.th, width: '12%' }}>Skewness</th>
+                            <th style={{ ...styles.th, width: '17%' }}>Source Group</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {result.feature_quality_profile.per_feature_summary.slice(0, 50).map((f: PerFeatureSummary, i: number) => (
+                            <tr key={i} style={styles.tableRow}>
+                              <td style={{ ...styles.td, wordBreak: 'break-word' }}>{f.feature_name}</td>
+                              <td style={styles.td}>{f.dtype}</td>
+                              <td style={styles.td}>{f.missing_ratio != null ? (f.missing_ratio * 100).toFixed(1) + '%' : '—'}</td>
+                              <td style={styles.td}>{f.variance != null ? f.variance.toExponential(2) : '—'}</td>
+                              <td style={styles.td}>{f.skewness != null ? f.skewness.toFixed(2) : '—'}</td>
+                              <td style={{ ...styles.td, wordBreak: 'break-word' }}>{f.source_feature_group}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                {result.feature_quality_profile.per_group_summary && result.feature_quality_profile.per_group_summary.length > 0 && (
+                  <div style={{ marginBottom: '8px' }}>
+                    <strong>Per-Group Summary:</strong>
+                    {result.feature_quality_profile.per_group_summary.map((g, i) => (
+                      <div key={i} style={{ fontSize: '12px', marginLeft: '8px' }}>
+                        <strong>{g.group_name}:</strong> {g.feature_count} features, missing {g.missing_ratio != null ? (g.missing_ratio * 100).toFixed(1) + '%' : '0%'}
+                        {g.avg_variance != null ? `, avg var ${g.avg_variance.toExponential(2)}` : ''}
+                        {g.avg_skewness != null ? `, avg skew ${g.avg_skewness.toFixed(2)}` : ''}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {result.feature_quality_profile.quality_warnings && result.feature_quality_profile.quality_warnings.length > 0 && (
+                  <div>
+                    <strong style={{ color: '#e65100' }}>Quality Warnings:</strong>
+                    {result.feature_quality_profile.quality_warnings.map((w, i) => (
+                      <div key={i} style={{ fontSize: '11px', color: '#e65100', marginLeft: '8px' }}>
+                        [{w.severity}] {w.message}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* NEW: Execution Report */}
+          {result.execution_report && result.execution_report.action_results && result.execution_report.action_results.length > 0 && (
+            <Section title="Execution Report">
+              <table style={{ ...styles.smallTable, tableLayout: 'fixed' }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...styles.th, width: '18%' }}>Action</th>
+                    <th style={{ ...styles.th, width: '22%' }}>Capability</th>
+                    <th style={{ ...styles.th, width: '12%' }}>Status</th>
+                    <th style={{ ...styles.th, width: '10%' }}>Features</th>
+                    <th style={{ ...styles.th, width: '38%' }}>Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.execution_report.action_results.map((a, i) => (
+                    <tr key={i} style={styles.tableRow}>
+                      <td style={{ ...styles.td, wordBreak: 'break-word' }}>{a.action_id}</td>
+                      <td style={{ ...styles.td, wordBreak: 'break-word' }}><Badge label={a.capability_id} color="#1976d2" /></td>
+                      <td style={styles.td}>
+                        <span style={{
+                          color: a.status === 'success' ? '#2e7d32' : a.status === 'failed' ? '#c62828' : '#ff9800',
+                          fontWeight: 600,
+                        }}>
+                          {a.status}
+                        </span>
+                      </td>
+                      <td style={styles.td}>{a.generated_feature_count}</td>
+                      <td style={{ ...styles.td, wordBreak: 'break-word', maxWidth: '250px' }}>{a.error_message || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Section>
+          )}
+
+          {/* NEW: Feature Provenance */}
+          {result.feature_provenance && (
+            <Section title="Feature Provenance">
+              <div style={{ wordBreak: 'break-word' }}>Registry Version: {result.feature_provenance.registry_snapshot_version}</div>
+              <div style={{ wordBreak: 'break-word' }}>Input Hash: {result.feature_provenance.input_artifact_hash}</div>
+              {result.feature_provenance.featurizer_versions && Object.keys(result.feature_provenance.featurizer_versions).length > 0 && (
+                <div>
+                  <strong>Featurizer Versions:</strong>
+                  <ul style={styles.list}>
+                    {Object.entries(result.feature_provenance.featurizer_versions).map(([k, v]) => (
+                      <li key={k} style={{ wordBreak: 'break-word' }}><strong>{k}:</strong> {v}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
-              {result.feature_quality.constant_features && result.feature_quality.constant_features.length > 0 && (
-                <div>Constant Features: {result.feature_quality.constant_features.join(', ')}</div>
+              {result.feature_provenance.dependency_versions && Object.keys(result.feature_provenance.dependency_versions).length > 0 && (
+                <div>
+                  <strong>Dependency Versions:</strong>
+                  <ul style={styles.list}>
+                    {Object.entries(result.feature_provenance.dependency_versions).map(([k, v]) => (
+                      <li key={k} style={{ wordBreak: 'break-word' }}><strong>{k}:</strong> {v}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
-              {result.feature_quality.invalid_features && result.feature_quality.invalid_features.length > 0 && (
-                <div>Invalid Features: {result.feature_quality.invalid_features.join(', ')}</div>
+              {result.feature_provenance.created_at && (
+                <div>Created: {result.feature_provenance.created_at}</div>
               )}
             </Section>
           )}
 
-          {/* Preprocessing */}
+          {/* NEW: Preprocessing Decision Input */}
+          {result.feature_preprocessing_decision_input && (
+            <Section title="Preprocessing Decision Input (for Module 6)">
+              <div>
+                <strong>Task Type:</strong>{' '}
+                {(result.feature_preprocessing_decision_input.task_context as any)?.task_type || '—'}
+              </div>
+              <div>
+                <strong>Dataset:</strong>{' '}
+                {(result.feature_preprocessing_decision_input.dataset_context as any)?.row_count || 0} rows
+              </div>
+              <div>
+                <strong>Feature Matrix:</strong>{' '}
+                {(result.feature_preprocessing_decision_input.feature_matrix_context as any)?.feature_count || 0} features
+              </div>
+              {result.feature_preprocessing_decision_input.known_preprocessing_risks && result.feature_preprocessing_decision_input.known_preprocessing_risks.length > 0 && (
+                <div>
+                  <strong>Known Risks:</strong>{' '}
+                  {result.feature_preprocessing_decision_input.known_preprocessing_risks.filter(Boolean).join(', ')}
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* Preprocessing Requirements (legacy) */}
           {result.preprocessing_requirements && (
             <Section title="Preprocessing Requirements">
               <div>Scaling Required: {result.preprocessing_requirements.scaling_required ? 'Yes' : 'No'}</div>
@@ -245,8 +427,8 @@ const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskI
 
           {/* Warnings */}
           {result.warnings && result.warnings.length > 0 && (
-            <div style={styles.warningSection}>
-              <strong style={{ color: '#e65100' }}>Warnings:</strong>
+            <div style={{ ...styles.warningSection, maxHeight: '200px', overflowY: 'auto' }}>
+              <strong style={{ color: '#e65100' }}>Warnings ({result.warnings.length}):</strong>
               {result.warnings.map((w, i) => (
                 <div key={i} style={styles.warningItem}>{w}</div>
               ))}
@@ -276,145 +458,75 @@ const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskI
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    marginTop: '24px',
-    padding: '16px',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #9e9e9e',
-    borderRadius: '8px',
+    marginTop: '24px', padding: '16px', backgroundColor: '#f3f4f6',
+    border: '1px solid #9e9e9e', borderRadius: '8px',
   },
-  title: {
-    margin: '0 0 8px 0',
-    fontSize: '18px',
-    fontWeight: 600,
-    color: '#333',
-  },
-  description: {
-    margin: '0 0 16px 0',
-    fontSize: '14px',
-    color: '#666',
-  },
-  buttonRow: {
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '16px',
-  },
+  title: { margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600, color: '#333' },
+  description: { margin: '0 0 16px 0', fontSize: '14px', color: '#666' },
+  buttonRow: { display: 'flex', gap: '12px', marginBottom: '16px' },
   runButton: {
-    padding: '10px 20px',
-    backgroundColor: '#1976d2',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
+    padding: '10px 20px', backgroundColor: '#1976d2', color: '#fff',
+    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
   },
   rerunButton: {
-    padding: '10px 20px',
-    backgroundColor: '#6c757d',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
+    padding: '10px 20px', backgroundColor: '#6c757d', color: '#fff',
+    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
   },
   errorBox: {
-    marginBottom: '16px',
-    padding: '12px',
-    backgroundColor: '#ffebee',
-    border: '1px solid #f44336',
-    borderRadius: '4px',
-    color: '#c62828',
-    fontSize: '14px',
+    marginBottom: '16px', padding: '12px', backgroundColor: '#ffebee',
+    border: '1px solid #f44336', borderRadius: '4px', color: '#c62828', fontSize: '14px',
   },
   resultBox: {
-    padding: '16px',
-    backgroundColor: '#e8f5e9',
-    border: '1px solid #4caf50',
-    borderRadius: '4px',
+    padding: '16px', backgroundColor: '#e8f5e9', border: '1px solid #4caf50', borderRadius: '4px',
   },
-  resultTitle: {
-    margin: '0 0 12px 0',
-    fontSize: '16px',
-    fontWeight: 600,
-  },
-  fieldRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '24px',
-    marginBottom: '12px',
-  },
-  field: {
-    fontSize: '14px',
-  },
+  resultTitle: { margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600 },
+  fieldRow: { display: 'flex', flexWrap: 'wrap', gap: '24px', marginBottom: '12px' },
+  field: { fontSize: '14px' },
   section: {
-    marginTop: '12px',
-    padding: '10px',
-    backgroundColor: '#fff',
-    borderRadius: '4px',
-    border: '1px solid #e0e0e0',
+    marginTop: '12px', padding: '10px', backgroundColor: '#fff',
+    borderRadius: '4px', border: '1px solid #e0e0e0',
   },
   sectionTitle: {
-    fontSize: '13px',
-    fontWeight: 600,
-    color: '#555',
-    textTransform: 'uppercase' as const,
-    display: 'block',
-    marginBottom: '6px',
+    fontSize: '13px', fontWeight: 600, color: '#555',
+    textTransform: 'uppercase' as const, display: 'block', marginBottom: '6px',
   },
   sectionContent: {
-    fontSize: '13px',
-    color: '#333',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '3px',
+    fontSize: '13px', color: '#333', display: 'flex',
+    flexDirection: 'column' as const, gap: '3px',
+    overflowWrap: 'break-word' as const, wordBreak: 'break-word' as const,
   },
   badge: {
-    display: 'inline-block',
-    color: '#fff',
-    padding: '1px 8px',
-    borderRadius: '10px',
-    fontSize: '11px',
-    marginLeft: '4px',
-    marginBottom: '2px',
+    display: 'inline-block', color: '#fff', padding: '1px 8px',
+    borderRadius: '10px', fontSize: '11px', marginLeft: '4px', marginBottom: '2px',
   },
+  grid2Col: {
+    display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px',
+    fontSize: '12px', marginLeft: '8px',
+  },
+  list: { margin: '2px 0', paddingLeft: '20px', fontSize: '12px' },
+  smallTable: {
+    width: '100%', borderCollapse: 'collapse', marginTop: '4px', fontSize: '11px',
+  },
+  th: {
+    textAlign: 'left', padding: '4px 6px', borderBottom: '2px solid #e0e0e0',
+    backgroundColor: '#f5f5f5', fontWeight: 600, fontSize: '11px',
+  },
+  tableRow: { borderBottom: '1px solid #f0f0f0' },
+  td: { padding: '4px 6px', verticalAlign: 'top', fontSize: '11px' },
   warningSection: {
-    marginTop: '12px',
-    padding: '10px',
-    backgroundColor: '#fff3e0',
-    borderRadius: '4px',
-    border: '1px solid #ffcc02',
-    fontSize: '13px',
+    marginTop: '12px', padding: '10px', backgroundColor: '#fff3e0',
+    borderRadius: '4px', border: '1px solid #ffcc02', fontSize: '13px',
   },
-  warningItem: {
-    marginTop: '4px',
-    marginLeft: '8px',
-    fontSize: '12px',
-  },
+  warningItem: { marginTop: '4px', marginLeft: '8px', fontSize: '12px' },
   errorSection: {
-    marginTop: '12px',
-    padding: '10px',
-    backgroundColor: '#ffebee',
-    borderRadius: '4px',
-    border: '1px solid #f44336',
-    fontSize: '13px',
+    marginTop: '12px', padding: '10px', backgroundColor: '#ffebee',
+    borderRadius: '4px', border: '1px solid #f44336', fontSize: '13px',
   },
-  errorItem: {
-    marginTop: '4px',
-    marginLeft: '8px',
-    fontSize: '12px',
-  },
-  jsonSection: {
-    marginTop: '16px',
-  },
+  errorItem: { marginTop: '4px', marginLeft: '8px', fontSize: '12px' },
+  jsonSection: { marginTop: '16px' },
   pre: {
-    backgroundColor: '#fff',
-    padding: '12px',
-    borderRadius: '4px',
-    overflow: 'auto',
-    fontSize: '12px',
-    marginTop: '8px',
-    maxHeight: '400px',
+    backgroundColor: '#fff', padding: '12px', borderRadius: '4px',
+    overflow: 'auto', fontSize: '12px', marginTop: '8px', maxHeight: '400px',
   },
 };
 

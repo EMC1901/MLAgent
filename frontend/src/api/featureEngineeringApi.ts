@@ -101,3 +101,61 @@ export const getFeaturizerDependencies = async (): Promise<
   );
   return response.data;
 };
+
+// FE Capabilities
+export const getFECapabilities = async (): Promise<ApiResponse<Record<string, unknown>>> => {
+  const response = await api.get<ApiResponse<Record<string, unknown>>>(
+    '/api/feature-engineering/capabilities',
+  );
+  return response.data;
+};
+
+// Sub-resource: Execution Report
+export const getFEExecutionReport = async (
+  featureEngineeringId: string,
+): Promise<ApiResponse<Record<string, unknown>>> => {
+  const response = await api.get<ApiResponse<Record<string, unknown>>>(
+    `/api/feature-engineering/${featureEngineeringId}/execution-report`,
+  );
+  return response.data;
+};
+
+// Sub-resource: Feature Groups
+export const getFEFeatureGroups = async (
+  featureEngineeringId: string,
+): Promise<ApiResponse<Record<string, unknown>>> => {
+  const response = await api.get<ApiResponse<Record<string, unknown>>>(
+    `/api/feature-engineering/${featureEngineeringId}/feature-groups`,
+  );
+  return response.data;
+};
+
+// Sub-resource: Quality Profile
+export const getFEQualityProfile = async (
+  featureEngineeringId: string,
+): Promise<ApiResponse<Record<string, unknown>>> => {
+  const response = await api.get<ApiResponse<Record<string, unknown>>>(
+    `/api/feature-engineering/${featureEngineeringId}/quality-profile`,
+  );
+  return response.data;
+};
+
+// Sub-resource: Preprocessing Decision Input
+export const getFEPreprocessingDecisionInput = async (
+  featureEngineeringId: string,
+): Promise<ApiResponse<Record<string, unknown>>> => {
+  const response = await api.get<ApiResponse<Record<string, unknown>>>(
+    `/api/feature-engineering/${featureEngineeringId}/preprocessing-decision-input`,
+  );
+  return response.data;
+};
+
+// Sub-resource: Provenance
+export const getFEProvenance = async (
+  featureEngineeringId: string,
+): Promise<ApiResponse<Record<string, unknown>>> => {
+  const response = await api.get<ApiResponse<Record<string, unknown>>>(
+    `/api/feature-engineering/${featureEngineeringId}/provenance`,
+  );
+  return response.data;
+};
