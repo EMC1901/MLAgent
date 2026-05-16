@@ -24,6 +24,23 @@ export interface FeatureGroupSummary {
   low_effective_feature_warning: boolean;
 }
 
+export interface StrategyChangeRationale {
+  reason: string;
+  evidence: string[];
+  expected_benefit: string;
+  risk: string;
+  fallback: string;
+}
+
+export interface StrategyChange {
+  strategy_area: string;
+  field_path: string;
+  original_value: any;
+  updated_value: any;
+  change_type: string;
+  decision_rationale?: StrategyChangeRationale | null;
+}
+
 export interface PreprocessingSummary {
   imputation_executed: boolean;
   scaling_executed: boolean;
@@ -93,6 +110,8 @@ export interface ModelSearchContextResponse {
   updated_validation_strategy: Record<string, unknown>;
   updated_evaluation_strategy: Record<string, unknown>;
   model_search_context_input?: ModelSearchContextInput | null;
+  strategy_changes: StrategyChange[];
+  strategy_change_summary?: string | null;
   warnings: string[];
   errors: string[];
   error_message?: string | null;

@@ -521,6 +521,70 @@ class FeaturePreprocessingService:
         # Calculate dropped features
         n_dropped = n_removed  # from plan execution
 
+        # Derive preprocessing_execution from operation_results
+        imputation_executed = False
+        scaling_executed = False
+        feature_selection_executed = False
+        categorical_encoding_executed = False
+        imputation_strategy = "none"
+        scaling_strategy = "none"
+        feature_selection_strategy = "none"
+        selection_dropped = []
+
+        for op_result in execution_result.get("operation_results", []):
+            if op_result.get("status") != "success":
+                continue
+            cap_id = op_result.get("capability_id", "")
+            cap_group = op_result.get("capability_group", "")
+
+            if cap_group == "missing_value_handling" and cap_id in (
+                "median_imputer", "mean_imputer", "most_frequent_imputer",
+                "constant_imputer", "missing_indicator", "groupwise_imputer",
+            ):
+                imputation_executed = True
+                imputation_strategy = cap_id.replace("_imputer", "").replace("_indicator", "")
+
+            if cap_group == "scaling_normalization" and cap_id in (
+                "standard_scaler", "minmax_scaler", "robust_scaler", "maxabs_scaler",
+                "groupwise_scaler", "model_family_aware_scaling_policy",
+            ):
+                scaling_executed = True
+                scaling_strategy = cap_id
+
+            if cap_group in ("feature_selection", "low_information_filtering", "correlation_collinearity"):
+                if op_result.get("removed_features"):
+                    feature_selection_executed = True
+                    feature_selection_strategy = cap_id
+                    selection_dropped.extend(op_result.get("removed_features", []))
+
+            if cap_group == "categorical_encoding":
+                categorical_encoding_executed = True
+
+        preprocessing_execution = {
+            "imputation": {
+                "executed": imputation_executed,
+                "strategy": imputation_strategy,
+                "columns": [],
+                "artifact_component": "numeric_imputer" if imputation_executed else "",
+            },
+            "scaling": {
+                "executed": scaling_executed,
+                "strategy": scaling_strategy,
+                "columns": [],
+                "artifact_component": "numeric_scaler" if scaling_executed else "",
+            },
+            "categorical_encoding": {
+                "executed": categorical_encoding_executed,
+                "strategy": "onehot" if categorical_encoding_executed else "none",
+                "columns": [],
+            },
+            "feature_selection": {
+                "executed": feature_selection_executed,
+                "strategy": feature_selection_strategy if feature_selection_executed else "none",
+                "columns_dropped": list(set(selection_dropped)),
+            },
+        }
+
         # Build preprocessing_json for backward compat
         preprocessing_json = {
             "preprocessing_id": fmp_id,
@@ -530,6 +594,7 @@ class FeaturePreprocessingService:
             "workflow_plan_id": context.get("workflow_plan_id"),
             "feature_engineering_id": context.get("feature_engineering_id"),
             "status": status,
+            "preprocessing_execution": preprocessing_execution,
             "validation_summary": {
                 "is_model_ready": status in (FeaturePreprocessingStatus.PREPROCESSED, FeaturePreprocessingStatus.PREPROCESSED_WITH_WARNING),
                 "n_samples": len(raw_df),
@@ -1210,9 +1275,15 @@ class FeaturePreprocessingService:
             raise NotFoundException(f"Task specification with id {task_id} not found.")
 
     def _to_response(self, fmp: FeaturePreprocessing) -> FeaturePreprocessingResponse:
+        resp = None
         if fmp.preprocessing_json:
-            resp = FeaturePreprocessingResponse(**fmp.preprocessing_json)
-        else:
+            try:
+                resp = FeaturePreprocessingResponse(**fmp.preprocessing_json)
+            except Exception:
+                logger.warning(
+                    "FP _to_response: failed to reconstruct from preprocessing_json, falling back to columns"
+                )
+        if resp is None:
             resp = FeaturePreprocessingResponse(
                 preprocessing_id=fmp.id or "",
                 task_id=fmp.task_id or "",

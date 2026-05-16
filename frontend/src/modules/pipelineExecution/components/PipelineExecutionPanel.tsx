@@ -8,11 +8,12 @@ import { STATUS_COLORS, TRIAL_STATUS_COLORS, ROLE_COLORS, TRIAL_TYPE_COLORS } fr
 
 interface PipelineExecutionPanelProps {
   taskId: string;
+  initialResult?: PipelineExecutionResponse;
 }
 
-const PipelineExecutionPanel: React.FC<PipelineExecutionPanelProps> = ({ taskId }) => {
+const PipelineExecutionPanel: React.FC<PipelineExecutionPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<PipelineExecutionResponse | null>(null);
+  const [result, setResult] = useState<PipelineExecutionResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const handleRunTraining = async () => {
@@ -320,10 +321,12 @@ const PipelineExecutionPanel: React.FC<PipelineExecutionPanelProps> = ({ taskId 
           )}
 
           {/* Full JSON */}
-          <div style={s.jsonSection}>
-            <strong>Full Result (JSON):</strong>
+          <details style={s.jsonSection}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+              Full Result (JSON)
+            </summary>
             <pre style={s.pre}>{JSON.stringify(result, null, 2)}</pre>
-          </div>
+          </details>
         </div>
       )}
     </div>

@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     LLM_TIMEOUT: int = 120
     LLM_MAX_RETRIES: int = 3
     LLM_TEMPERATURE: float = 0.0
+    LLM_THINKING: bool = False
 
     # Dataset upload configuration
     DATASET_UPLOAD_DIR: str = "/app/uploads"

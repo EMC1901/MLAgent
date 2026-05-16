@@ -34,11 +34,12 @@ import {
 
 interface WorkflowRefinementPanelProps {
   taskId: string;
+  initialResult?: WorkflowRefinementResponse;
 }
 
-const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskId }) => {
+const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<WorkflowRefinementResponse | null>(null);
+  const [result, setResult] = useState<WorkflowRefinementResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('decision');
   const [adopting, setAdopting] = useState(false);

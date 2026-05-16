@@ -5,6 +5,7 @@ from app.modules.task_specification.schemas import (
     TaskSpecificationCreateRequest,
     TaskSpecificationUpdateRequest,
     TaskSpecificationResponse,
+    TaskSummaryResponse,
     ValidationResultResponse,
 )
 from app.modules.task_specification.service import TaskSpecificationService
@@ -20,6 +21,18 @@ def create_task(request: TaskSpecificationCreateRequest, session: Session = Depe
     try:
         result = service.create_task(session, request)
         return success_response("Task specification created successfully.", data=result.model_dump())
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail={"message": e.message, "error_code": e.error_code})
+
+
+@router.get("", response_model=dict)
+def list_tasks(session: Session = Depends(get_session)):
+    try:
+        results = service.list_tasks(session)
+        return success_response(
+            "Tasks retrieved successfully.",
+            data=[r.model_dump() for r in results],
+        )
     except BusinessException as e:
         raise HTTPException(status_code=400, detail={"message": e.message, "error_code": e.error_code})
 

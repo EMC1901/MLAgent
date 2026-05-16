@@ -32,4 +32,6 @@ class TaskSpecificationRepository:
         return self.get_by_id(session, task_id) is not None
 
     def list_tasks(self, session: Session) -> List[TaskSpecification]:
-        return session.query(TaskSpecification).all()
+        return session.query(TaskSpecification).order_by(
+            TaskSpecification.created_at.desc().nullslast()
+        ).limit(50).all()

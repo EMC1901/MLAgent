@@ -5,12 +5,13 @@ import FileUpload from './FileUpload';
 
 interface DatasetProfilePanelProps {
   taskId: string;
+  initialResult?: DatasetProfileResponse;
 }
 
-const DatasetProfilePanel: React.FC<DatasetProfilePanelProps> = ({ taskId }) => {
+const DatasetProfilePanel: React.FC<DatasetProfilePanelProps> = ({ taskId, initialResult }) => {
   const [uploadResult, setUploadResult] = useState<DatasetFileUploadResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState<DatasetProfileResponse | null>(null);
+  const [profile, setProfile] = useState<DatasetProfileResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const handleUploadSuccess = (result: DatasetFileUploadResponse) => {
@@ -245,6 +246,13 @@ const DatasetProfilePanel: React.FC<DatasetProfilePanelProps> = ({ taskId }) => 
               </div>
             </div>
           )}
+
+          <details style={styles.jsonSection}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+              Full Result (JSON)
+            </summary>
+            <pre style={styles.pre}>{JSON.stringify(profile, null, 2)}</pre>
+          </details>
         </div>
       )}
     </div>
@@ -258,6 +266,8 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#f3f4f6',
     border: '1px solid #9e9e9e',
     borderRadius: '8px',
+    maxHeight: '70vh',
+    overflowY: 'auto',
   },
   title: {
     margin: '0 0 8px 0',
@@ -362,6 +372,17 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '4px',
     fontSize: '13px',
     color: '#555',
+  },
+  jsonSection: {
+    marginTop: '16px',
+  },
+  pre: {
+    backgroundColor: '#fff',
+    padding: '12px',
+    borderRadius: '4px',
+    overflow: 'auto',
+    fontSize: '12px',
+    maxHeight: '300px',
   },
 };
 

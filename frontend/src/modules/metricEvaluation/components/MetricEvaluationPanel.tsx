@@ -8,11 +8,12 @@ import { STATUS_COLORS, ROLE_COLORS } from '../constants';
 
 interface MetricEvaluationPanelProps {
   taskId: string;
+  initialResult?: MetricEvaluationResponse;
 }
 
-const MetricEvaluationPanel: React.FC<MetricEvaluationPanelProps> = ({ taskId }) => {
+const MetricEvaluationPanel: React.FC<MetricEvaluationPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<MetricEvaluationResponse | null>(null);
+  const [result, setResult] = useState<MetricEvaluationResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const handleRun = async () => {
@@ -480,10 +481,12 @@ const MetricEvaluationPanel: React.FC<MetricEvaluationPanelProps> = ({ taskId })
           )}
 
           {/* Full JSON */}
-          <div style={s.jsonSection}>
-            <strong>Full Result (JSON):</strong>
+          <details style={s.jsonSection}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+              Full Result (JSON)
+            </summary>
             <pre style={s.pre}>{JSON.stringify(result, null, 2)}</pre>
-          </div>
+          </details>
         </div>
       )}
     </div>

@@ -8,11 +8,12 @@ import { PRIORITY_COLORS, BUDGET_COLORS } from '../constants';
 
 interface ModelSearchPlanPanelProps {
   taskId: string;
+  initialResult?: ModelSearchPlanResponse;
 }
 
-const ModelSearchPlanPanel: React.FC<ModelSearchPlanPanelProps> = ({ taskId }) => {
+const ModelSearchPlanPanel: React.FC<ModelSearchPlanPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ModelSearchPlanResponse | null>(null);
+  const [result, setResult] = useState<ModelSearchPlanResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const handleRun = async () => {
@@ -415,10 +416,12 @@ const ModelSearchPlanPanel: React.FC<ModelSearchPlanPanelProps> = ({ taskId }) =
           )}
 
           {/* Full JSON */}
-          <div style={s.jsonSection}>
-            <strong>Full Result (JSON):</strong>
+          <details style={s.jsonSection}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+              Full Result (JSON)
+            </summary>
             <pre style={s.pre}>{JSON.stringify(result, null, 2)}</pre>
-          </div>
+          </details>
         </div>
       )}
     </div>

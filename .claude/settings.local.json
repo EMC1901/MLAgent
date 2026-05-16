@@ -71,7 +71,9 @@
       "Bash(node_modules/.bin/tsc --noEmit)",
       "Bash(echo \"Exit code: $?\")",
       "Bash(echo \"Exit: $?\")",
-      "Bash(npx --yes tsc --noEmit --pretty)"
+      "Bash(npx --yes tsc --noEmit --pretty)",
+      "Bash(docker exec mlagent-db-1 *)",
+      "Bash(echo \"EXIT:$?\")"
     ]
   }
 }

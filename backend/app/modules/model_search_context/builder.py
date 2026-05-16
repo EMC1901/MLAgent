@@ -5,6 +5,8 @@ from app.modules.model_search_context.schemas import (
     LLMStrategyAdvice,
     ModelSearchContextInput,
     ModelSearchContextResponse,
+    StrategyChange,
+    StrategyChangeRationale,
 )
 from app.modules.model_search_context.enums import ModelSearchContextStatus, UpdateMode
 
@@ -91,11 +93,27 @@ def build_model_search_context_response(
         updated_validation_strategy=updated_val,
         updated_evaluation_strategy=updated_eval,
         model_search_context_input=model_search_input,
+        strategy_changes=_convert_strategy_changes(merge_result.get("strategy_changes", [])),
+        strategy_change_summary=merge_result.get("strategy_change_summary", ""),
         warnings=warnings,
         errors=errors,
         error_message=error_message,
         confidence_score=llm_confidence_score,
     )
+
+
+def _convert_strategy_changes(changes_data: List[dict]) -> List[StrategyChange]:
+    """Convert dict-based strategy changes to StrategyChange models."""
+    result = []
+    for cd in changes_data:
+        if isinstance(cd, StrategyChange):
+            result.append(cd)
+            continue
+        try:
+            result.append(StrategyChange(**cd))
+        except Exception:
+            pass
+    return result
 
 
 def build_context_json(response: ModelSearchContextResponse) -> dict:

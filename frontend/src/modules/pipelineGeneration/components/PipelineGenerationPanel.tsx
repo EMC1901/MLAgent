@@ -8,11 +8,12 @@ import { STATUS_COLORS, PRIORITY_COLORS, ROLE_COLORS } from '../constants';
 
 interface PipelineGenerationPanelProps {
   taskId: string;
+  initialResult?: PipelineGenerationResponse;
 }
 
-const PipelineGenerationPanel: React.FC<PipelineGenerationPanelProps> = ({ taskId }) => {
+const PipelineGenerationPanel: React.FC<PipelineGenerationPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<PipelineGenerationResponse | null>(null);
+  const [result, setResult] = useState<PipelineGenerationResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
@@ -550,10 +551,12 @@ const PipelineGenerationPanel: React.FC<PipelineGenerationPanelProps> = ({ taskI
           )}
 
           {/* Full JSON */}
-          <div style={s.jsonSection}>
-            <strong>Full Result (JSON):</strong>
+          <details style={s.jsonSection}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+              Full Result (JSON)
+            </summary>
             <pre style={s.pre}>{JSON.stringify(result, null, 2)}</pre>
-          </div>
+          </details>
         </div>
       )}
     </div>

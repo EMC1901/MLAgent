@@ -135,11 +135,36 @@ class ExecutionHints(BaseModel):
     resource_guidance: str = ""
 
 
+class ModelDecisionRationale(BaseModel):
+    reason: str = ""
+    evidence: List[str] = []
+    expected_performance: str = ""
+    risk: str = ""
+    fallback: str = ""
+
+
+class SelectedModelAction(BaseModel):
+    action_id: str = ""
+    model_family: str = ""
+    priority: str = "recommended"  # required | recommended | optional | fallback
+    decision_rationale: ModelDecisionRationale = ModelDecisionRationale()
+
+
+class RejectedModelAction(BaseModel):
+    model_family: str = ""
+    reason: str = ""
+    evidence: List[str] = []
+
+
 class ModelStrategy(BaseModel):
     candidate_model_families: List[str] = []
     baseline_models: List[str] = []
     preferred_model_bias: str = "balance_accuracy_and_interpretability"
     excluded_model_families: List[str] = []
+    # New detailed rationale fields
+    selected_model_actions: List[SelectedModelAction] = []
+    rejected_model_actions: List[RejectedModelAction] = []
+    model_selection_rationale_summary: str = ""
 
 
 class ValidationStrategy(BaseModel):
@@ -223,6 +248,11 @@ class FeatureStrategyRationaleResponse(BaseModel):
     workflow_plan_id: str
     rationales: List[DecisionRationale] = []
     rejected_rationales: List[RejectedFeatureAction] = []
+
+
+class ModelStrategyResponse(BaseModel):
+    workflow_plan_id: str
+    model_strategy: ModelStrategy
 
 
 class PreprocessingIntentResponse(BaseModel):

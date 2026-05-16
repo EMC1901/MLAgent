@@ -152,12 +152,54 @@ OUTPUT_JSON_SCHEMA = {
         },
         "model_strategy": {
             "type": "object",
-            "required": ["candidate_model_families", "baseline_models", "preferred_model_bias", "excluded_model_families"],
+            "required": [
+                "candidate_model_families",
+                "baseline_models",
+                "preferred_model_bias",
+                "excluded_model_families",
+                "selected_model_actions",
+                "rejected_model_actions",
+            ],
             "properties": {
                 "candidate_model_families": {"type": "array", "items": {"type": "string"}},
                 "baseline_models": {"type": "array", "items": {"type": "string"}},
                 "preferred_model_bias": {"type": "string"},
                 "excluded_model_families": {"type": "array", "items": {"type": "string"}},
+                "model_selection_rationale_summary": {"type": "string"},
+                "selected_model_actions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["action_id", "model_family", "priority", "decision_rationale"],
+                        "properties": {
+                            "action_id": {"type": "string"},
+                            "model_family": {"type": "string"},
+                            "priority": {"type": "string", "enum": ["required", "recommended", "optional", "fallback"]},
+                            "decision_rationale": {
+                                "type": "object",
+                                "required": ["reason", "evidence", "expected_performance", "risk", "fallback"],
+                                "properties": {
+                                    "reason": {"type": "string"},
+                                    "evidence": {"type": "array", "items": {"type": "string"}},
+                                    "expected_performance": {"type": "string"},
+                                    "risk": {"type": "string"},
+                                    "fallback": {"type": "string"},
+                                },
+                            },
+                        },
+                    },
+                },
+                "rejected_model_actions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "model_family": {"type": "string"},
+                            "reason": {"type": "string"},
+                            "evidence": {"type": "array", "items": {"type": "string"}},
+                        },
+                    },
+                },
             },
         },
         "validation_strategy": {
@@ -272,6 +314,15 @@ The full WorkflowPlan must include: task_summary, data_strategy, feature_strateg
 - Scientific/semantic concepts go into semantic_featurizers.
 - Planned featurizers go into unsupported_future_featurizers.
 
+**Model Selection Rules:**
+
+- You MUST provide detailed rationale for BOTH selected AND rejected models.
+- Each selected_model_action MUST have a complete decision_rationale with: reason, evidence, expected_performance, risk, fallback.
+- Each rejected model in rejected_model_actions MUST have a reason explaining why it was excluded for this specific task.
+- Consider: sample size, feature dimensionality, expected noise level, interpretability requirements, and task type when making model decisions.
+- For materials science tasks, prefer models that handle small-to-medium datasets well and offer interpretability.
+- The candidate_model_families list should be a concise summary; the detailed justification goes into selected_model_actions and rejected_model_actions.
+
 For materials science tasks:
 - **composition** -> composition-based featurizers + descriptor fallback
 - **structure** -> structure-based featurizers if available, descriptor fallback otherwise
@@ -368,8 +419,10 @@ def build_prompt(context: dict) -> Tuple[str, str]:
         "1. Output ONLY the JSON object. No markdown, no code blocks, no explanatory text.",
         "2. Generate a COMPLETE WorkflowPlan — not just FeatureStrategy.",
         "3. FeatureStrategy.selected_feature_actions must use capability_id from the FE Capability Registry.",
-        "4. Each selected action MUST have complete decision_rationale.",
-        "5. preprocessing_intent must ONLY contain high-level goals.",
+        "4. Each selected feature action MUST have complete decision_rationale.",
+        "5. Each selected model action MUST have complete decision_rationale (reason, evidence, expected_performance, risk, fallback).",
+        "6. Each rejected model MUST have a reason explaining why it was excluded.",
+        "7. preprocessing_intent must ONLY contain high-level goals.",
     ]
 
     user_message = "\n".join(user_message_parts)

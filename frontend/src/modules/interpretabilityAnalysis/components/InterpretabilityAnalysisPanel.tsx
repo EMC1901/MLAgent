@@ -25,11 +25,12 @@ import {
 
 interface InterpretabilityAnalysisPanelProps {
   taskId: string;
+  initialResult?: InterpretabilityAnalysisResponse;
 }
 
-const InterpretabilityAnalysisPanel: React.FC<InterpretabilityAnalysisPanelProps> = ({ taskId }) => {
+const InterpretabilityAnalysisPanel: React.FC<InterpretabilityAnalysisPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<InterpretabilityAnalysisResponse | null>(null);
+  const [result, setResult] = useState<InterpretabilityAnalysisResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('summary');
 

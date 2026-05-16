@@ -36,11 +36,12 @@ import {
 
 interface ResultDiagnosisPanelProps {
   taskId: string;
+  initialResult?: ResultDiagnosisResponse;
 }
 
-const ResultDiagnosisPanel: React.FC<ResultDiagnosisPanelProps> = ({ taskId }) => {
+const ResultDiagnosisPanel: React.FC<ResultDiagnosisPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ResultDiagnosisResponse | null>(null);
+  const [result, setResult] = useState<ResultDiagnosisResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [iterationCtx, setIterationCtx] = useState<IterationContext | null>(null);

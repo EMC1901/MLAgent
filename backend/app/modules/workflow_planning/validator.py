@@ -14,7 +14,7 @@ REQUIRED_TOP_LEVEL_FIELDS = [
 TASK_SUMMARY_FIELDS = ["task_type", "input_modality", "prediction_target", "material_domain", "primary_goal"]
 DATA_STRATEGY_FIELDS = ["input_columns", "target_column", "required_cleaning_steps", "target_handling", "duplicate_handling", "missing_value_strategy"]
 FEATURE_STRATEGY_FIELDS = ["feature_type", "executable_featurizers", "selected_feature_actions", "rejected_feature_actions"]
-MODEL_STRATEGY_FIELDS = ["candidate_model_families", "baseline_models", "preferred_model_bias", "excluded_model_families"]
+MODEL_STRATEGY_FIELDS = ["candidate_model_families", "baseline_models", "preferred_model_bias", "excluded_model_families", "selected_model_actions", "rejected_model_actions"]
 VALIDATION_STRATEGY_FIELDS = ["split_strategy", "n_splits", "random_state", "stratification_required"]
 EVALUATION_STRATEGY_FIELDS = ["primary_metric", "secondary_metrics", "metric_direction"]
 HPO_STRATEGY_FIELDS = ["enabled", "search_method", "budget_level", "max_trials"]
@@ -32,6 +32,7 @@ VALID_METRIC_DIRECTIONS = {"minimize", "maximize"}
 VALID_PRIORITIES = {"required", "recommended", "optional", "fallback"}
 
 RATIONALE_REQUIRED_FIELDS = ["reason", "evidence", "material_science_basis", "expected_benefit", "risk", "fallback"]
+MODEL_RATIONALE_REQUIRED_FIELDS = ["reason", "evidence", "expected_performance", "risk", "fallback"]
 
 FORBIDDEN_CONTENT = [
     "import pandas", "import numpy", "import sklearn", "from sklearn",
@@ -70,6 +71,7 @@ def validate_workflow_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
     _check_forbidden_content(plan, errors)
     _check_featurizer_registry(plan, errors)
     _check_feature_strategy_actions(plan, errors)
+    _check_model_strategy_actions(plan, errors)
     _check_preprocessing_intent(plan, errors)
 
     return {"is_valid": len(errors) == 0, "errors": errors}
@@ -291,6 +293,55 @@ def _check_feature_strategy_actions(plan: Dict[str, Any], errors: List[str]):
             errors.append(f"{prefix}: missing 'capability_id'.")
         if not action.get("reason"):
             errors.append(f"{prefix}: missing 'reason' for rejecting '{capability_id}'.")
+
+
+def _check_model_strategy_actions(plan: Dict[str, Any], errors: List[str]):
+    """Validate model_strategy selected_model_actions and rejected_model_actions."""
+    model_strategy = plan.get("model_strategy") or {}
+
+    selected_actions = model_strategy.get("selected_model_actions", [])
+    rejected_actions = model_strategy.get("rejected_model_actions", [])
+
+    if not isinstance(selected_actions, list):
+        errors.append("'model_strategy.selected_model_actions' must be an array.")
+        return
+    if not isinstance(rejected_actions, list):
+        errors.append("'model_strategy.rejected_model_actions' must be an array.")
+
+    seen_action_ids = set()
+    for i, action in enumerate(selected_actions):
+        prefix = f"selected_model_actions[{i}]"
+
+        model_family = action.get("model_family", "")
+        if not model_family:
+            errors.append(f"{prefix}: missing 'model_family'.")
+            continue
+
+        priority = action.get("priority", "")
+        if priority and priority not in VALID_PRIORITIES:
+            errors.append(f"{prefix}: invalid priority '{priority}'.")
+
+        rationale = action.get("decision_rationale", {})
+        if not rationale:
+            errors.append(f"{prefix}: missing 'decision_rationale'.")
+        else:
+            for rfield in MODEL_RATIONALE_REQUIRED_FIELDS:
+                if rfield not in rationale or not rationale[rfield]:
+                    errors.append(f"{prefix}: decision_rationale missing '{rfield}'.")
+
+        action_id = action.get("action_id", "")
+        if action_id:
+            if action_id in seen_action_ids:
+                errors.append(f"{prefix}: duplicate action_id '{action_id}'.")
+            seen_action_ids.add(action_id)
+
+    for i, action in enumerate(rejected_actions):
+        prefix = f"rejected_model_actions[{i}]"
+        model_family = action.get("model_family", "")
+        if not model_family:
+            errors.append(f"{prefix}: missing 'model_family'.")
+        if not action.get("reason"):
+            errors.append(f"{prefix}: missing 'reason' for rejecting '{model_family}'.")
 
 
 def _check_preprocessing_intent(plan: Dict[str, Any], errors: List[str]):

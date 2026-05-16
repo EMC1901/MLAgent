@@ -79,6 +79,16 @@ export interface ValidationResultResponse {
   warnings?: string[];
 }
 
+export interface TaskSummaryResponse {
+  task_id: string;
+  task_name?: string;
+  task_type?: string;
+  prediction_target?: string;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -105,6 +115,11 @@ export const updateTask = async (
   request: Partial<TaskSpecificationCreateRequest>
 ): Promise<ApiResponse<TaskSpecificationResponse>> => {
   const response = await api.put<ApiResponse<TaskSpecificationResponse>>(`/api/tasks/${taskId}`, request);
+  return response.data;
+};
+
+export const listTasks = async (): Promise<ApiResponse<TaskSummaryResponse[]>> => {
+  const response = await api.get<ApiResponse<TaskSummaryResponse[]>>('/api/tasks');
   return response.data;
 };
 

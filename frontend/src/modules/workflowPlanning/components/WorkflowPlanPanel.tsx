@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { createWorkflowPlan, rerunWorkflowPlan } from '../../../api/workflowPlanningApi';
-import { WorkflowPlanResponse, FeatureStrategy, DecisionRationale, SelectedFeatureAction, RejectedFeatureAction } from '../types';
+import { WorkflowPlanResponse, FeatureStrategy, DecisionRationale, SelectedFeatureAction, RejectedFeatureAction, SelectedModelAction, RejectedModelAction, ModelDecisionRationale } from '../types';
 
 interface WorkflowPlanPanelProps {
   taskId: string;
+  initialResult?: WorkflowPlanResponse;
 }
 
-const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId }) => {
+const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<WorkflowPlanResponse | null>(null);
+  const [result, setResult] = useState<WorkflowPlanResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const handleRunPlanning = async () => {
@@ -64,6 +65,21 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId }) => {
   const Badge: React.FC<{ label: string; color?: string }> = ({ label, color = '#1976d2' }) => (
     <span style={{ ...styles.badge, backgroundColor: color }}>{label}</span>
   );
+
+  const renderModelRationale = (r: ModelDecisionRationale | null | undefined, compact?: boolean) => {
+    if (!r) return <span style={{ color: '#999', fontSize: '11px' }}>No rationale provided</span>;
+    return (
+      <div style={compact ? styles.rationaleCompact : styles.rationale}>
+        {r.reason && <div><strong>Reason:</strong> {r.reason}</div>}
+        {r.expected_performance && <div><strong>Expected Performance:</strong> {r.expected_performance}</div>}
+        {r.risk && <div><strong>Risk:</strong> {r.risk}</div>}
+        {r.fallback && <div><strong>Fallback:</strong> {r.fallback}</div>}
+        {r.evidence && r.evidence.length > 0 && (
+          <div><strong>Evidence:</strong> {r.evidence.join('; ')}</div>
+        )}
+      </div>
+    );
+  };
 
   const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
     <div style={styles.section}>
@@ -348,20 +364,74 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId }) => {
           {result.model_strategy && (
             <Section title="Model Strategy">
               <div>Preferred Bias: {result.model_strategy.preferred_model_bias}</div>
-              <div>
-                Candidate Models:{' '}
-                {result.model_strategy.candidate_model_families?.map((m, i) => (
-                  <Badge key={i} label={m} color="#1565c0" />
-                ))}
-              </div>
-              <div>
-                Baseline Models:{' '}
-                {result.model_strategy.baseline_models?.map((m, i) => (
-                  <Badge key={i} label={m} color="#6a1b9a" />
-                ))}
-              </div>
-              {result.model_strategy.excluded_model_families && result.model_strategy.excluded_model_families.length > 0 && (
-                <div>Excluded: {result.model_strategy.excluded_model_families.join(', ')}</div>
+
+              {/* Model Selection Rationale Summary */}
+              {result.model_strategy.model_selection_rationale_summary && (
+                <div style={{ marginTop: '6px', padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px', fontSize: '12px' }}>
+                  <strong>Selection Rationale:</strong> {result.model_strategy.model_selection_rationale_summary}
+                </div>
+              )}
+
+              {/* New: Detailed selected model actions */}
+              {result.model_strategy.selected_model_actions && result.model_strategy.selected_model_actions.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <strong style={{ color: '#2e7d32' }}>Selected Models:</strong>
+                  <table style={styles.smallTable}>
+                    <thead>
+                      <tr style={styles.tableHeaderRow}>
+                        <th style={{ ...styles.th, width: '12%' }}>Action ID</th>
+                        <th style={{ ...styles.th, width: '16%' }}>Model Family</th>
+                        <th style={{ ...styles.th, width: '10%' }}>Priority</th>
+                        <th style={{ ...styles.th, width: '22%' }}>Expected Performance</th>
+                        <th style={{ ...styles.th, width: '40%' }}>Rationale</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.model_strategy.selected_model_actions.map((a: SelectedModelAction, i: number) => (
+                        <tr key={i} style={styles.tableRow}>
+                          <td style={styles.td}>{a.action_id}</td>
+                          <td style={styles.td}><Badge label={a.model_family} color="#1565c0" /></td>
+                          <td style={styles.td}>{a.priority}</td>
+                          <td style={styles.tdCompact}>{a.decision_rationale?.expected_performance || '-'}</td>
+                          <td style={styles.tdCompact}>{renderModelRationale(a.decision_rationale, true)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Rejected model actions */}
+              {result.model_strategy.rejected_model_actions && result.model_strategy.rejected_model_actions.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <strong style={{ color: '#c62828' }}>Rejected Models:</strong>
+                  {result.model_strategy.rejected_model_actions.map((a: RejectedModelAction, i: number) => (
+                    <div key={i} style={{ marginLeft: '8px', fontSize: '12px' }}>
+                      <Badge label={a.model_family} color="#c62828" /> {a.reason}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Legacy: flat lists (fallback when detailed actions are absent) */}
+              {(!result.model_strategy.selected_model_actions || result.model_strategy.selected_model_actions.length === 0) && (
+                <>
+                  <div>
+                    Candidate Models:{' '}
+                    {result.model_strategy.candidate_model_families?.map((m, i) => (
+                      <Badge key={i} label={m} color="#1565c0" />
+                    ))}
+                  </div>
+                  <div>
+                    Baseline Models:{' '}
+                    {result.model_strategy.baseline_models?.map((m, i) => (
+                      <Badge key={i} label={m} color="#6a1b9a" />
+                    ))}
+                  </div>
+                  {result.model_strategy.excluded_model_families && result.model_strategy.excluded_model_families.length > 0 && (
+                    <div>Excluded: {result.model_strategy.excluded_model_families.join(', ')}</div>
+                  )}
+                </>
               )}
             </Section>
           )}
@@ -469,10 +539,12 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId }) => {
           )}
 
           {/* Full JSON */}
-          <div style={styles.jsonSection}>
-            <strong>Full Result (JSON):</strong>
+          <details style={styles.jsonSection}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+              Full Result (JSON)
+            </summary>
             <pre style={styles.pre}>{JSON.stringify(result, null, 2)}</pre>
-          </div>
+          </details>
         </div>
       )}
     </div>
@@ -486,6 +558,8 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#f3f4f6',
     border: '1px solid #9e9e9e',
     borderRadius: '8px',
+    maxHeight: '70vh',
+    overflowY: 'auto',
   },
   title: { margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600, color: '#333' },
   description: { margin: '0 0 16px 0', fontSize: '14px', color: '#666' },

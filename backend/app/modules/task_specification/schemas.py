@@ -51,6 +51,16 @@ class TaskSpecificationResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
 
+class TaskSummaryResponse(BaseModel):
+    task_id: str
+    task_name: Optional[str] = None
+    task_type: Optional[str] = None
+    prediction_target: Optional[str] = None
+    status: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
 class ValidationResultResponse(BaseModel):
     status: str
     missing_fields: Optional[List[str]] = []

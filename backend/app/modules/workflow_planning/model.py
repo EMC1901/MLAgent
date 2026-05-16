@@ -28,6 +28,7 @@ class WorkflowPlan(SQLModel, table=True):
     # New columns
     fe_registry_snapshot_version: Optional[str] = Field(default=None, max_length=50)
     feature_strategy_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
+    model_strategy_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
     preprocessing_intent_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
     workflow_rationale_json: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
     error_message: Optional[str] = Field(default=None)

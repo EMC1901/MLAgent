@@ -15,11 +15,12 @@ import {
 
 interface FinalOutputPanelProps {
   taskId: string;
+  initialResult?: FinalOutputResponse;
 }
 
-const FinalOutputPanel: React.FC<FinalOutputPanelProps> = ({ taskId }) => {
+const FinalOutputPanel: React.FC<FinalOutputPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<FinalOutputResponse | null>(null);
+  const [result, setResult] = useState<FinalOutputResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('summary');
 

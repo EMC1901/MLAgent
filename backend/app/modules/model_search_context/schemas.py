@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Any, Optional, List
 from datetime import datetime
 
 
@@ -39,6 +39,25 @@ class PreprocessingSummary(BaseModel):
     feature_selection_executed: bool = False
     categorical_encoding_executed: bool = False
     preprocessing_pipeline_artifact_id: Optional[str] = None
+
+
+class StrategyChangeRationale(BaseModel):
+    """LLM's detailed rationale for a single strategy field change."""
+    reason: str = ""
+    evidence: List[str] = []
+    expected_benefit: str = ""
+    risk: str = ""
+    fallback: str = ""
+
+
+class StrategyChange(BaseModel):
+    """A single field-level change in the model search strategy."""
+    strategy_area: str = ""  # "model" | "hpo" | "validation" | "evaluation"
+    field_path: str = ""  # e.g. "candidate_model_families", "search_method"
+    original_value: Any = None
+    updated_value: Any = None
+    change_type: str = "modified"  # "modified" | "added" | "removed" | "confirmed"
+    decision_rationale: Optional[StrategyChangeRationale] = None
 
 
 class LLMStrategyAdvice(BaseModel):
@@ -104,6 +123,8 @@ class ModelSearchContextResponse(BaseModel):
     updated_validation_strategy: dict = {}
     updated_evaluation_strategy: dict = {}
     model_search_context_input: Optional[ModelSearchContextInput] = None
+    strategy_changes: List[StrategyChange] = []
+    strategy_change_summary: Optional[str] = None
     warnings: List[str] = []
     errors: List[str] = []
     error_message: Optional[str] = None

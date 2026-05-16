@@ -24,11 +24,12 @@ import {
 
 interface FinalPipelineSelectionPanelProps {
   taskId: string;
+  initialResult?: FinalPipelineSelectionResponse;
 }
 
-const FinalPipelineSelectionPanel: React.FC<FinalPipelineSelectionPanelProps> = ({ taskId }) => {
+const FinalPipelineSelectionPanel: React.FC<FinalPipelineSelectionPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<FinalPipelineSelectionResponse | null>(null);
+  const [result, setResult] = useState<FinalPipelineSelectionResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('summary');
 

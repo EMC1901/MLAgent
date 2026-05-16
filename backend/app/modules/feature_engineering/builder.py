@@ -253,11 +253,13 @@ def _build_preprocessing_decision_input(
             "fallback_used": [],
         },
         "known_preprocessing_risks": [
-            "missing_values" if quality_profile.global_summary.missing_value_ratio > 0 else None,
-            "high_collinearity" if quality_profile.global_summary.feature_count > 50 else None,
-            "skewed_distribution" if quality_profile.global_summary.high_skewness_feature_count > 0 else None,
-            "low_information_features" if quality_profile.global_summary.low_information_feature_count > 0 else None,
-            "possible_leakage",
+            r for r in [
+                "missing_values" if quality_profile.global_summary.missing_value_ratio > 0 else None,
+                "high_collinearity" if quality_profile.global_summary.feature_count > 50 else None,
+                "skewed_distribution" if quality_profile.global_summary.high_skewness_feature_count > 0 else None,
+                "low_information_features" if quality_profile.global_summary.low_information_feature_count > 0 else None,
+                "possible_leakage",
+            ] if r is not None
         ],
     }
 
@@ -288,6 +290,8 @@ def build_feature_engineering_object(
     fallback_ids = []
     skipped_ids = []
     feature_groups_list = []
+    # Use per-featurizer feature_groups from featurization_result for correct column assignments
+    fg_from_result = featurization_result.get("feature_groups", [])
     for ef in featurization_result.get("executed_featurizers", []):
         executed_featurizers.append(ExecutedFeaturizer(
             name=ef.get("name", ""),
@@ -304,12 +308,16 @@ def build_feature_engineering_object(
         elif ef_status == "fallback_used":
             fallback_ids.append(ef.get("name", ""))
 
-        if ef.get("n_features_generated", 0) > 0:
+        ef_name = ef.get("name", "")
+        ef_fg = next((g for g in fg_from_result if g.get("group_name") == ef_name), None)
+        ef_feature_columns = ef_fg.get("feature_columns", []) if ef_fg else []
+
+        if ef.get("n_features_generated", 0) > 0 or ef_feature_columns:
             feature_groups_list.append({
-                "group_name": ef.get("name", ""),
+                "group_name": ef_name,
                 "display_name": ef.get("display_name", ""),
-                "n_features": ef.get("n_features_generated", 0),
-                "feature_columns": featurization_result.get("feature_columns", []),
+                "n_features": ef.get("n_features_generated", 0) or len(ef_feature_columns),
+                "feature_columns": ef_feature_columns,
                 "status": ef.get("status", "unknown"),
             })
 

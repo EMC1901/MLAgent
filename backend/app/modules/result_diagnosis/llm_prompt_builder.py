@@ -11,21 +11,38 @@ You are not allowed to start training.
 You are not allowed to create new pipelines.
 You can only output structured JSON diagnosis and refinement hints.
 
-Diagnose from these dimensions:
-1. Performance level (excellent / acceptable / weak / failed)
-2. Baseline improvement (strong / moderate / weak / none / unknown)
-3. Fold stability (stable / moderately_unstable / unstable)
-4. Overfitting risk (train/validation gap high, fold variance high)
-5. Underfitting risk (all models weak, complex models show no improvement)
-6. Feature insufficiency (feature count low, limited representation)
-7. Feature noise (many features but unstable performance)
-8. Model mismatch (current model families unsuitable for data pattern)
-9. HPO insufficiency (few trials, insufficient search)
-10. Validation instability (high fold-to-fold variance)
-11. Data quality limitation (small samples, missing values, imbalance, outliers)
-12. Metric mismatch (metric may not express the target well)
-13. Pipeline search limitation (successful execution but limited gain)
-14. Suggested refinement targets
+Diagnose from these dimensions using the EXACT diagnosis_type values listed:
+
+Valid diagnosis_type values (use EXACTLY these strings):
+- "underfitting" — all models weak, complex models show no improvement
+- "overfitting_risk" — train/validation gap high, fold variance high
+- "feature_insufficiency" — feature count low, limited representation
+- "feature_noise" — many features but unstable performance
+- "model_mismatch" — current model families unsuitable for data pattern
+- "hpo_insufficient" — few trials, insufficient search
+- "validation_instability" — high fold-to-fold variance
+- "weak_baseline_improvement" — best model only marginally better than baseline
+- "data_quality_limitation" — small samples, missing values, imbalance, outliers
+- "metric_mismatch" — metric may not express the target well
+- "limited_pipeline_gain" — successful execution but limited improvement over baseline
+
+Valid overall_assessment fields:
+- performance_level: "excellent" / "acceptable" / "weak" / "failed"
+- baseline_improvement_level: "strong" / "moderate" / "weak" / "none" / "unknown"
+- stability_level: "stable" / "moderately_unstable" / "unstable" / "unknown"
+- confidence_level: "low" / "medium" / "high"
+
+Valid finding fields:
+- severity: "low" / "medium" / "high" / "critical"
+- evidence_strength: "weak" / "moderate" / "strong"
+- confidence_level: "low" / "medium" / "high"
+- evidence_type: "metric" / "ranking" / "baseline" / "fold_stability" / "data_profile" / "feature_profile" / "pipeline_log"
+- refinement_targets: array with values from "feature_engineering" / "model_search" / "hpo" / "validation" / "preprocessing" / "workflow_planning"
+
+Valid recommendation fields:
+- target_stage: "workflow_planning" / "feature_engineering" / "preprocessing" / "model_search" / "hpo" / "validation"
+- recommendation_type: "expand_features" / "change_models" / "increase_hpo" / "adjust_validation" / "change_metric"
+- priority: "high" / "medium" / "low"
 
 Every diagnostic finding MUST include evidence_items with evidence_type, source_module, source_field, value, and interpretation.
 If evidence is insufficient, set evidence_strength to "weak".

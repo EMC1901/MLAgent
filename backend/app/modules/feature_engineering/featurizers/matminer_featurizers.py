@@ -198,8 +198,12 @@ def _run_matminer_featurizer(
 
     # Instantiate and run the matminer featurizer
     kwargs = matminer_kwargs or {}
+    preset = kwargs.pop("_preset", None)
     try:
-        featurizer = FeaturizerClass(**kwargs)
+        if preset:
+            featurizer = FeaturizerClass.from_preset(preset)
+        else:
+            featurizer = FeaturizerClass(**kwargs)
         feature_df = featurizer.featurize_dataframe(
             df_with_compositions,
             composition_col,
@@ -311,15 +315,7 @@ class MatminerElementPropertyFeaturizer(BaseFeaturizer):
             raw_dataframe=raw_dataframe,
             context=context,
             matminer_key="element_property",
-            matminer_kwargs={
-                "features": ["number", "mass", "density", "melting point",
-                            "boiling point", "column", "row", "covalent radius",
-                            "atomic radius", "atomic volume", "electronegativity",
-                            "electron affinity", "first ionization", "heat of fusion",
-                            "heat of vaporization", "polarizability"],
-                "stats": ["mean", "std_dev", "minimum", "maximum", "range"],
-                "data_source": "magpie",
-            },
+            matminer_kwargs={"_preset": "magpie"},
         )
 
 
@@ -335,15 +331,7 @@ class MatminerMagpieFeaturizer(BaseFeaturizer):
             raw_dataframe=raw_dataframe,
             context=context,
             matminer_key="magpie",
-            matminer_kwargs={
-                "features": ["number", "mass", "density", "melting point",
-                            "boiling point", "column", "row", "covalent radius",
-                            "atomic radius", "atomic volume", "electronegativity",
-                            "electron affinity", "first ionization", "heat of fusion",
-                            "heat of vaporization", "polarizability"],
-                "stats": ["mean", "std_dev", "minimum", "maximum", "range"],
-                "data_source": "magpie",
-            },
+            matminer_kwargs={"_preset": "magpie"},
         )
 
 

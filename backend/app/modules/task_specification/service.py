@@ -1,9 +1,11 @@
+from typing import Optional, List
 from sqlmodel import Session
 from app.modules.task_specification.model import TaskSpecification
 from app.modules.task_specification.schemas import (
     TaskSpecificationCreateRequest,
     TaskSpecificationUpdateRequest,
     TaskSpecificationResponse,
+    TaskSummaryResponse,
     ValidationResultResponse,
 )
 from app.modules.task_specification.normalizer import normalize_fields
@@ -98,6 +100,21 @@ class TaskSpecificationService:
             created_at=task.created_at,
             updated_at=task.updated_at,
         )
+
+    def list_tasks(self, session: Session) -> List[TaskSummaryResponse]:
+        tasks = self.repository.list_tasks(session)
+        return [
+            TaskSummaryResponse(
+                task_id=t.id,
+                task_name=t.task_name,
+                task_type=t.task_type,
+                prediction_target=t.prediction_target,
+                status=t.status or "received",
+                created_at=t.created_at,
+                updated_at=t.updated_at,
+            )
+            for t in tasks
+        ]
 
     def update_task(self, session: Session, task_id: str, request: TaskSpecificationUpdateRequest) -> TaskSpecificationResponse:
         existing_task = self.repository.get_by_id(session, task_id)

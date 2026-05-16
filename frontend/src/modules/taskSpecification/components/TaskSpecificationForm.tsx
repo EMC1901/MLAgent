@@ -11,7 +11,23 @@ import {
   USER_PRIORITY_OPTIONS,
 } from '../constants';
 import TaskFieldGroup from './TaskFieldGroup';
-import { createTask, TaskSpecificationResponse } from '../../../api/taskApi';
+import TaskHistoryList from './TaskHistoryList';
+import { createTask, getTask, TaskSpecificationResponse } from '../../../api/taskApi';
+import { getLatestInterpretation } from '../../../api/taskInterpretationApi';
+import { getLatestDatasetProfileByTaskId } from '../../../api/datasetProfileApi';
+import { getLatestWorkflowPlanByTaskId } from '../../../api/workflowPlanningApi';
+import { getLatestFeatureEngineeringByTaskId } from '../../../api/featureEngineeringApi';
+import { getLatestFeaturePreprocessingByTaskId } from '../../../api/featurePreprocessingApi';
+import { getLatestModelSearchContextByTaskId } from '../../../api/modelSearchContextApi';
+import { getLatestModelSearchPlanByTaskId } from '../../../api/modelSearchApi';
+import { getLatestPipelineGenerationByTaskId } from '../../../api/pipelineGenerationApi';
+import { getLatestPipelineExecutionByTaskId } from '../../../api/pipelineExecutionApi';
+import { getLatestMetricEvaluationByTaskId } from '../../../api/metricEvaluationApi';
+import { getLatestResultDiagnosisByTaskId } from '../../../api/resultDiagnosisApi';
+import { getLatestWorkflowRefinementByTaskId } from '../../../api/workflowRefinementApi';
+import { getLatestFinalPipelineSelection } from '../../../api/finalPipelineSelectionApi';
+import { getLatestInterpretabilityAnalysis } from '../../../api/interpretabilityAnalysisApi';
+import { getLatestFinalOutput } from '../../../api/finalOutputApi';
 import TaskInterpretationPanel from '../../taskInterpretation/components/TaskInterpretationPanel';
 import DatasetProfilePanel from '../../datasetProfile/components/DatasetProfilePanel';
 import WorkflowPlanPanel from '../../workflowPlanning/components/WorkflowPlanPanel';
@@ -32,31 +48,37 @@ interface TaskSpecificationFormProps {
   onSubmitSuccess?: (result: TaskSpecificationResponse) => void;
 }
 
+const defaultValues = {
+  task_name: '',
+  task_description: '',
+  material_system: '',
+  prediction_target: '',
+  task_type: '',
+  dataset_description: '',
+  input_type: '',
+  target_column: '',
+  evaluation_metric: '',
+  user_priority: [],
+  constraints: '',
+};
+
 const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TaskSpecificationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [panelResults, setPanelResults] = useState<Record<string, any>>({});
+  const [loadingTask, setLoadingTask] = useState(false);
 
   const {
     control,
     handleSubmit,
+    reset,
     watch,
     formState: { errors },
   } = useForm<TaskSpecificationFormData>({
     resolver: zodResolver(taskSpecificationSchema),
-    defaultValues: {
-      task_name: '',
-      task_description: '',
-      material_system: '',
-      prediction_target: '',
-      task_type: '',
-      dataset_description: '',
-      input_type: '',
-      target_column: '',
-      evaluation_metric: '',
-      user_priority: [],
-      constraints: '',
-    },
+    defaultValues,
   });
 
   const taskType = watch('task_type');
@@ -89,6 +111,8 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
 
       if (response.success) {
         setResult(response.data);
+        setActiveTaskId(response.data.task_id);
+        setPanelResults({});
         if (onSubmitSuccess) {
           onSubmitSuccess(response.data);
         }
@@ -121,6 +145,81 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
     }
   };
 
+  const loadTask = async (taskId: string) => {
+    setLoadingTask(true);
+    setError(null);
+    setPanelResults({});
+
+    try {
+      const taskResponse = await getTask(taskId);
+      if (!taskResponse.success) {
+        setError(taskResponse.message);
+        return;
+      }
+      const taskData = taskResponse.data;
+
+      reset({
+        task_name: taskData.task_name || '',
+        task_description: taskData.task_description || '',
+        material_system: taskData.material_system || '',
+        prediction_target: taskData.prediction_target || '',
+        task_type: taskData.task_type || '',
+        dataset_description: taskData.dataset_description || '',
+        input_type: taskData.input_type || '',
+        target_column: taskData.target_column || '',
+        evaluation_metric: taskData.evaluation_metric || '',
+        user_priority: taskData.user_priority || [],
+        constraints: (taskData.constraints || []).join('\n'),
+      });
+
+      const results: Record<string, any> = {};
+
+      const fetchers: [string, () => Promise<any>][] = [
+        ['interpretation', () => getLatestInterpretation(taskId)],
+        ['datasetProfile', () => getLatestDatasetProfileByTaskId(taskId)],
+        ['workflowPlan', () => getLatestWorkflowPlanByTaskId(taskId)],
+        ['featureEngineering', () => getLatestFeatureEngineeringByTaskId(taskId)],
+        ['featurePreprocessing', () => getLatestFeaturePreprocessingByTaskId(taskId)],
+        ['modelSearchContext', () => getLatestModelSearchContextByTaskId(taskId)],
+        ['modelSearchPlan', () => getLatestModelSearchPlanByTaskId(taskId)],
+        ['pipelineGeneration', () => getLatestPipelineGenerationByTaskId(taskId)],
+        ['pipelineExecution', () => getLatestPipelineExecutionByTaskId(taskId)],
+        ['metricEvaluation', () => getLatestMetricEvaluationByTaskId(taskId)],
+        ['resultDiagnosis', () => getLatestResultDiagnosisByTaskId(taskId)],
+        ['workflowRefinement', () => getLatestWorkflowRefinementByTaskId(taskId)],
+        ['finalPipelineSelection', () => getLatestFinalPipelineSelection(taskId)],
+        ['interpretabilityAnalysis', () => getLatestInterpretabilityAnalysis(taskId)],
+        ['finalOutput', () => getLatestFinalOutput(taskId)],
+      ];
+
+      const settleResults = await Promise.allSettled(
+        fetchers.map(([, fn]) => fn())
+      );
+
+      settleResults.forEach((settled, index) => {
+        if (settled.status === 'fulfilled' && settled.value?.success) {
+          results[fetchers[index][0]] = settled.value.data;
+        }
+      });
+
+      setPanelResults(results);
+      setActiveTaskId(taskId);
+      setResult(taskData);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load task.');
+    } finally {
+      setLoadingTask(false);
+    }
+  };
+
+  const handleNewTask = () => {
+    reset(defaultValues);
+    setResult(null);
+    setActiveTaskId(null);
+    setPanelResults({});
+    setError(null);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'valid':
@@ -138,6 +237,13 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
 
   return (
     <div>
+      <TaskHistoryList
+        onLoadTask={loadTask}
+        onNewTask={handleNewTask}
+        isLoading={loadingTask}
+        currentTaskId={activeTaskId || undefined}
+      />
+
       <form onSubmit={handleSubmit(onSubmit)}>
         <TaskFieldGroup title="Basic Task Information">
           <div style={styles.fieldContainer}>
@@ -424,64 +530,124 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
         </div>
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <TaskInterpretationPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <TaskInterpretationPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.interpretation}
+          key={`interp-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <DatasetProfilePanel taskId={result.task_id} />
+      {activeTaskId && (
+        <DatasetProfilePanel
+          taskId={activeTaskId}
+          initialResult={panelResults.datasetProfile}
+          key={`dsprofile-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <WorkflowPlanPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <WorkflowPlanPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.workflowPlan}
+          key={`wfplan-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <FeatureEngineeringPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <FeatureEngineeringPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.featureEngineering}
+          key={`fe-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <FeaturePreprocessingPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <FeaturePreprocessingPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.featurePreprocessing}
+          key={`fp-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <ModelSearchContextPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <ModelSearchContextPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.modelSearchContext}
+          key={`msctx-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <ModelSearchPlanPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <ModelSearchPlanPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.modelSearchPlan}
+          key={`msplan-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <PipelineGenerationPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <PipelineGenerationPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.pipelineGeneration}
+          key={`pg-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <PipelineExecutionPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <PipelineExecutionPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.pipelineExecution}
+          key={`pe-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <MetricEvaluationPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <MetricEvaluationPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.metricEvaluation}
+          key={`me-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <ResultDiagnosisPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <ResultDiagnosisPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.resultDiagnosis}
+          key={`rd-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <WorkflowRefinementPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <WorkflowRefinementPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.workflowRefinement}
+          key={`wr-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <FinalPipelineSelectionPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <FinalPipelineSelectionPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.finalPipelineSelection}
+          key={`fps-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <InterpretabilityAnalysisPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <InterpretabilityAnalysisPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.interpretabilityAnalysis}
+          key={`ia-${activeTaskId}`}
+        />
       )}
 
-      {result && (result.status === 'valid' || result.status === 'valid_with_warning') && (
-        <FinalOutputPanel taskId={result.task_id} />
+      {activeTaskId && (
+        <FinalOutputPanel
+          taskId={activeTaskId}
+          initialResult={panelResults.finalOutput}
+          key={`fo-${activeTaskId}`}
+        />
       )}
     </div>
   );

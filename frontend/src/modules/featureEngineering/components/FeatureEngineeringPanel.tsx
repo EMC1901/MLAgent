@@ -4,11 +4,12 @@ import { FeatureEngineeringResponse, FeatureQualityProfile, ExecutionReport, Fea
 
 interface FeatureEngineeringPanelProps {
   taskId: string;
+  initialResult?: FeatureEngineeringResponse;
 }
 
-const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskId }) => {
+const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<FeatureEngineeringResponse | null>(null);
+  const [result, setResult] = useState<FeatureEngineeringResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const handleRun = async () => {
@@ -237,7 +238,7 @@ const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskI
 
           {/* NEW: Feature Quality Profile */}
           {result.feature_quality_profile && (
-            <div style={{ ...styles.section, maxHeight: '350px', overflowY: 'auto' }}>
+            <div style={styles.section}>
               <strong style={styles.sectionTitle}>Quality Profile (Detailed)</strong>
               <div style={styles.sectionContent}>
                 {result.feature_quality_profile.global_summary && (
@@ -261,7 +262,7 @@ const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskI
                 {result.feature_quality_profile.per_feature_summary && result.feature_quality_profile.per_feature_summary.length > 0 && (
                   <div style={{ marginBottom: '8px' }}>
                     <strong>Per-Feature Summary ({result.feature_quality_profile.per_feature_summary.length} features):</strong>
-                    <div style={{ maxHeight: '150px', overflowY: 'auto', marginTop: '4px' }}>
+                    <div style={{ marginTop: '4px' }}>
                       <table style={styles.smallTable}>
                         <thead>
                           <tr>
@@ -350,37 +351,6 @@ const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskI
             </Section>
           )}
 
-          {/* NEW: Feature Provenance */}
-          {result.feature_provenance && (
-            <Section title="Feature Provenance">
-              <div style={{ wordBreak: 'break-word' }}>Registry Version: {result.feature_provenance.registry_snapshot_version}</div>
-              <div style={{ wordBreak: 'break-word' }}>Input Hash: {result.feature_provenance.input_artifact_hash}</div>
-              {result.feature_provenance.featurizer_versions && Object.keys(result.feature_provenance.featurizer_versions).length > 0 && (
-                <div>
-                  <strong>Featurizer Versions:</strong>
-                  <ul style={styles.list}>
-                    {Object.entries(result.feature_provenance.featurizer_versions).map(([k, v]) => (
-                      <li key={k} style={{ wordBreak: 'break-word' }}><strong>{k}:</strong> {v}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {result.feature_provenance.dependency_versions && Object.keys(result.feature_provenance.dependency_versions).length > 0 && (
-                <div>
-                  <strong>Dependency Versions:</strong>
-                  <ul style={styles.list}>
-                    {Object.entries(result.feature_provenance.dependency_versions).map(([k, v]) => (
-                      <li key={k} style={{ wordBreak: 'break-word' }}><strong>{k}:</strong> {v}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {result.feature_provenance.created_at && (
-                <div>Created: {result.feature_provenance.created_at}</div>
-              )}
-            </Section>
-          )}
-
           {/* NEW: Preprocessing Decision Input */}
           {result.feature_preprocessing_decision_input && (
             <Section title="Preprocessing Decision Input (for Module 6)">
@@ -446,10 +416,12 @@ const FeatureEngineeringPanel: React.FC<FeatureEngineeringPanelProps> = ({ taskI
           )}
 
           {/* Full JSON */}
-          <div style={styles.jsonSection}>
-            <strong>Full Result (JSON):</strong>
+          <details style={styles.jsonSection}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+              Full Result (JSON)
+            </summary>
             <pre style={styles.pre}>{JSON.stringify(result, null, 2)}</pre>
-          </div>
+          </details>
         </div>
       )}
     </div>
@@ -460,6 +432,7 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     marginTop: '24px', padding: '16px', backgroundColor: '#f3f4f6',
     border: '1px solid #9e9e9e', borderRadius: '8px',
+    maxHeight: '70vh', overflowY: 'auto',
   },
   title: { margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600, color: '#333' },
   description: { margin: '0 0 16px 0', fontSize: '14px', color: '#666' },

@@ -3,16 +3,67 @@ import {
   createModelSearchContext,
   rerunModelSearchContext,
 } from '../../../api/modelSearchContextApi';
-import { ModelSearchContextResponse } from '../types';
+import { ModelSearchContextResponse, StrategyChange, StrategyChangeRationale } from '../types';
 
 interface ModelSearchContextPanelProps {
   taskId: string;
+  initialResult?: ModelSearchContextResponse;
 }
 
-const ModelSearchContextPanel: React.FC<ModelSearchContextPanelProps> = ({ taskId }) => {
+const AREA_LABELS: Record<string, string> = {
+  model: 'Model Strategy',
+  hpo: 'HPO Strategy',
+  validation: 'Validation Strategy',
+  evaluation: 'Evaluation Strategy',
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  candidate_model_families: 'Candidate Models',
+  baseline_models: 'Baseline Models',
+  preferred_model_bias: 'Model Preference',
+  excluded_model_families: 'Excluded Models',
+  enabled: 'HPO Enabled',
+  search_method: 'Search Method',
+  budget_level: 'Budget Level',
+  max_trials: 'Max Trials',
+  split_strategy: 'Split Strategy',
+  n_splits: 'CV Folds',
+  test_size: 'Test Size',
+  random_state: 'Random Seed',
+  stratification_required: 'Stratification',
+  primary_metric: 'Primary Metric',
+  secondary_metrics: 'Secondary Metrics',
+  metric_direction: 'Metric Direction',
+};
+
+const CHANGE_COLORS: Record<string, string> = {
+  modified: '#1565c0',
+  added: '#2e7d32',
+  removed: '#c62828',
+  confirmed: '#757575',
+};
+
+const CHANGE_BG: Record<string, string> = {
+  modified: '#e3f2fd',
+  added: '#e8f5e9',
+  removed: '#ffebee',
+  confirmed: '#f5f5f5',
+};
+
+const ModelSearchContextPanel: React.FC<ModelSearchContextPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ModelSearchContextResponse | null>(null);
+  const [result, setResult] = useState<ModelSearchContextResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [expandedRationales, setExpandedRationales] = useState<Set<number>>(new Set());
+
+  const toggleRationale = (index: number) => {
+    setExpandedRationales(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
 
   const handleRun = async () => {
     setLoading(true);
@@ -75,6 +126,102 @@ const ModelSearchContextPanel: React.FC<ModelSearchContextPanelProps> = ({ taskI
     </div>
   );
 
+  const renderValue = (value: any): React.ReactNode => {
+    if (value === null || value === undefined) return <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>none</span>;
+    if (Array.isArray(value)) {
+      if (value.length === 0) return <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>none</span>;
+      // Array of objects: render each with structured display
+      if (value.every((v: any) => typeof v === 'object' && v !== null && !Array.isArray(v))) {
+        return (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+            {value.map((v: any, i: number) => (
+              <span key={i}>
+                {v.model_family && <Badge label={v.model_family} color={v.reason ? '#c62828' : '#1565c0'} />}
+              </span>
+            ))}
+          </div>
+        );
+      }
+      // Array of primitives: render as badges
+      return (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+          {value.map((v, i) => (
+            <Badge key={i} label={String(v)} color="#455a64" />
+          ))}
+        </div>
+      );
+    }
+    if (typeof value === 'boolean') {
+      return <Badge label={value ? 'Yes' : 'No'} color={value ? '#2e7d32' : '#9e9e9e'} />;
+    }
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'object') {
+      return (
+        <div style={{ fontSize: '11px' }}>
+          {Object.entries(value).map(([k, v]) => (
+            <div key={k}><strong>{k}:</strong> {typeof v === 'object' ? JSON.stringify(v) : String(v)}</div>
+          ))}
+        </div>
+      );
+    }
+    return String(value);
+  };
+
+  const renderRationale = (r: StrategyChangeRationale | null | undefined): React.ReactNode => {
+    if (!r) return <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>No rationale provided</span>;
+    return (
+      <div style={{ fontSize: '12px', lineHeight: '1.5' }}>
+        {r.reason && (
+          <div style={{ marginBottom: '6px' }}>
+            <strong>Reason:</strong> {r.reason}
+          </div>
+        )}
+        {r.evidence && r.evidence.length > 0 && (
+          <div style={{ marginBottom: '6px' }}>
+            <strong>Evidence:</strong>
+            <ul style={{ margin: '2px 0 0 16px', padding: 0 }}>
+              {r.evidence.map((e, i) => <li key={i}>{e}</li>)}
+            </ul>
+          </div>
+        )}
+        {r.expected_benefit && (
+          <div style={{ marginBottom: '6px' }}>
+            <strong>Expected Benefit:</strong> {r.expected_benefit}
+          </div>
+        )}
+        {r.risk && (
+          <div style={{ marginBottom: '6px' }}>
+            <strong style={{ color: '#c62828' }}>Risk:</strong> {r.risk}
+          </div>
+        )}
+        {r.fallback && (
+          <div style={{ marginBottom: '2px' }}>
+            <strong>Fallback:</strong> {r.fallback}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const extractItemReasons = (change: StrategyChange): { family: string; reason: string }[] => {
+    // Extract per-item reasons from rejected_model_actions or selected_model_actions
+    const items = change.original_value || change.updated_value || [];
+    if (!Array.isArray(items)) return [];
+    return items
+      .filter((v: any) => typeof v === 'object' && v !== null && v.reason)
+      .map((v: any) => ({ family: v.model_family || v.family || '?', reason: v.reason }));
+  };
+
+  const changesByArea = (changes: StrategyChange[]): Record<string, StrategyChange[]> => {
+    const groups: Record<string, StrategyChange[]> = {};
+    for (const c of changes) {
+      const area = c.strategy_area || 'other';
+      if (!groups[area]) groups[area] = [];
+      groups[area].push(c);
+    }
+    return groups;
+  };
+
   return (
     <div style={styles.container}>
       <h3 style={styles.title}>Model Search Context Update</h3>
@@ -111,6 +258,146 @@ const ModelSearchContextPanel: React.FC<ModelSearchContextPanelProps> = ({ taskI
             <div style={styles.field}><strong>Update Mode:</strong> {result.update_mode}</div>
             <div style={styles.field}><strong>Confidence:</strong> {result.confidence_score != null ? result.confidence_score.toFixed(2) : 'N/A'}</div>
           </div>
+
+          {/* Strategy Change Summary */}
+          {result.strategy_change_summary && (
+            <div style={styles.summaryBox}>
+              <strong>Strategy Change Summary</strong>
+              <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#333' }}>{result.strategy_change_summary}</p>
+            </div>
+          )}
+
+          {/* Strategy Changes Table (grouped by area) */}
+          {result.strategy_changes && result.strategy_changes.length > 0 && (
+            <div>
+              {Object.entries(changesByArea(result.strategy_changes)).map(([area, changes]) => (
+                <div key={area} style={styles.strategyAreaBlock}>
+                  <h5 style={styles.strategyAreaTitle}>
+                    <span style={{
+                      display: 'inline-block',
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      backgroundColor: CHANGE_COLORS[changes.some(c => c.change_type !== 'confirmed') ? 'modified' : 'confirmed'] || '#757575',
+                      marginRight: '8px',
+                    }} />
+                    {AREA_LABELS[area] || area}
+                  </h5>
+                  <table style={styles.diffTable}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...styles.th, width: '15%' }}>Field</th>
+                        <th style={{ ...styles.th, width: '22%' }}>Original Value</th>
+                        <th style={{ ...styles.th, width: '22%' }}>Updated Value</th>
+                        <th style={{ ...styles.th, width: '41%' }}>Rationale</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {changes.filter(change => {
+                        // Hide model_selection_rationale_summary — it's free-form narrative, not useful as a diff row
+                        if (change.field_path === 'model_selection_rationale_summary') return false;
+                        // Hide rows where both original and updated are null/None — nothing to show
+                        const origNull = change.original_value === null || change.original_value === undefined;
+                        const updatedNull = change.updated_value === null || change.updated_value === undefined;
+                        if (origNull && updatedNull) return false;
+                        return true;
+                      }).map((change, idx) => {
+                        const globalIdx = result.strategy_changes.indexOf(change);
+                        const isExpanded = expandedRationales.has(globalIdx);
+                        const color = CHANGE_COLORS[change.change_type] || '#757575';
+                        const bg = CHANGE_BG[change.change_type] || '#f5f5f5';
+                        const hasRationale = change.decision_rationale && change.decision_rationale.reason;
+                        // For rejected_model_actions / selected_model_actions, extract per-item reasons
+                        const perItemReasons = extractItemReasons(change);
+                        const hasItemReasons = perItemReasons.length > 0;
+
+                        return (
+                          <tr key={idx} style={{ borderLeft: `3px solid ${color}`, backgroundColor: bg }}>
+                            <td style={styles.td}>
+                              <span style={{ fontWeight: 600 }}>
+                                {FIELD_LABELS[change.field_path] || change.field_path}
+                              </span>
+                            </td>
+                            <td style={styles.tdOrig}>
+                              {renderValue(change.original_value)}
+                            </td>
+                            <td style={styles.tdUpdated}>
+                              {renderValue(change.updated_value)}
+                            </td>
+                            <td style={styles.tdRationale}>
+                              {hasItemReasons && (
+                                <div style={{ marginBottom: hasRationale ? '8px' : '0' }}>
+                                  {perItemReasons.map((r, ri) => (
+                                    <div key={ri} style={{ fontSize: '11px', marginBottom: '4px', color: '#c62828' }}>
+                                      <strong>{r.family}:</strong> {r.reason}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {hasRationale ? (
+                                <>
+                                  <div
+                                    onClick={() => toggleRationale(globalIdx)}
+                                    style={{ ...styles.rationaleToggle, color }}
+                                  >
+                                    {isExpanded ? '▼ Hide Rationale' : '▶ Show Rationale'}
+                                  </div>
+                                  {isExpanded && (
+                                    <div style={{ marginTop: '6px', padding: '8px', backgroundColor: '#fafafa', borderRadius: '4px' }}>
+                                      {renderRationale(change.decision_rationale)}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                !hasItemReasons && <span style={{ color: '#9e9e9e', fontStyle: 'italic', fontSize: '11px' }}>No rationale</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* System Validation */}
+          {result.system_validation_result && (
+            <Section title="System Validation">
+              <div>
+                Is Valid:{' '}
+                <span style={{ color: result.system_validation_result.is_valid ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
+                  {result.system_validation_result.is_valid ? 'Yes' : 'No'}
+                </span>
+              </div>
+              <div>
+                Fallback Applied:{' '}
+                <span style={{ color: result.system_validation_result.fallback_applied ? '#ff9800' : '#2e7d32', fontWeight: 600 }}>
+                  {result.system_validation_result.fallback_applied ? 'Yes' : 'No'}
+                </span>
+              </div>
+              {result.system_validation_result.rejected_suggestions && result.system_validation_result.rejected_suggestions.length > 0 && (
+                <div style={{ marginTop: '4px' }}>
+                  <strong style={{ color: '#c62828' }}>Rejected Suggestions:</strong>
+                  {result.system_validation_result.rejected_suggestions.map((s, i) => (
+                    <div key={i} style={{ marginLeft: '16px', fontSize: '12px', color: '#c62828' }}>
+                      ✗ {s}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* Risk Notes */}
+          {result.llm_strategy_advice?.risk_notes && result.llm_strategy_advice.risk_notes.length > 0 && (
+            <Section title="Risk Notes">
+              {result.llm_strategy_advice.risk_notes.map((r, i) => (
+                <div key={i} style={styles.riskItem}>⚠ {r}</div>
+              ))}
+            </Section>
+          )}
 
           {/* Dataset Effective Profile */}
           {result.dataset_effective_profile && (
@@ -203,164 +490,9 @@ const ModelSearchContextPanel: React.FC<ModelSearchContextPanelProps> = ({ taskI
             </Section>
           )}
 
-          {/* LLM Strategy Advice */}
-          {result.llm_strategy_advice && (
-            <Section title="LLM Strategy Advice">
-              <div>
-                Confidence:{' '}
-                <Badge
-                  label={`${Math.round((result.llm_strategy_advice.confidence_score || 0) * 100)}%`}
-                  color={(result.llm_strategy_advice.confidence_score || 0) >= 0.7 ? '#2e7d32' : '#ff9800'}
-                />
-              </div>
-              <div>
-                Candidate Models:{' '}
-                {result.llm_strategy_advice.candidate_model_families.length > 0
-                  ? result.llm_strategy_advice.candidate_model_families.map((m, i) => (
-                      <Badge key={i} label={m} color="#1565c0" />
-                    ))
-                  : <Badge label="None" color="#9e9e9e" />}
-              </div>
-              <div>
-                Baselines:{' '}
-                {result.llm_strategy_advice.baseline_models.length > 0
-                  ? result.llm_strategy_advice.baseline_models.map((m, i) => (
-                      <Badge key={i} label={m} color="#6a1b9a" />
-                    ))
-                  : <Badge label="None" color="#9e9e9e" />}
-              </div>
-              <div>Model Bias: {result.llm_strategy_advice.preferred_model_bias}</div>
-              <div>HPO Method: {result.llm_strategy_advice.hpo_search_method}</div>
-              <div>
-                HPO Budget:{' '}
-                <Badge
-                  label={result.llm_strategy_advice.hpo_budget_level}
-                  color={result.llm_strategy_advice.hpo_budget_level === 'low' ? '#ff9800' : result.llm_strategy_advice.hpo_budget_level === 'high' ? '#2e7d32' : '#1976d2'}
-                />
-                {' '}({result.llm_strategy_advice.max_trials} trials)
-              </div>
-              <div>Validation: {result.llm_strategy_advice.validation_split_strategy} ({result.llm_strategy_advice.n_splits} splits)</div>
-              {result.llm_strategy_advice.adjustment_reasons && result.llm_strategy_advice.adjustment_reasons.length > 0 && (
-                <div>
-                  Adjustment Reasons:{' '}
-                  {result.llm_strategy_advice.adjustment_reasons.map((r, i) => (
-                    <Badge key={i} label={r} color="#ff9800" />
-                  ))}
-                </div>
-              )}
-              {result.llm_strategy_advice.risk_notes && result.llm_strategy_advice.risk_notes.length > 0 && (
-                <div>
-                  Risk Notes:{' '}
-                  {result.llm_strategy_advice.risk_notes.map((r, i) => (
-                    <Badge key={i} label={r} color="#c62828" />
-                  ))}
-                </div>
-              )}
-            </Section>
-          )}
-
-          {/* LLM Advice Validation */}
-          {result.system_validation_result && (
-            <Section title="LLM Advice Validation">
-              <div>
-                Is Valid:{' '}
-                <span style={{ color: result.system_validation_result.is_valid ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                  {result.system_validation_result.is_valid ? 'Yes' : 'No'}
-                </span>
-              </div>
-              <div>
-                Fallback Applied:{' '}
-                <span style={{ color: result.system_validation_result.fallback_applied ? '#ff9800' : '#2e7d32', fontWeight: 600 }}>
-                  {result.system_validation_result.fallback_applied ? 'Yes' : 'No'}
-                </span>
-              </div>
-              {result.system_validation_result.rejected_suggestions && result.system_validation_result.rejected_suggestions.length > 0 && (
-                <div style={{ marginTop: '4px' }}>
-                  <strong style={{ color: '#c62828' }}>Rejected Suggestions:</strong>
-                  {result.system_validation_result.rejected_suggestions.map((s, i) => (
-                    <div key={i} style={{ marginLeft: '16px', fontSize: '12px', color: '#c62828' }}>
-                      ✗ {s}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
-          )}
-
-          {/* Strategy Adjustments */}
-          {result.strategy_adjustment && (
-            <Section title="Strategy Adjustments">
-              <div>
-                Model Strategy:{' '}
-                <Badge label={result.strategy_adjustment.model_strategy_adjusted ? 'Adjusted' : 'Unchanged'} color={result.strategy_adjustment.model_strategy_adjusted ? '#1565c0' : '#9e9e9e'} />
-              </div>
-              <div>
-                HPO Strategy:{' '}
-                <Badge label={result.strategy_adjustment.hpo_strategy_adjusted ? 'Adjusted' : 'Unchanged'} color={result.strategy_adjustment.hpo_strategy_adjusted ? '#1565c0' : '#9e9e9e'} />
-              </div>
-              <div>
-                Validation Strategy:{' '}
-                <Badge label={result.strategy_adjustment.validation_strategy_adjusted ? 'Adjusted' : 'Unchanged'} color={result.strategy_adjustment.validation_strategy_adjusted ? '#1565c0' : '#9e9e9e'} />
-              </div>
-              <div>
-                Evaluation Strategy:{' '}
-                <Badge label={result.strategy_adjustment.evaluation_strategy_adjusted ? 'Adjusted' : 'Unchanged'} color={result.strategy_adjustment.evaluation_strategy_adjusted ? '#1565c0' : '#9e9e9e'} />
-              </div>
-              {result.strategy_adjustment.adjustment_reasons && result.strategy_adjustment.adjustment_reasons.length > 0 && (
-                <div>
-                  Reasons:{' '}
-                  {result.strategy_adjustment.adjustment_reasons.map((r, i) => (
-                    <Badge key={i} label={r} color="#6a1b9a" />
-                  ))}
-                </div>
-              )}
-            </Section>
-          )}
-
-          {/* Updated Model Strategy */}
-          {result.updated_model_strategy && Object.keys(result.updated_model_strategy).length > 0 && (
-            <Section title="Updated Model Strategy">
-              {Array.isArray(result.updated_model_strategy.candidate_model_families) && (
-                <div>
-                  Candidates:{' '}
-                  {(result.updated_model_strategy.candidate_model_families as string[]).map((m, i) => (
-                    <Badge key={i} label={m} color="#1565c0" />
-                  ))}
-                </div>
-              )}
-              {Array.isArray(result.updated_model_strategy.baseline_models) && (
-                <div>
-                  Baselines:{' '}
-                  {(result.updated_model_strategy.baseline_models as string[]).map((m, i) => (
-                    <Badge key={i} label={m} color="#6a1b9a" />
-                  ))}
-                </div>
-              )}
-              {result.updated_model_strategy.preferred_model_bias != null && (
-                <div>Preference: {String(result.updated_model_strategy.preferred_model_bias)}</div>
-              )}
-            </Section>
-          )}
-
-          {/* Updated HPO Strategy */}
-          {result.updated_hpo_strategy && Object.keys(result.updated_hpo_strategy).length > 0 && (
-            <Section title="Updated HPO Strategy">
-              <div>Enabled: {result.updated_hpo_strategy.enabled !== false ? 'Yes' : 'No'}</div>
-              {result.updated_hpo_strategy.search_method != null && (
-                <div>Method: {String(result.updated_hpo_strategy.search_method)}</div>
-              )}
-              {result.updated_hpo_strategy.budget_level != null && (
-                <div>Budget: {String(result.updated_hpo_strategy.budget_level)}</div>
-              )}
-              {result.updated_hpo_strategy.max_trials != null && (
-                <div>Max Trials: {String(result.updated_hpo_strategy.max_trials)}</div>
-              )}
-            </Section>
-          )}
-
           {/* Model Search Context Input */}
           {result.model_search_context_input && (
-            <Section title="Model Search Context Input (for downstream)">
+            <Section title="Model Search Context Input">
               <div>
                 Ready for Model Search:{' '}
                 <span style={{ color: result.model_search_context_input.ready_for_model_search_plan ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
@@ -407,11 +539,13 @@ const ModelSearchContextPanel: React.FC<ModelSearchContextPanelProps> = ({ taskI
             </div>
           )}
 
-          {/* Full JSON */}
-          <div style={styles.jsonSection}>
-            <strong>Full Result (JSON):</strong>
+          {/* Full JSON (collapsed by default) */}
+          <details style={styles.jsonSection}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+              Full Result (JSON)
+            </summary>
             <pre style={styles.pre}>{JSON.stringify(result, null, 2)}</pre>
-          </div>
+          </details>
         </div>
       )}
     </div>
@@ -425,6 +559,8 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#f3f4f6',
     border: '1px solid #9e9e9e',
     borderRadius: '8px',
+    maxHeight: '70vh',
+    overflowY: 'auto',
   },
   title: {
     margin: '0 0 8px 0',
@@ -490,6 +626,82 @@ const styles: Record<string, React.CSSProperties> = {
   },
   field: {
     fontSize: '14px',
+  },
+  summaryBox: {
+    marginTop: '8px',
+    marginBottom: '12px',
+    padding: '12px',
+    backgroundColor: '#e3f2fd',
+    borderRadius: '4px',
+    border: '1px solid #1565c0',
+    fontSize: '13px',
+  },
+  strategyAreaBlock: {
+    marginBottom: '16px',
+  },
+  strategyAreaTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#333',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  diffTable: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+    fontSize: '12px',
+    tableLayout: 'fixed' as const,
+  },
+  th: {
+    textAlign: 'left' as const,
+    padding: '6px 8px',
+    borderBottom: '2px solid #e0e0e0',
+    fontWeight: 600,
+    color: '#555',
+    backgroundColor: '#fafafa',
+  },
+  td: {
+    padding: '8px',
+    borderBottom: '1px solid #e0e0e0',
+    verticalAlign: 'top',
+    overflowWrap: 'break-word' as const,
+    wordBreak: 'break-word' as const,
+  },
+  tdOrig: {
+    padding: '8px',
+    borderBottom: '1px solid #e0e0e0',
+    verticalAlign: 'top',
+    overflowWrap: 'break-word' as const,
+    wordBreak: 'break-word' as const,
+    color: '#666',
+  },
+  tdUpdated: {
+    padding: '8px',
+    borderBottom: '1px solid #e0e0e0',
+    verticalAlign: 'top',
+    overflowWrap: 'break-word' as const,
+    wordBreak: 'break-word' as const,
+    fontWeight: 600,
+  },
+  tdRationale: {
+    padding: '8px',
+    borderBottom: '1px solid #e0e0e0',
+    verticalAlign: 'top',
+    overflowWrap: 'break-word' as const,
+    wordBreak: 'break-word' as const,
+  },
+  rationaleToggle: {
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 600,
+    userSelect: 'none' as const,
+  },
+  riskItem: {
+    marginTop: '4px',
+    marginLeft: '8px',
+    fontSize: '12px',
+    color: '#c62828',
   },
   section: {
     marginTop: '12px',
@@ -558,7 +770,7 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'auto',
     fontSize: '12px',
     marginTop: '8px',
-    maxHeight: '400px',
+    maxHeight: '300px',
   },
 };
 

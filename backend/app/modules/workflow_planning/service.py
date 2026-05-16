@@ -32,6 +32,7 @@ from app.modules.workflow_planning.schemas import (
     RequiredComponents,
     FeatureStrategyResponse,
     FeatureStrategyRationaleResponse,
+    ModelStrategyResponse,
     PreprocessingIntentResponse,
 )
 from app.modules.workflow_planning.context_builder import build_workflow_planning_context
@@ -172,6 +173,7 @@ class WorkflowPlanningService:
             llm_response_json=llm_response_json,
             fe_registry_snapshot_version=plan_dict.get("fe_registry_snapshot_version"),
             feature_strategy_json=plan_dict.get("feature_strategy"),
+            model_strategy_json=plan_dict.get("model_strategy"),
             preprocessing_intent_json=plan_dict.get("preprocessing_intent"),
             workflow_rationale_json=plan_dict.get("workflow_rationale"),
             error_message=None,
@@ -254,6 +256,18 @@ class WorkflowPlanningService:
             preprocessing_intent=intent,
         )
 
+    def get_model_strategy(self, session: Session, plan_id: str) -> ModelStrategyResponse:
+        plan = self.plan_repo.get_by_id(session, plan_id)
+        if not plan:
+            raise WorkflowPlanNotFoundException(f"Workflow plan with id {plan_id} not found.")
+        plan_json = plan.plan_json or {}
+        ms_raw = plan_json.get("model_strategy") or {}
+        model_strategy_data = ModelStrategy(**ms_raw) if ms_raw else ModelStrategy()
+        return ModelStrategyResponse(
+            workflow_plan_id=plan.id or "",
+            model_strategy=model_strategy_data,
+        )
+
     def adopt_revised_plan(
         self, session: Session, task_id: str, revised_plan: dict
     ) -> WorkflowPlanResponse:
@@ -310,6 +324,7 @@ class WorkflowPlanningService:
             plan_json=plan_json,
             fe_registry_snapshot_version=revised_plan.get("fe_registry_snapshot_version"),
             feature_strategy_json=revised_plan.get("feature_strategy"),
+            model_strategy_json=revised_plan.get("model_strategy"),
             preprocessing_intent_json=revised_plan.get("preprocessing_intent"),
             workflow_rationale_json=revised_plan.get("workflow_rationale"),
             error_message=None,

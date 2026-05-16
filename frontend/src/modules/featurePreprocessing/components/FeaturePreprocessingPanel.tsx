@@ -7,11 +7,12 @@ import { FeaturePreprocessingResponse, PreprocessingPlan, PreprocessingExecution
 
 interface FeaturePreprocessingPanelProps {
   taskId: string;
+  initialResult?: FeaturePreprocessingResponse;
 }
 
-const FeaturePreprocessingPanel: React.FC<FeaturePreprocessingPanelProps> = ({ taskId }) => {
+const FeaturePreprocessingPanel: React.FC<FeaturePreprocessingPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<FeaturePreprocessingResponse | null>(null);
+  const [result, setResult] = useState<FeaturePreprocessingResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const handleRun = async () => {
@@ -252,16 +253,16 @@ const FeaturePreprocessingPanel: React.FC<FeaturePreprocessingPanelProps> = ({ t
           {/* NEW: Execution Report */}
           {result.execution_report && result.execution_report.operation_results && result.execution_report.operation_results.length > 0 && (
             <Section title="Execution Report">
-              <table style={styles.smallTable}>
+              <table style={{ ...styles.smallTable, tableLayout: 'fixed' }}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Operation</th>
-                    <th style={styles.th}>Capability</th>
-                    <th style={styles.th}>Group</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Affected</th>
-                    <th style={styles.th}>Removed</th>
-                    <th style={styles.th}>Warnings</th>
+                    <th style={{ ...styles.th, width: '18%' }}>Operation</th>
+                    <th style={{ ...styles.th, width: '18%' }}>Capability</th>
+                    <th style={{ ...styles.th, width: '14%' }}>Group</th>
+                    <th style={{ ...styles.th, width: '12%' }}>Status</th>
+                    <th style={{ ...styles.th, width: '10%' }}>Affected</th>
+                    <th style={{ ...styles.th, width: '10%' }}>Removed</th>
+                    <th style={{ ...styles.th, width: '18%' }}>Warnings</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -500,81 +501,6 @@ const FeaturePreprocessingPanel: React.FC<FeaturePreprocessingPanelProps> = ({ t
             </Section>
           )}
 
-          {/* NEW: Model-Ready Artifacts */}
-          {result.model_ready_artifacts && result.model_ready_artifacts.length > 0 && (
-            <Section title="Model-Ready Artifacts">
-              {result.model_ready_artifacts.map((a, i) => (
-                <div key={i} style={{ marginBottom: '6px', padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-                  <div><strong>Artifact ID:</strong> {a.artifact_id}</div>
-                  <div><strong>Variant:</strong> {a.variant_name} | <strong>Usage:</strong> {a.usage}</div>
-                  <div><strong>Path:</strong> {a.path}</div>
-                  <div><strong>Samples:</strong> {a.row_count} | <strong>Features:</strong> {a.feature_count}</div>
-                  <div style={{ fontSize: '10px', color: '#999' }}>Hash: {a.artifact_hash}</div>
-                </div>
-              ))}
-            </Section>
-          )}
-
-          {/* NEW: Preprocessor Artifacts */}
-          {result.preprocessor_artifacts && result.preprocessor_artifacts.length > 0 && (
-            <Section title="Preprocessor Artifacts">
-              {result.preprocessor_artifacts.map((a, i) => (
-                <div key={i} style={{ marginBottom: '4px' }}>
-                  <strong>{a.variant_name}:</strong> {a.artifact_id} (usage: {a.usage})
-                </div>
-              ))}
-            </Section>
-          )}
-
-          {/* NEW: Provenance */}
-          {result.preprocessing_provenance && (
-            <Section title="Preprocessing Provenance">
-              <div>
-                <strong>Registry Snapshot:</strong>{' '}
-                {result.preprocessing_provenance.registry_snapshot_version}
-              </div>
-              <div>
-                <strong>Input Hash:</strong>{' '}
-                {result.preprocessing_provenance.input_feature_artifact_hash}
-              </div>
-              <div>
-                <strong>Output Hash:</strong>{' '}
-                {result.preprocessing_provenance.output_artifact_hash}
-              </div>
-              {result.preprocessing_provenance.random_seed != null && (
-                <div><strong>Random Seed:</strong> {result.preprocessing_provenance.random_seed}</div>
-              )}
-              {result.preprocessing_provenance.dependency_versions && Object.keys(result.preprocessing_provenance.dependency_versions).length > 0 && (
-                <div style={{ fontSize: '11px', color: '#888' }}>
-                  <strong>Dependencies:</strong> {JSON.stringify(result.preprocessing_provenance.dependency_versions)}
-                </div>
-              )}
-              {result.preprocessing_provenance.created_at && (
-                <div style={{ fontSize: '11px', color: '#888' }}>
-                  Created: {result.preprocessing_provenance.created_at}
-                </div>
-              )}
-            </Section>
-          )}
-
-          {/* NEW: Model Search Context Input */}
-          {result.model_search_context_input && (
-            <Section title="Model Search Context Input">
-              <div>
-                <strong>Ready for Model Search:</strong>{' '}
-                <span style={{ color: result.model_search_context_input.model_ready_matrix_path ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                  {result.model_search_context_input.model_ready_matrix_path ? 'Yes' : 'No'}
-                </span>
-              </div>
-              <div>Default Variant: {result.model_search_context_input.default_variant_id || '—'}</div>
-              {result.model_search_context_input.feature_summary && (
-                <div style={{ fontSize: '11px', color: '#888' }}>
-                  Summary: {JSON.stringify(result.model_search_context_input.feature_summary)}
-                </div>
-              )}
-            </Section>
-          )}
-
           {/* Model Ready Artifact (Legacy) */}
           {result.model_ready_artifact && (
             <Section title="Model Ready Artifact (Legacy)">
@@ -583,22 +509,6 @@ const FeaturePreprocessingPanel: React.FC<FeaturePreprocessingPanelProps> = ({ t
               <div>Samples: {result.model_ready_artifact.n_samples}</div>
               <div>Features: {result.model_ready_artifact.n_features}</div>
               <div>Target: {result.model_ready_artifact.target_column}</div>
-            </Section>
-          )}
-
-          {/* Model Search Input (Legacy) */}
-          {result.model_search_input && (
-            <Section title="Model Search Input (Legacy)">
-              <div>
-                Ready for Model Search:{' '}
-                <span style={{ color: result.model_search_input.ready_for_model_search ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                  {result.model_search_input.ready_for_model_search ? 'Yes' : 'No'}
-                </span>
-              </div>
-              <div>Task Type: {result.model_search_input.task_type}</div>
-              <div>Primary Metric: {result.model_search_input.primary_metric}</div>
-              <div>Target: {result.model_search_input.target_column}</div>
-              <div>Feature Count: {result.model_search_input.feature_columns?.length}</div>
             </Section>
           )}
 
@@ -623,10 +533,12 @@ const FeaturePreprocessingPanel: React.FC<FeaturePreprocessingPanelProps> = ({ t
           )}
 
           {/* Full JSON */}
-          <div style={styles.jsonSection}>
-            <strong>Full Result (JSON):</strong>
+          <details style={styles.jsonSection}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+              Full Result (JSON)
+            </summary>
             <pre style={styles.pre}>{JSON.stringify(result, null, 2)}</pre>
-          </div>
+          </details>
         </div>
       )}
     </div>
@@ -637,6 +549,7 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     marginTop: '24px', padding: '16px', backgroundColor: '#f3f4f6',
     border: '1px solid #9e9e9e', borderRadius: '8px',
+    maxHeight: '70vh', overflowY: 'auto',
   },
   title: { margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600, color: '#333' },
   description: { margin: '0 0 16px 0', fontSize: '14px', color: '#666' },
@@ -696,7 +609,10 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#f5f5f5', fontWeight: 600, fontSize: '11px',
   },
   tableRow: { borderBottom: '1px solid #f0f0f0' },
-  td: { padding: '4px 6px', verticalAlign: 'top', fontSize: '11px' },
+  td: {
+    padding: '4px 6px', verticalAlign: 'top', fontSize: '11px',
+    overflowWrap: 'break-word' as const, wordBreak: 'break-word' as const,
+  },
   warningSection: {
     marginTop: '12px', padding: '10px', backgroundColor: '#fff3e0',
     borderRadius: '4px', border: '1px solid #ffcc02', fontSize: '13px',

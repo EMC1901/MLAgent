@@ -18,6 +18,7 @@ class LLMClient:
         self.timeout = settings.LLM_TIMEOUT
         self.max_retries = settings.LLM_MAX_RETRIES
         self.temperature = settings.LLM_TEMPERATURE
+        self.thinking = settings.LLM_THINKING
 
     def _backoff_delay(self, attempt: int, status_code: int = 0, retry_after: str | None = None) -> float:
         """Calculate backoff delay. 429 uses longer delays and may respect Retry-After header."""
@@ -37,6 +38,8 @@ class LLMClient:
             "messages": messages,
             "temperature": self.temperature,
         }
+        if self.thinking:
+            request_body["thinking"] = {"type": "enabled"}
 
         last_error = None
         for attempt in range(self.max_retries + 1):

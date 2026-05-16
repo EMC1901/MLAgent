@@ -120,11 +120,36 @@ export interface FeatureStrategy {
   input_modality_assessment?: InputModalityAssessment;
 }
 
+export interface ModelDecisionRationale {
+  reason: string;
+  evidence: string[];
+  expected_performance: string;
+  risk: string;
+  fallback: string;
+}
+
+export interface SelectedModelAction {
+  action_id: string;
+  model_family: string;
+  priority: string;
+  decision_rationale: ModelDecisionRationale;
+}
+
+export interface RejectedModelAction {
+  model_family: string;
+  reason: string;
+  evidence: string[];
+}
+
 export interface ModelStrategy {
   candidate_model_families?: string[];
   baseline_models?: string[];
   preferred_model_bias?: string;
   excluded_model_families?: string[];
+  // New detailed rationale fields
+  selected_model_actions?: SelectedModelAction[];
+  rejected_model_actions?: RejectedModelAction[];
+  model_selection_rationale_summary?: string;
 }
 
 export interface ValidationStrategy {
@@ -217,6 +242,11 @@ export interface FeatureStrategyRationaleResponse {
   plan_id: string;
   rationales: DecisionRationale[];
   rejected_rationales: RejectedFeatureAction[];
+}
+
+export interface ModelStrategyResponse {
+  plan_id: string;
+  model_strategy: ModelStrategy;
 }
 
 export interface PreprocessingIntentResponse {

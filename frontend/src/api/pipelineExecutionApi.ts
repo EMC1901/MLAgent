@@ -9,6 +9,8 @@ import {
   LogsResponse,
 } from '../modules/pipelineExecution/types';
 
+const PIPELINE_EXECUTION_TIMEOUT = 3600000; // 60 minutes (training can take 30+ min)
+
 export const createPipelineExecution = async (
   taskId: string,
   request?: Partial<PipelineExecutionCreateRequest>,
@@ -16,6 +18,7 @@ export const createPipelineExecution = async (
   const response = await api.post<ApiResponse<PipelineExecutionResponse>>(
     `/api/pipeline-executions/${taskId}`,
     request || {},
+    { timeout: PIPELINE_EXECUTION_TIMEOUT },
   );
   return response.data;
 };
@@ -44,6 +47,7 @@ export const rerunPipelineExecution = async (
   const response = await api.post<ApiResponse<PipelineExecutionResponse>>(
     `/api/pipeline-executions/${taskId}/rerun`,
     {},
+    { timeout: PIPELINE_EXECUTION_TIMEOUT },
   );
   return response.data;
 };

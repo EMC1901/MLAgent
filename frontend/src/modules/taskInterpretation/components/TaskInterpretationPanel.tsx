@@ -4,11 +4,12 @@ import { TaskInterpretationResponse } from '../types';
 
 interface TaskInterpretationPanelProps {
   taskId: string;
+  initialResult?: TaskInterpretationResponse;
 }
 
-const TaskInterpretationPanel: React.FC<TaskInterpretationPanelProps> = ({ taskId }) => {
+const TaskInterpretationPanel: React.FC<TaskInterpretationPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<TaskInterpretationResponse | null>(null);
+  const [result, setResult] = useState<TaskInterpretationResponse | null>(initialResult ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const handleRunInterpretation = async () => {
@@ -222,10 +223,12 @@ const TaskInterpretationPanel: React.FC<TaskInterpretationPanelProps> = ({ taskI
             </div>
           )}
 
-          <div style={styles.jsonSection}>
-            <strong>Full Result (JSON):</strong>
+          <details style={styles.jsonSection}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+              Full Result (JSON)
+            </summary>
             <pre style={styles.pre}>{JSON.stringify(result, null, 2)}</pre>
-          </div>
+          </details>
         </div>
       )}
     </div>
@@ -239,6 +242,8 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#f3f4f6',
     border: '1px solid #9e9e9e',
     borderRadius: '8px',
+    maxHeight: '70vh',
+    overflowY: 'auto',
   },
   title: {
     margin: '0 0 8px 0',
