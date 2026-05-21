@@ -36,3 +36,15 @@ class MetricDirection:
 class TaskType:
     REGRESSION = "regression"
     CLASSIFICATION = "classification"
+
+
+class SearchSpaceProfile:
+    NARROW = "narrow"
+    MODERATE = "moderate"
+    WIDE = "wide"
+
+
+class ModelPriority:
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"

@@ -7,7 +7,6 @@ import {
 import { createFeatureEngineering } from '../../../api/featureEngineeringApi';
 import { createFeaturePreprocessing } from '../../../api/featurePreprocessingApi';
 import { createModelSearchContext } from '../../../api/modelSearchContextApi';
-import { createModelSearchPlan } from '../../../api/modelSearchApi';
 import { createPipelineGeneration } from '../../../api/pipelineGenerationApi';
 import { createPipelineExecution } from '../../../api/pipelineExecutionApi';
 import { createMetricEvaluation } from '../../../api/metricEvaluationApi';
@@ -115,7 +114,7 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
         feature_engineering: createFeatureEngineering,
         feature_preprocessing: createFeaturePreprocessing,
         model_search_context: createModelSearchContext,
-        model_search: createModelSearchPlan,
+        model_search: createModelSearchContext,
         pipeline_generation: createPipelineGeneration,
         pipeline_execution: createPipelineExecution,
         metric_evaluation: createMetricEvaluation,

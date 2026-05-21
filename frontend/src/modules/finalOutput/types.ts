@@ -60,7 +60,6 @@ export interface WorkflowTraceSummary {
   feature_engineering_id?: string;
   feature_preprocessing_id?: string;
   model_search_context_id?: string;
-  model_search_plan_id?: string;
   pipeline_generation_id?: string;
   pipeline_execution_id?: string;
   metric_evaluation_id?: string;

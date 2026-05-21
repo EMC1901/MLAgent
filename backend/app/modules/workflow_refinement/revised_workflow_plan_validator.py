@@ -50,7 +50,7 @@ VALID_SPLIT_STRATEGIES = {
     "train_test_split", "k_fold_cross_validation",
     "stratified_k_fold", "repeated_cv",
 }
-VALID_SEARCH_METHODS = {"grid_search", "random_search", "bayesian_optimization"}
+VALID_SEARCH_METHODS = {"grid_search", "random_search", "bayesian_optimization", "optuna_tpe", "successive_halving"}
 VALID_BUDGET_LEVELS = {"low", "medium", "high"}
 VALID_METRIC_DIRECTIONS = {"minimize", "maximize"}
 

@@ -138,7 +138,7 @@ export interface ExecutionInput {
 export interface PipelineBundle {
   bundle_id: string;
   task_id: string;
-  model_search_plan_id: string;
+  model_search_context_id: string;
   task_type?: string | null;
   target_column?: string | null;
   feature_columns: string[];
@@ -206,7 +206,7 @@ export interface LLMAdvisoryReview {
 export interface PipelineGenerationResponse {
   pipeline_generation_id?: string | null;
   task_id?: string | null;
-  model_search_plan_id?: string | null;
+  model_search_context_id?: string | null;
   feature_preprocessing_id?: string | null;
   status: string;
   generation_mode?: string | null;

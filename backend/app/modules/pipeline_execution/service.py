@@ -107,10 +107,10 @@ class PipelineExecutionService:
             pred_artifacts = []
             model_artifacts = []
             for t in trial_results:
-                if t.prediction_artifact_path:
-                    pred_artifacts.append(t.prediction_artifact_path)
-                if t.model_artifact_path:
-                    model_artifacts.append(t.model_artifact_path)
+                if t.prediction_artifact_paths:
+                    pred_artifacts.extend(t.prediction_artifact_paths)
+                if t.model_artifact_paths:
+                    model_artifacts.extend(t.model_artifact_paths)
 
             # Step 9: Build metric_evaluation_input
             metric_input = build_metric_evaluation_input(

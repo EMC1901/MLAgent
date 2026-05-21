@@ -10,7 +10,7 @@ class PipelineGeneration(SQLModel, table=True):
 
     id: Optional[str] = Field(default=None, primary_key=True)
     task_id: Optional[str] = Field(default=None, max_length=255, index=True)
-    model_search_plan_id: Optional[str] = Field(default=None, max_length=255, index=True)
+    model_search_context_id: Optional[str] = Field(default=None, max_length=255, index=True)
     feature_preprocessing_id: Optional[str] = Field(default=None, max_length=255, index=True)
     status: Optional[str] = Field(default="pending", max_length=50, index=True)
     generation_mode: Optional[str] = Field(default=None, max_length=50)

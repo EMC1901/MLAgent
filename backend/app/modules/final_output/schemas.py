@@ -69,7 +69,6 @@ class WorkflowTraceSummary(BaseModel):
     feature_engineering_id: Optional[str] = None
     feature_preprocessing_id: Optional[str] = None
     model_search_context_id: Optional[str] = None
-    model_search_plan_id: Optional[str] = None
     pipeline_generation_id: Optional[str] = None
     pipeline_execution_id: Optional[str] = None
     metric_evaluation_id: Optional[str] = None

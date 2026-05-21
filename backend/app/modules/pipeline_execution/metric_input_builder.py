@@ -45,8 +45,8 @@ def build_metric_evaluation_input(
                 "trial_id": t.get("trial_id"),
                 "model_id": t.get("model_id"),
                 "status": t.get("status"),
-                "prediction_artifact_path": t.get("prediction_artifact_path"),
-                "model_artifact_path": t.get("model_artifact_path"),
+                "prediction_artifact_paths": t.get("prediction_artifact_paths", []),
+                "model_artifact_paths": t.get("model_artifact_paths", []),
                 "duration_seconds": t.get("duration_seconds"),
             })
         else:
@@ -54,8 +54,8 @@ def build_metric_evaluation_input(
                 "trial_id": t.trial_id,
                 "model_id": t.model_id,
                 "status": t.status,
-                "prediction_artifact_path": t.prediction_artifact_path,
-                "model_artifact_path": t.model_artifact_path,
+                "prediction_artifact_paths": t.prediction_artifact_paths,
+                "model_artifact_paths": t.model_artifact_paths,
                 "duration_seconds": t.duration_seconds,
             })
 

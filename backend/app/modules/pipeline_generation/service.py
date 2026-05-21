@@ -31,8 +31,8 @@ from app.modules.pipeline_generation.builder import (
 from app.modules.pipeline_generation.enums import PipelineGenerationStatus
 from app.modules.pipeline_generation.exceptions import (
     PipelineGenerationNotFoundException,
-    ModelSearchPlanRequiredException,
-    ModelSearchPlanNotReadyException,
+    ModelSearchContextRequiredException,
+    ModelSearchContextNotReadyException,
     PipelineGenerationInputMissingException,
     ArtifactResolveException,
     ComponentBindingException,
@@ -65,8 +65,8 @@ class PipelineGenerationService:
         try:
             context = build_pipeline_generation_context(session, task_id)
         except (
-            ModelSearchPlanRequiredException,
-            ModelSearchPlanNotReadyException,
+            ModelSearchContextRequiredException,
+            ModelSearchContextNotReadyException,
             PipelineGenerationInputMissingException,
         ) as e:
             failed = PipelineGeneration(
@@ -88,7 +88,7 @@ class PipelineGenerationService:
             failed = PipelineGeneration(
                 id=pg_id,
                 task_id=task_id,
-                model_search_plan_id=context.get("model_search_plan_id"),
+                model_search_context_id=context.get("model_search_context_id"),
                 feature_preprocessing_id=context.get("feature_preprocessing_id"),
                 status=PipelineGenerationStatus.FAILED,
                 task_type=context.get("task_type"),
@@ -126,7 +126,7 @@ class PipelineGenerationService:
             failed = PipelineGeneration(
                 id=pg_id,
                 task_id=task_id,
-                model_search_plan_id=context.get("model_search_plan_id"),
+                model_search_context_id=context.get("model_search_context_id"),
                 feature_preprocessing_id=context.get("feature_preprocessing_id"),
                 status=PipelineGenerationStatus.FAILED,
                 task_type=context.get("task_type"),
@@ -252,7 +252,7 @@ class PipelineGenerationService:
         record = PipelineGeneration(
             id=pg_id,
             task_id=context.get("task_id"),
-            model_search_plan_id=context.get("model_search_plan_id"),
+            model_search_context_id=context.get("model_search_context_id"),
             feature_preprocessing_id=context.get("feature_preprocessing_id"),
             status=response.status,
             generation_mode=response.generation_mode,
@@ -357,7 +357,7 @@ class PipelineGenerationService:
         return PipelineGenerationResponse(
             pipeline_generation_id=record.id or "",
             task_id=record.task_id or "",
-            model_search_plan_id=record.model_search_plan_id,
+            model_search_context_id=record.model_search_context_id,
             feature_preprocessing_id=record.feature_preprocessing_id,
             status=record.status or "pending",
             generation_mode=record.generation_mode,

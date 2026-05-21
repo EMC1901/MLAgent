@@ -22,7 +22,13 @@ from app.modules.model_search_context.strategy_merger import merge_strategies
 from app.modules.model_search_context.builder import (
     build_model_search_context_response,
     build_context_json,
+    build_hpo_plan,
+    build_validation_plan,
+    build_evaluation_plan,
 )
+from app.modules.model_search_context.candidate_model_selector import select_candidate_models
+from app.modules.model_search_context.search_space_builder import build_search_space_plan
+from app.shared.registry.model_registry import get_model_families_for_task_type
 from app.modules.model_search_context.enums import ModelSearchContextStatus, UpdateMode
 from app.modules.model_search_context.exceptions import (
     ModelSearchContextNotFoundException,
@@ -49,6 +55,32 @@ class ModelSearchContextService:
         all_warnings = []
         all_errors = []
 
+        try:
+            return self._create_model_search_context_impl(
+                session, task_id, request, msc_id, all_warnings, all_errors,
+            )
+        except (UpstreamNotReadyException, LLMCallException, LLMOutputParseException):
+            raise
+        except Exception as e:
+            logger.exception("Unexpected error in model search context creation: %s", str(e))
+            try:
+                failed = ModelSearchContext(
+                    id=msc_id,
+                    task_id=task_id,
+                    status=ModelSearchContextStatus.FAILED,
+                    error_message=f"Unexpected error: {str(e)}",
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                )
+                self.msc_repo.create(session, failed)
+            except Exception:
+                logger.error("Failed to persist error record for %s", msc_id)
+            raise LLMCallException(f"Unexpected error during model search context creation: {str(e)}")
+
+    def _create_model_search_context_impl(
+        self, session: Session, task_id: str, request: ModelSearchContextCreateRequest,
+        msc_id: str, all_warnings: list, all_errors: list,
+    ) -> ModelSearchContextResponse:
         # --- 1. Build upstream context ---
         try:
             context = build_model_search_context(session, task_id)
@@ -206,6 +238,67 @@ class ModelSearchContextService:
 
         strategy_adjustment = merge_result.get("strategy_adjustment")
 
+        # --- 9a. Build execution plans ---
+        updated_model_strategy = merge_result.get("updated_model_strategy", {})
+        updated_hpo_strategy = merge_result.get("updated_hpo_strategy", {})
+        updated_validation_strategy = merge_result.get("updated_validation_strategy", {})
+        updated_evaluation_strategy = merge_result.get("updated_evaluation_strategy", {})
+
+        allowed_model_families = get_model_families_for_task_type(task_type)
+
+        n_samples = dataset_result.get("n_samples", 0)
+        n_features = dataset_result.get("n_final_features", 0)
+
+        # Select candidate models
+        candidate_model_data = select_candidate_models(
+            updated_model_strategy=updated_model_strategy,
+            allowed_model_families=allowed_model_families,
+            task_type=task_type,
+            include_models=[],
+            exclude_models=[],
+        )
+
+        # Convert Pydantic models to dicts for downstream builders
+        all_candidates = [m.model_dump() for m in candidate_model_data.get("candidate_models", [])]
+        all_baselines = [m.model_dump() for m in candidate_model_data.get("baseline_models", [])]
+
+        # Build HPO plan (with LLM trial allocation if available)
+        llm_trial_alloc = merge_result.get("llm_trial_allocation", [])
+        hpo_plan = build_hpo_plan(
+            updated_hpo_strategy=updated_hpo_strategy,
+            candidate_models=all_candidates,
+            baseline_models=all_baselines,
+            llm_trial_allocation=llm_trial_alloc if llm_trial_alloc else None,
+        )
+
+        # Build search space plan (with LLM overrides if available)
+        search_space_profile = {"space_width": updated_hpo_strategy.get("search_space_width", "moderate")}
+        llm_search_overrides = merge_result.get("llm_search_space_overrides", [])
+        search_space_plan = build_search_space_plan(
+            candidate_models=all_candidates,
+            task_type=task_type,
+            search_space_profile=search_space_profile,
+            llm_overrides=llm_search_overrides if llm_search_overrides else None,
+        )
+
+        # Build validation plan
+        validation_plan = build_validation_plan(updated_validation_strategy)
+
+        # Build evaluation plan
+        evaluation_plan = build_evaluation_plan(
+            primary_metric=primary_metric,
+            task_type=task_type,
+            updated_evaluation_strategy=updated_evaluation_strategy,
+        )
+
+        execution_plans = {
+            "candidate_model_data": candidate_model_data,
+            "hpo_plan": hpo_plan,
+            "search_space_plan": search_space_plan,
+            "validation_plan": validation_plan,
+            "evaluation_plan": evaluation_plan,
+        }
+
         # --- 10. Determine status ---
         if all_errors:
             status = ModelSearchContextStatus.FAILED
@@ -228,6 +321,7 @@ class ModelSearchContextService:
             warnings=all_warnings,
             errors=all_errors,
             status=status,
+            execution_plans=execution_plans,
         )
 
         # --- 12. Persist ---
@@ -248,7 +342,11 @@ class ModelSearchContextService:
             hpo_strategy_adjusted=strategy_adjustment.hpo_strategy_adjusted if strategy_adjustment else False,
             llm_used=llm_used,
             llm_confidence_score=llm_confidence_score,
-            ready_for_model_search_plan=response.model_search_context_input.ready_for_model_search_plan,
+            ready_for_pipeline_generation=response.pipeline_generation_input.ready_for_pipeline_generation if response.pipeline_generation_input else False,
+            n_candidate_models=len(all_candidates) + len([b for b in all_baselines if b.get("hpo_enabled")]),
+            hpo_enabled=hpo_plan.enabled,
+            hpo_method=hpo_plan.search_method,
+            max_total_trials=hpo_plan.max_total_trials,
             context_json=build_context_json(response),
             llm_request_json=llm_request_json if llm_request_json else None,
             llm_response_json=llm_response_json if llm_response_json else None,

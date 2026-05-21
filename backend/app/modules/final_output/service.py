@@ -91,7 +91,6 @@ class FinalOutputService:
                 feature_engineering_id=None,
                 feature_preprocessing_id=None,
                 model_search_context_id=None,
-                model_search_plan_id=None,
                 pipeline_generation_id=None,
                 pipeline_execution_id=None,
                 metric_evaluation_id=None,

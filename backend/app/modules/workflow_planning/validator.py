@@ -26,7 +26,7 @@ WORKFLOW_RATIONALE_FIELDS = ["overall_reasoning_summary", "key_assumptions", "kn
 VALID_TASK_TYPES = {"regression", "classification", "ranking"}
 VALID_INPUT_MODALITIES = {"composition", "structure", "descriptor", "text", "mixed"}
 VALID_SPLIT_STRATEGIES = {"train_test_split", "k_fold_cross_validation", "stratified_k_fold", "repeated_cv"}
-VALID_SEARCH_METHODS = {"grid_search", "random_search", "bayesian_optimization"}
+VALID_SEARCH_METHODS = {"grid_search", "random_search", "bayesian_optimization", "optuna_tpe", "successive_halving"}
 VALID_BUDGET_LEVELS = {"low", "medium", "high"}
 VALID_METRIC_DIRECTIONS = {"minimize", "maximize"}
 VALID_PRIORITIES = {"required", "recommended", "optional", "fallback"}
@@ -134,6 +134,12 @@ def _check_arrays(plan: Dict[str, Any], errors: List[str]):
         errors.append("'model_strategy.candidate_model_families' must be an array.")
     if not isinstance(plan.get("model_strategy", {}).get("baseline_models"), list):
         errors.append("'model_strategy.baseline_models' must be an array.")
+    else:
+        baseline_count = len(plan["model_strategy"]["baseline_models"])
+        if baseline_count == 0:
+            errors.append("'model_strategy.baseline_models' must contain exactly 1 model family, got 0.")
+        elif baseline_count > 1:
+            errors.append(f"'model_strategy.baseline_models' must contain exactly 1 model family, got {baseline_count}: {plan['model_strategy']['baseline_models']}. Choose the single most appropriate baseline.")
     if not isinstance(plan.get("preprocessing_intent", {}).get("high_level_goals"), list):
         errors.append("'preprocessing_intent.high_level_goals' must be an array.")
     if not isinstance(plan.get("workflow_rationale", {}).get("key_assumptions"), list):

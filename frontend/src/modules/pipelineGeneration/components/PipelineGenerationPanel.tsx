@@ -144,7 +144,6 @@ const PipelineGenerationPanel: React.FC<PipelineGenerationPanelProps> = ({ taskI
                     <th style={s.th}>Priority</th>
                     <th style={s.th}>HPO</th>
                     <th style={s.th}>Exec Ready</th>
-                    <th style={s.th}>Warnings</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -167,71 +166,10 @@ const PipelineGenerationPanel: React.FC<PipelineGenerationPanelProps> = ({ taskI
                           {spec.execution_ready ? 'Yes' : 'No'}
                         </span>
                       </td>
-                      <td style={s.td}>{spec.warnings.length > 0 ? spec.warnings.length : 'None'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </Section>
-          )}
-
-          {/* Trial Plan */}
-          {result.trial_plan && (
-            <Section title="Trial Plan">
-              <div>
-                HPO Enabled:{' '}
-                <Badge label={result.trial_plan.hpo_enabled ? 'Yes' : 'No'} color={result.trial_plan.hpo_enabled ? '#2e7d32' : '#9e9e9e'} />
-              </div>
-              <div>Search Method: <Badge label={result.trial_plan.search_method || 'N/A'} color="#1565c0" /></div>
-              <div>Max Total Trials: <strong>{result.trial_plan.max_total_trials}</strong></div>
-              <div>Max Parallel Trials: {result.trial_plan.max_parallel_trials}</div>
-
-              {result.trial_plan.trial_allocation && result.trial_plan.trial_allocation.length > 0 && (
-                <div style={{ marginTop: '8px' }}>
-                  <strong>Trial Allocation:</strong>
-                  <table style={s.table}>
-                    <thead>
-                      <tr>
-                        <th style={s.th}>Model</th>
-                        <th style={s.th}>Role</th>
-                        <th style={s.th}>Max Trials</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.trial_plan.trial_allocation.map((t, i) => (
-                        <tr key={i}>
-                          <td style={s.td}>{t.model_id}</td>
-                          <td style={s.td}>{t.role}</td>
-                          <td style={s.td}>
-                            <Badge label={String(t.max_trials)} color={t.max_trials > 1 ? '#1565c0' : '#9e9e9e'} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {result.trial_plan.baseline_trial_policy && (
-                <div style={{ marginTop: '4px', fontSize: '12px', color: '#888' }}>
-                  Baseline Policy: {result.trial_plan.baseline_trial_policy.description}
-                </div>
-              )}
-              {result.trial_plan.candidate_trial_policy && (
-                <div style={{ fontSize: '12px', color: '#888' }}>
-                  Candidate Policy: {result.trial_plan.candidate_trial_policy.description}
-                </div>
-              )}
-              {result.trial_plan.early_stopping_policy && result.trial_plan.early_stopping_policy.enabled && (
-                <div style={{ fontSize: '12px', color: '#ff9800' }}>
-                  Early Stopping: Enabled (patience: {result.trial_plan.early_stopping_policy.patience})
-                </div>
-              )}
-              {result.trial_plan.fallback_policy && result.trial_plan.fallback_policy.enabled && (
-                <div style={{ fontSize: '12px', color: '#666' }}>
-                  Fallback: {result.trial_plan.fallback_policy.description}
-                </div>
-              )}
             </Section>
           )}
 
@@ -286,34 +224,6 @@ const PipelineGenerationPanel: React.FC<PipelineGenerationPanelProps> = ({ taskI
             </Section>
           )}
 
-          {/* Artifact Manifest */}
-          {result.artifact_manifest && (
-            <Section title="Artifact Manifest">
-              <div>
-                Model Ready Matrix:{' '}
-                <Badge label={result.artifact_manifest.model_ready_exists ? 'Exists' : 'Missing'} color={result.artifact_manifest.model_ready_exists ? '#2e7d32' : '#c62828'} />
-              </div>
-              {result.artifact_manifest.model_ready_matrix_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>{result.artifact_manifest.model_ready_matrix_path}</div>
-              )}
-              <div>
-                Preprocessor:{' '}
-                <Badge label={result.artifact_manifest.preprocessor_exists ? 'Exists' : 'Missing/N/A'} color={result.artifact_manifest.preprocessor_exists ? '#2e7d32' : '#9e9e9e'} />
-              </div>
-              {result.artifact_manifest.preprocessor_artifact_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>{result.artifact_manifest.preprocessor_artifact_path}</div>
-              )}
-              <div>Features: {result.artifact_manifest.n_features}</div>
-              <div>Target: {result.artifact_manifest.target_column}</div>
-              <div>
-                Complete:{' '}
-                <span style={{ color: result.artifact_manifest.is_complete ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                  {result.artifact_manifest.is_complete ? 'Yes' : 'No'}
-                </span>
-              </div>
-            </Section>
-          )}
-
           {/* Validation & Safety */}
           {result.pipeline_validation_result && (
             <Section title="Pipeline Validation">
@@ -342,29 +252,6 @@ const PipelineGenerationPanel: React.FC<PipelineGenerationPanelProps> = ({ taskI
                   <strong style={{ color: '#e65100' }}>Validation Warnings:</strong>
                   {result.pipeline_validation_result.warnings.map((w, i) => (
                     <div key={i} style={{ color: '#e65100', fontSize: '12px', marginLeft: '8px' }}>{w}</div>
-                  ))}
-                </div>
-              )}
-            </Section>
-          )}
-
-          {result.safety_check_result && (
-            <Section title="Safety Check">
-              <div>
-                Is Safe:{' '}
-                <span style={{ color: result.safety_check_result.is_safe ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                  {result.safety_check_result.is_safe ? 'Yes' : 'No'}
-                </span>
-              </div>
-              {Object.entries(result.safety_check_result.checks).map(([check, passed]) => (
-                <div key={check} style={{ fontSize: '12px' }}>
-                  {check}: <Badge label={String(passed)} color={passed ? '#2e7d32' : '#c62828'} />
-                </div>
-              ))}
-              {result.safety_check_result.errors.length > 0 && (
-                <div style={{ marginTop: '4px' }}>
-                  {result.safety_check_result.errors.map((e, i) => (
-                    <div key={i} style={{ color: '#c62828', fontSize: '12px' }}>{e}</div>
                   ))}
                 </div>
               )}
@@ -511,27 +398,6 @@ const PipelineGenerationPanel: React.FC<PipelineGenerationPanelProps> = ({ taskI
             </Section>
           )}
 
-          {/* Execution Input */}
-          {result.execution_input && (
-            <Section title="Execution Input (For Downstream)">
-              <div>Pipeline Generation ID: {result.execution_input.pipeline_generation_id}</div>
-              <div>Pipeline Bundle ID: {result.execution_input.pipeline_bundle_id}</div>
-              <div>Task Type: {result.execution_input.task_type || 'N/A'}</div>
-              <div>Target Column: {result.execution_input.target_column}</div>
-              <div>Feature Columns: {result.execution_input.feature_columns.length} columns</div>
-              <div>Pipeline Specs: {result.execution_input.pipeline_specs.length}</div>
-              <div>
-                Ready for Execution:{' '}
-                <span style={{ color: result.execution_input.ready_for_execution ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                  {result.execution_input.ready_for_execution ? 'Yes' : 'No'}
-                </span>
-              </div>
-              {result.execution_input.model_ready_matrix_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Data: {result.execution_input.model_ready_matrix_path}</div>
-              )}
-            </Section>
-          )}
-
           {/* Warnings */}
           {result.warnings && result.warnings.length > 0 && (
             <div style={s.warningSection}>
@@ -570,6 +436,8 @@ const s: Record<string, React.CSSProperties> = {
     backgroundColor: '#f3f4f6',
     border: '1px solid #9e9e9e',
     borderRadius: '8px',
+    maxHeight: '80vh',
+    overflowY: 'auto',
   },
   title: {
     margin: '0 0 8px 0',

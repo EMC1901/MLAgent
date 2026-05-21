@@ -32,8 +32,8 @@ export interface TrialResultDTO {
   params: Record<string, unknown>;
   status: string;
   fold_results: FoldResultDTO[];
-  prediction_artifact_path?: string | null;
-  model_artifact_path?: string | null;
+  prediction_artifact_paths: string[];
+  model_artifact_paths: string[];
   raw_metric_values: Record<string, number>;
   started_at?: string | null;
   finished_at?: string | null;

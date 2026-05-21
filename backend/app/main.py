@@ -1,9 +1,12 @@
+import logging
+logging.basicConfig(level=logging.INFO, format="%(levelname)-5.5s [%(name)s] %(message)s")
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlmodel import SQLModel
+from alembic.config import Config
+from alembic import command
 from app.shared.config.settings import settings
-from app.shared.database.connection import engine
 from app.shared.common.response import error_response
 from app.shared.common.exceptions import BusinessException
 from app.modules.task_specification.api import router as task_spec_router
@@ -14,7 +17,6 @@ from app.modules.feature_engineering.api import router as feature_engineering_ro
 from app.modules.feature_engineering.registry_api import registry_router
 from app.modules.feature_preprocessing.api import router as feature_preprocessing_router
 from app.modules.model_search_context.api import router as model_search_context_router
-from app.modules.model_search.api import router as model_search_router
 from app.modules.pipeline_generation.api import router as pipeline_generation_router
 from app.modules.pipeline_execution.api import router as pipeline_execution_router
 from app.modules.metric_evaluation.api import router as metric_evaluation_router
@@ -24,6 +26,7 @@ from app.modules.final_pipeline_selection.api import router as final_pipeline_se
 from app.modules.interpretability_analysis.api import router as interpretability_analysis_router
 from app.modules.final_output.api import router as final_output_router
 
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
 
@@ -39,7 +42,13 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
-    SQLModel.metadata.create_all(engine)
+    try:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Database migrations applied successfully.")
+    except Exception as e:
+        logger.error("Failed to apply database migrations: %s", str(e))
+        raise
 
 
 @app.on_event("shutdown")
@@ -55,7 +64,6 @@ app.include_router(feature_engineering_router)
 app.include_router(registry_router)
 app.include_router(feature_preprocessing_router)
 app.include_router(model_search_context_router)
-app.include_router(model_search_router)
 app.include_router(pipeline_generation_router)
 app.include_router(pipeline_execution_router)
 app.include_router(metric_evaluation_router)
@@ -76,9 +84,13 @@ async def business_exception_handler(request: Request, exc: BusinessException):
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception: %s", str(exc))
     return JSONResponse(
         status_code=500,
-        content=error_response(message="Internal server error.", error_code="INTERNAL_ERROR"),
+        content=error_response(
+            message=f"Internal server error: {str(exc)}" if settings.DEBUG else "Internal server error.",
+            error_code="INTERNAL_ERROR",
+        ),
     )
 
 

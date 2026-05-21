@@ -99,7 +99,101 @@ class ModelSearchContextInput(BaseModel):
     validation_strategy: dict = {}
     evaluation_strategy: dict = {}
     hpo_strategy: dict = {}
-    ready_for_model_search_plan: bool = False
+    ready_for_pipeline_generation: bool = False
+
+
+# ---- Execution Plan DTOs (merged from model_search) ----
+
+class BaselineModelPlan(BaseModel):
+    model_id: str
+    role: str = "baseline"
+    hpo_enabled: bool = False
+
+
+class CandidateModelPlan(BaseModel):
+    model_id: str
+    model_family: str
+    priority: str = "medium"
+    hpo_enabled: bool = True
+    reason: Optional[str] = None
+
+
+class ExcludedModelPlan(BaseModel):
+    model_id: str
+    reason: Optional[str] = None
+
+
+class CandidateModelPlanGroup(BaseModel):
+    baseline_models: List[BaselineModelPlan] = []
+    candidate_models: List[CandidateModelPlan] = []
+    excluded_models: List[ExcludedModelPlan] = []
+
+
+class TrialAllocationItem(BaseModel):
+    model_id: str
+    max_trials: int
+    allocation_rationale: Optional[str] = None
+
+
+class HPOPlan(BaseModel):
+    enabled: bool = True
+    search_method: Optional[str] = None
+    budget_level: str = "moderate"
+    max_total_trials: int = 30
+    max_parallel_trials: int = 1
+    trial_allocation: List[TrialAllocationItem] = []
+    early_stopping: bool = False
+    fallback_method: Optional[str] = None
+
+
+class SearchSpaceParameter(BaseModel):
+    name: str
+    param_type: str = "float"
+    low: Optional[float] = None
+    high: Optional[float] = None
+    choices: list = []  # mixed types: strings ("sqrt", "log2") + floats (0.5, 1.0) for sklearn
+    sampling: str = "uniform"
+    default_value: Optional[str] = None
+    override_rationale: Optional[str] = None
+
+
+class SearchSpaceItem(BaseModel):
+    model_id: str
+    search_space_id: str
+    parameters: List[SearchSpaceParameter] = []
+
+
+class SearchSpacePlan(BaseModel):
+    spaces: List[SearchSpaceItem] = []
+
+
+class ValidationPlan(BaseModel):
+    split_strategy: str = "k_fold_cross_validation"
+    n_splits: int = 5
+    random_state: int = 42
+    shuffle: bool = True
+    stratification_required: bool = False
+    benchmark_split: bool = False
+
+
+class EvaluationPlan(BaseModel):
+    primary_metric: Optional[str] = None
+    metric_direction: str = "minimize"
+    secondary_metrics: List[str] = []
+    scorer_id: Optional[str] = None
+
+
+class PipelineGenerationInput(BaseModel):
+    model_ready_matrix_path: Optional[str] = None
+    preprocessing_pipeline_artifact_id: Optional[str] = None
+    target_column: Optional[str] = None
+    feature_columns: List[str] = []
+    candidate_model_plan: dict = {}
+    hpo_plan: dict = {}
+    search_space_plan: dict = {}
+    validation_plan: dict = {}
+    evaluation_plan: dict = {}
+    ready_for_pipeline_generation: bool = False
 
 
 # ---- Response schema ----
@@ -123,6 +217,13 @@ class ModelSearchContextResponse(BaseModel):
     updated_validation_strategy: dict = {}
     updated_evaluation_strategy: dict = {}
     model_search_context_input: Optional[ModelSearchContextInput] = None
+    # Execution plans (merged from model_search)
+    candidate_model_plan: Optional[CandidateModelPlanGroup] = None
+    hpo_plan: Optional[HPOPlan] = None
+    search_space_plan: Optional[SearchSpacePlan] = None
+    validation_plan: Optional[ValidationPlan] = None
+    evaluation_plan: Optional[EvaluationPlan] = None
+    pipeline_generation_input: Optional[PipelineGenerationInput] = None
     strategy_changes: List[StrategyChange] = []
     strategy_change_summary: Optional[str] = None
     warnings: List[str] = []

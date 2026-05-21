@@ -41,8 +41,8 @@ class TrialResultDTO(BaseModel):
     params: dict = {}
     status: str = "pending"
     fold_results: List[FoldResultDTO] = []
-    prediction_artifact_path: Optional[str] = None
-    model_artifact_path: Optional[str] = None
+    prediction_artifact_paths: List[str] = []
+    model_artifact_paths: List[str] = []
     raw_metric_values: dict = {}
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None

@@ -223,13 +223,13 @@ const PipelineExecutionPanel: React.FC<PipelineExecutionPanelProps> = ({ taskId,
                         <Badge label={t.status} color={TRIAL_STATUS_COLORS[t.status] || '#9e9e9e'} />
                       </td>
                       <td style={s.td}>
-                        {t.prediction_artifact_path ? (
-                          <span style={{ fontSize: '10px', color: '#2e7d32' }}>Saved</span>
+                        {(t.prediction_artifact_paths && t.prediction_artifact_paths.length > 0) ? (
+                          <span style={{ fontSize: '10px', color: '#2e7d32' }}>Saved ({t.prediction_artifact_paths.length})</span>
                         ) : '-'}
                       </td>
                       <td style={s.td}>
-                        {t.model_artifact_path ? (
-                          <span style={{ fontSize: '10px', color: '#1565c0' }}>Saved</span>
+                        {(t.model_artifact_paths && t.model_artifact_paths.length > 0) ? (
+                          <span style={{ fontSize: '10px', color: '#1565c0' }}>Saved ({t.model_artifact_paths.length})</span>
                         ) : '-'}
                       </td>
                       <td style={s.td}>{t.duration_seconds.toFixed(1)}s</td>
@@ -245,62 +245,6 @@ const PipelineExecutionPanel: React.FC<PipelineExecutionPanelProps> = ({ taskId,
             </Section>
           )}
 
-          {/* Artifact Manifest */}
-          {result.training_artifact_manifest && (
-            <Section title="Training Artifact Manifest">
-              <div>Artifact Dir: <code style={{ fontSize: '11px' }}>{result.training_artifact_manifest.training_artifact_dir}</code></div>
-              {result.training_artifact_manifest.manifest_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Manifest: {result.training_artifact_manifest.manifest_path}</div>
-              )}
-              {result.training_artifact_manifest.trial_results_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Trial Results: {result.training_artifact_manifest.trial_results_path}</div>
-              )}
-              <div style={{ marginTop: '4px' }}>
-                <strong>Predictions:</strong> {result.training_artifact_manifest.prediction_paths.length} files
-              </div>
-              <div>
-                <strong>Models:</strong> {result.training_artifact_manifest.model_paths.length} files
-              </div>
-              {result.training_artifact_manifest.log_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Log: {result.training_artifact_manifest.log_path}</div>
-              )}
-              {result.training_artifact_manifest.split_metadata_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Splits: {result.training_artifact_manifest.split_metadata_path}</div>
-              )}
-            </Section>
-          )}
-
-          {/* Metric Evaluation Input */}
-          {result.metric_evaluation_input && (
-            <Section title="Metric Evaluation Input (Downstream)">
-              <div>
-                Ready for Metric Evaluation:{' '}
-                <span style={{ color: result.metric_evaluation_input.ready_for_metric_evaluation ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                  {result.metric_evaluation_input.ready_for_metric_evaluation ? 'Yes' : 'No'}
-                </span>
-              </div>
-              <div>Task Type: {result.metric_evaluation_input.task_type || 'N/A'}</div>
-              <div>Target Column: {result.metric_evaluation_input.target_column}</div>
-              <div>Primary Metric: <Badge label={result.metric_evaluation_input.primary_metric || 'N/A'} color="#6a1b9a" /></div>
-              <div>Metric Direction: {result.metric_evaluation_input.metric_direction}</div>
-              <div>Prediction Artifacts: {result.metric_evaluation_input.prediction_artifacts.length}</div>
-              <div>Model Artifacts: {result.metric_evaluation_input.model_artifacts.length}</div>
-              <div>Trial Results: {result.metric_evaluation_input.trial_results.length} summaries</div>
-            </Section>
-          )}
-
-          {/* Runtime Environment */}
-          {result.runtime_environment && (
-            <Section title="Runtime Environment">
-              <div style={s.envGrid}>
-                <div>Python: {result.runtime_environment.python_version || 'N/A'}</div>
-                <div>Platform: {result.runtime_environment.platform || 'N/A'}</div>
-                <div>scikit-learn: {result.runtime_environment.scikit_learn_version || 'N/A'}</div>
-                <div>pandas: {result.runtime_environment.pandas_version || 'N/A'}</div>
-                <div>numpy: {result.runtime_environment.numpy_version || 'N/A'}</div>
-              </div>
-            </Section>
-          )}
 
           {/* Warnings */}
           {result.warnings && result.warnings.length > 0 && (
@@ -340,6 +284,8 @@ const s: Record<string, React.CSSProperties> = {
     backgroundColor: '#f3f4f6',
     border: '1px solid #9e9e9e',
     borderRadius: '8px',
+    maxHeight: '80vh',
+    overflowY: 'auto',
   },
   title: {
     margin: '0 0 8px 0',

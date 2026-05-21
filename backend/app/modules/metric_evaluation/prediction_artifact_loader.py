@@ -99,9 +99,9 @@ def build_prediction_frame_map(
     trial_to_path: Dict[str, List[str]] = {}
     for t in trial_results:
         tid = t.get("trial_id", "")
-        ppath = t.get("prediction_artifact_path", "")
-        if tid and ppath:
-            trial_to_path.setdefault(tid, []).append(ppath)
+        paths = t.get("prediction_artifact_paths", [])
+        if tid and paths:
+            trial_to_path.setdefault(tid, []).extend(paths)
 
     for path, df in prediction_frames.items():
         for tid in df["trial_id"].unique():

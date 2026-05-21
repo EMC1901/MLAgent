@@ -19,7 +19,6 @@ import { getLatestWorkflowPlanByTaskId } from '../../../api/workflowPlanningApi'
 import { getLatestFeatureEngineeringByTaskId } from '../../../api/featureEngineeringApi';
 import { getLatestFeaturePreprocessingByTaskId } from '../../../api/featurePreprocessingApi';
 import { getLatestModelSearchContextByTaskId } from '../../../api/modelSearchContextApi';
-import { getLatestModelSearchPlanByTaskId } from '../../../api/modelSearchApi';
 import { getLatestPipelineGenerationByTaskId } from '../../../api/pipelineGenerationApi';
 import { getLatestPipelineExecutionByTaskId } from '../../../api/pipelineExecutionApi';
 import { getLatestMetricEvaluationByTaskId } from '../../../api/metricEvaluationApi';
@@ -34,7 +33,6 @@ import WorkflowPlanPanel from '../../workflowPlanning/components/WorkflowPlanPan
 import FeatureEngineeringPanel from '../../featureEngineering/components/FeatureEngineeringPanel';
 import FeaturePreprocessingPanel from '../../featurePreprocessing/components/FeaturePreprocessingPanel';
 import ModelSearchContextPanel from '../../modelSearchContext/components/ModelSearchContextPanel';
-import ModelSearchPlanPanel from '../../modelSearch/components/ModelSearchPlanPanel';
 import PipelineGenerationPanel from '../../pipelineGeneration/components/PipelineGenerationPanel';
 import PipelineExecutionPanel from '../../pipelineExecution/components/PipelineExecutionPanel';
 import MetricEvaluationPanel from '../../metricEvaluation/components/MetricEvaluationPanel';
@@ -181,7 +179,6 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
         ['featureEngineering', () => getLatestFeatureEngineeringByTaskId(taskId)],
         ['featurePreprocessing', () => getLatestFeaturePreprocessingByTaskId(taskId)],
         ['modelSearchContext', () => getLatestModelSearchContextByTaskId(taskId)],
-        ['modelSearchPlan', () => getLatestModelSearchPlanByTaskId(taskId)],
         ['pipelineGeneration', () => getLatestPipelineGenerationByTaskId(taskId)],
         ['pipelineExecution', () => getLatestPipelineExecutionByTaskId(taskId)],
         ['metricEvaluation', () => getLatestMetricEvaluationByTaskId(taskId)],
@@ -575,14 +572,6 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
           taskId={activeTaskId}
           initialResult={panelResults.modelSearchContext}
           key={`msctx-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <ModelSearchPlanPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.modelSearchPlan}
-          key={`msplan-${activeTaskId}`}
         />
       )}
 

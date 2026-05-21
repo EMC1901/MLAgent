@@ -32,7 +32,7 @@ _VALID_FIELD_PATHS = {
         "excluded_model_families", "selected_model_actions", "rejected_model_actions",
         "model_selection_rationale_summary",
     },
-    "hpo": {"enabled", "search_method", "budget_level", "max_trials"},
+    "hpo": {"enabled", "search_method", "budget_level", "max_trials", "search_space_width"},
     "validation": {"split_strategy", "n_splits", "test_size", "random_state", "stratification_required"},
     "evaluation": {"primary_metric", "secondary_metrics", "metric_direction"},
 }
@@ -117,6 +117,10 @@ def validate_llm_advice(parsed_advice: dict, task_type: str) -> dict:
         if field_path == "baseline_models":
             updated = change.get("updated_value", [])
             if isinstance(updated, list):
+                if len(updated) > 1:
+                    rejected.append(f"{change_key}: baseline_models must contain exactly 1 model, got {len(updated)}. Using only the first one.")
+                    updated = updated[:1]
+                    fallback_applied = True
                 valid_baselines = []
                 for m in updated:
                     resolved = _resolve_model_family(str(m))
@@ -153,12 +157,82 @@ def validate_llm_advice(parsed_advice: dict, task_type: str) -> dict:
                 change["updated_value"] = "k_fold_cross_validation"
                 fallback_applied = True
 
+        # Validate search_space_width
+        if field_path == "search_space_width":
+            updated = change.get("updated_value", "moderate")
+            if updated not in ("narrow", "moderate", "wide"):
+                rejected.append(f"search_space_width: '{updated}' is not valid (must be narrow, moderate, or wide)")
+                change["updated_value"] = "moderate"
+                fallback_applied = True
+
         if change_errors:
             rejected.extend(change_errors)
         else:
             valid_changes.append(change)
 
     parsed_advice["strategy_changes"] = valid_changes
+
+    # 1b. Validate trial_allocation (top-level field)
+    trial_allocation = parsed_advice.get("trial_allocation", [])
+    if trial_allocation and isinstance(trial_allocation, list):
+        valid_allocations = []
+        for i, alloc in enumerate(trial_allocation):
+            alloc_key = f"trial_allocation[{i}]"
+            family = str(alloc.get("model_family", "")) if alloc.get("model_family") else ""
+            resolved = _resolve_model_family(family)
+            if not is_valid_model_family(resolved):
+                rejected.append(f"{alloc_key}: model_family '{family}' is not in Model Registry")
+                fallback_applied = True
+                continue
+            trials = alloc.get("max_trials", 0)
+            max_allowed_trials = getattr(settings, "MODEL_CONTEXT_MAX_HPO_TRIALS", 50)
+            if not isinstance(trials, (int, float)) or trials < 0 or trials > max_allowed_trials:
+                rejected.append(f"{alloc_key}: max_trials {trials} is out of range [0, {max_allowed_trials}]")
+                fallback_applied = True
+                continue
+            rationale = alloc.get("allocation_rationale", "")
+            if not rationale or not isinstance(rationale, str) or not rationale.strip():
+                warnings.append(f"{alloc_key}: missing or empty allocation_rationale")
+            valid_allocations.append({
+                "model_family": resolved,
+                "max_trials": int(trials),
+                "allocation_rationale": rationale.strip() if rationale else "",
+            })
+        parsed_advice["trial_allocation"] = valid_allocations
+    else:
+        parsed_advice["trial_allocation"] = []
+
+    # 1c. Validate search_space_overrides (top-level field)
+    search_space_overrides = parsed_advice.get("search_space_overrides", [])
+    if search_space_overrides and isinstance(search_space_overrides, list):
+        valid_overrides = []
+        for i, override in enumerate(search_space_overrides):
+            ovr_key = f"search_space_overrides[{i}]"
+            family = str(override.get("model_family", "")) if override.get("model_family") else ""
+            resolved = _resolve_model_family(family)
+            if not is_valid_model_family(resolved):
+                rejected.append(f"{ovr_key}: model_family '{family}' is not in Model Registry")
+                fallback_applied = True
+                continue
+            param_name = str(override.get("parameter_name", "")).strip()
+            if not param_name:
+                rejected.append(f"{ovr_key}: missing parameter_name")
+                fallback_applied = True
+                continue
+            rationale = override.get("override_rationale", "")
+            if not rationale or not isinstance(rationale, str) or not rationale.strip():
+                warnings.append(f"{ovr_key}: missing or empty override_rationale")
+            valid_overrides.append({
+                "model_family": resolved,
+                "parameter_name": param_name,
+                "low": override.get("low"),
+                "high": override.get("high"),
+                "choices": override.get("choices"),
+                "override_rationale": rationale.strip() if rationale else "",
+            })
+        parsed_advice["search_space_overrides"] = valid_overrides
+    else:
+        parsed_advice["search_space_overrides"] = []
 
     # 2. Validate confidence score
     confidence = parsed_advice.get("confidence_score", 0.0)

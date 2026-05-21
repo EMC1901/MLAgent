@@ -80,8 +80,8 @@ def run_trial(
 
     result.fold_results = fold_results
     result.status = "failed" if all_failed else "completed"
-    result.prediction_artifact_path = pred_paths[0] if pred_paths else None
-    result.model_artifact_path = model_paths[0] if model_paths else None
+    result.prediction_artifact_paths = pred_paths
+    result.model_artifact_paths = model_paths
 
     # Aggregate raw metrics across folds
     agg_metrics = {}

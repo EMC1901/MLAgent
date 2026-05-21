@@ -25,7 +25,7 @@ def build_pipeline_bundle(
     return PipelineBundle(
         bundle_id=bundle_id,
         task_id=context.get("task_id", ""),
-        model_search_plan_id=context.get("model_search_plan_id", ""),
+        model_search_context_id=context.get("model_search_context_id", ""),
         task_type=context.get("task_type"),
         target_column=context.get("target_column"),
         feature_columns=context.get("feature_columns", []),
@@ -89,7 +89,7 @@ def build_pipeline_generation_response(
     return PipelineGenerationResponse(
         pipeline_generation_id=pg_id,
         task_id=context.get("task_id"),
-        model_search_plan_id=context.get("model_search_plan_id"),
+        model_search_context_id=context.get("model_search_context_id"),
         feature_preprocessing_id=context.get("feature_preprocessing_id"),
         status=status,
         generation_mode=generation_mode,

@@ -75,12 +75,12 @@ def collect_experiment_history(session: Session, task_id: str) -> ExperimentHist
         logger.debug("Could not collect diagnosis history: %s", str(e))
 
     try:
-        from app.modules.model_search.repository import ModelSearchRepository
-        ms_repo = ModelSearchRepository()
-        ms_list = ms_repo.list_by_task_id(session, task_id)
-        for ms in ms_list:
-            if ms.plan_json:
-                models = ms.plan_json.get("candidate_model_plan", {})
+        from app.modules.model_search_context.repository import ModelSearchContextRepository
+        msc_repo = ModelSearchContextRepository()
+        msc_list = msc_repo.list_by_task_id(session, task_id)
+        for msc in msc_list:
+            if msc.context_json:
+                models = msc.context_json.get("candidate_model_plan", {})
                 if isinstance(models, dict):
                     families = models.get("candidate_model_families", [])
                     if isinstance(families, list):

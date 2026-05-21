@@ -73,7 +73,9 @@
       "Bash(echo \"Exit: $?\")",
       "Bash(npx --yes tsc --noEmit --pretty)",
       "Bash(docker exec mlagent-db-1 *)",
-      "Bash(echo \"EXIT:$?\")"
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(alembic revision *)",
+      "Bash(alembic upgrade *)"
     ]
   }
 }

@@ -11,14 +11,14 @@ class PipelineGenerationNotFoundException(PipelineGenerationException):
         super().__init__(message, "PIPELINE_GENERATION_NOT_FOUND")
 
 
-class ModelSearchPlanRequiredException(PipelineGenerationException):
-    def __init__(self, message: str = "Model Search Plan is required."):
-        super().__init__(message, "MODEL_SEARCH_PLAN_REQUIRED")
+class ModelSearchContextRequiredException(PipelineGenerationException):
+    def __init__(self, message: str = "Model Search Context is required."):
+        super().__init__(message, "MODEL_SEARCH_CONTEXT_REQUIRED")
 
 
-class ModelSearchPlanNotReadyException(PipelineGenerationException):
-    def __init__(self, message: str = "Model Search Plan is not ready."):
-        super().__init__(message, "MODEL_SEARCH_PLAN_NOT_READY")
+class ModelSearchContextNotReadyException(PipelineGenerationException):
+    def __init__(self, message: str = "Model Search Context is not ready."):
+        super().__init__(message, "MODEL_SEARCH_CONTEXT_NOT_READY")
 
 
 class PipelineGenerationInputMissingException(PipelineGenerationException):

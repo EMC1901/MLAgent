@@ -1,14 +1,32 @@
 import uuid
 from datetime import datetime
-from typing import List
+from typing import List, Optional
+from app.shared.config.settings import settings
+from app.shared.registry.hpo_registry import get_hpo_method_spec
 from app.modules.model_search_context.schemas import (
     LLMStrategyAdvice,
     ModelSearchContextInput,
     ModelSearchContextResponse,
     StrategyChange,
     StrategyChangeRationale,
+    BaselineModelPlan,
+    CandidateModelPlan,
+    CandidateModelPlanGroup,
+    ExcludedModelPlan,
+    TrialAllocationItem,
+    HPOPlan,
+    SearchSpacePlan,
+    ValidationPlan,
+    EvaluationPlan,
+    PipelineGenerationInput,
 )
-from app.modules.model_search_context.enums import ModelSearchContextStatus, UpdateMode
+from app.modules.model_search_context.enums import (
+    ModelSearchContextStatus,
+    UpdateMode,
+    HPOBudgetLevel,
+    TaskType,
+    MetricDirection,
+)
 
 
 def build_model_search_context_response(
@@ -25,6 +43,7 @@ def build_model_search_context_response(
     errors: List[str],
     status: str,
     error_message: str = None,
+    execution_plans: dict = None,
 ) -> ModelSearchContextResponse:
 
     llm_strategy_advice = LLMStrategyAdvice(
@@ -71,8 +90,36 @@ def build_model_search_context_response(
         validation_strategy=updated_val,
         evaluation_strategy=updated_eval,
         hpo_strategy=updated_hpo,
-        ready_for_model_search_plan=True,
+        ready_for_pipeline_generation=True,
     )
+
+    # Build execution plans
+    candidate_model_plan = None
+    hpo_plan = None
+    search_space_plan = None
+    validation_plan = None
+    evaluation_plan = None
+    pipeline_gen_input = None
+
+    if execution_plans:
+        candidate_model_plan = _build_candidate_model_plan_group(execution_plans.get("candidate_model_data", {}))
+        hpo_plan = execution_plans.get("hpo_plan")
+        search_space_plan = execution_plans.get("search_space_plan")
+        validation_plan = execution_plans.get("validation_plan")
+        evaluation_plan = execution_plans.get("evaluation_plan")
+
+        pipeline_gen_input = PipelineGenerationInput(
+            model_ready_matrix_path=fmp_ctx.get("model_ready_artifact_path"),
+            preprocessing_pipeline_artifact_id=fmp_ctx.get("preprocessor_artifact_id"),
+            target_column=task_ctx.get("target_column"),
+            feature_columns=feature_columns,
+            candidate_model_plan=candidate_model_plan.model_dump() if candidate_model_plan else {},
+            hpo_plan=hpo_plan.model_dump() if hpo_plan else {},
+            search_space_plan=search_space_plan.model_dump() if search_space_plan else {},
+            validation_plan=validation_plan.model_dump() if validation_plan else {},
+            evaluation_plan=evaluation_plan.model_dump() if evaluation_plan else {},
+            ready_for_pipeline_generation=True,
+        )
 
     return ModelSearchContextResponse(
         context_id=context_id,
@@ -93,12 +140,38 @@ def build_model_search_context_response(
         updated_validation_strategy=updated_val,
         updated_evaluation_strategy=updated_eval,
         model_search_context_input=model_search_input,
+        candidate_model_plan=candidate_model_plan,
+        hpo_plan=hpo_plan,
+        search_space_plan=search_space_plan,
+        validation_plan=validation_plan,
+        evaluation_plan=evaluation_plan,
+        pipeline_generation_input=pipeline_gen_input,
         strategy_changes=_convert_strategy_changes(merge_result.get("strategy_changes", [])),
         strategy_change_summary=merge_result.get("strategy_change_summary", ""),
         warnings=warnings,
         errors=errors,
         error_message=error_message,
         confidence_score=llm_confidence_score,
+    )
+
+
+def _build_candidate_model_plan_group(data: dict) -> CandidateModelPlanGroup:
+    """Convert raw dicts or Pydantic model lists to CandidateModelPlanGroup."""
+    def _coerce(items, model_cls):
+        result = []
+        for item in items:
+            if isinstance(item, model_cls):
+                result.append(item)
+            elif isinstance(item, dict):
+                result.append(model_cls(**item))
+            else:
+                result.append(model_cls(**item.model_dump()))
+        return result
+
+    return CandidateModelPlanGroup(
+        baseline_models=_coerce(data.get("baseline_models", []), BaselineModelPlan),
+        candidate_models=_coerce(data.get("candidate_models", []), CandidateModelPlan),
+        excluded_models=_coerce(data.get("excluded_models", []), ExcludedModelPlan),
     )
 
 
@@ -118,3 +191,195 @@ def _convert_strategy_changes(changes_data: List[dict]) -> List[StrategyChange]:
 
 def build_context_json(response: ModelSearchContextResponse) -> dict:
     return response.model_dump(mode="json")
+
+
+# ---- Inlined execution plan builders (from model_search) ----
+
+_METRIC_DIRECTIONS = {
+    "MAE": MetricDirection.MINIMIZE,
+    "MSE": MetricDirection.MINIMIZE,
+    "RMSE": MetricDirection.MINIMIZE,
+    "R2": MetricDirection.MAXIMIZE,
+    "MAPE": MetricDirection.MINIMIZE,
+    "accuracy": MetricDirection.MAXIMIZE,
+    "precision": MetricDirection.MAXIMIZE,
+    "recall": MetricDirection.MAXIMIZE,
+    "f1": MetricDirection.MAXIMIZE,
+    "roc_auc": MetricDirection.MAXIMIZE,
+}
+
+_DEFAULT_SECONDARY = {
+    TaskType.REGRESSION: ["RMSE", "R2"],
+    TaskType.CLASSIFICATION: ["accuracy", "f1"],
+}
+
+
+def build_hpo_plan(
+    updated_hpo_strategy: dict,
+    candidate_models: List[dict],
+    baseline_models: List[dict],
+    preferred_search_method: str = None,
+    max_total_trials_override: int = None,
+    llm_trial_allocation: List[dict] = None,
+) -> HPOPlan:
+    """Build HPO plan from the context's updated_hpo_strategy."""
+    enabled = updated_hpo_strategy.get("enabled", True)
+
+    search_method = preferred_search_method or updated_hpo_strategy.get("search_method") or "random_search"
+    method_spec = get_hpo_method_spec(search_method)
+    if not method_spec:
+        search_method = "random_search"
+
+    budget_level = updated_hpo_strategy.get("budget_level", "moderate")
+
+    if max_total_trials_override:
+        max_total_trials = max_total_trials_override
+    else:
+        max_total_trials = int(updated_hpo_strategy.get("max_trials", 30))
+
+    max_allowed = getattr(settings, "MODEL_SEARCH_MAX_TOTAL_TRIALS", 50)
+    max_total_trials = min(max_total_trials, max_allowed)
+
+    max_parallel = getattr(settings, "MODEL_SEARCH_DEFAULT_MAX_PARALLEL_TRIALS", 1)
+
+    if llm_trial_allocation:
+        trial_allocation = _apply_llm_trial_allocation(
+            llm_trial_allocation, candidate_models, baseline_models, max_total_trials,
+        )
+    else:
+        trial_allocation = _allocate_trials(candidate_models, baseline_models, max_total_trials)
+
+    fallback = "random_search" if search_method != "random_search" else None
+
+    return HPOPlan(
+        enabled=enabled,
+        search_method=search_method,
+        budget_level=budget_level,
+        max_total_trials=max_total_trials,
+        max_parallel_trials=max_parallel,
+        trial_allocation=trial_allocation,
+        early_stopping=budget_level == HPOBudgetLevel.LOW,
+        fallback_method=fallback,
+    )
+
+
+def _apply_llm_trial_allocation(
+    llm_allocations: List[dict],
+    candidate_models: List[dict],
+    baseline_models: List[dict],
+    max_total_trials: int,
+) -> List[TrialAllocationItem]:
+    """Use LLM-provided trial allocation, mapped from model_family to model_id."""
+    # Build family → rationale lookup from LLM
+    llm_map: dict = {}
+    for alloc in llm_allocations:
+        family = alloc.get("model_family", "")
+        llm_map[family] = {
+            "max_trials": int(alloc.get("max_trials", 0)),
+            "allocation_rationale": alloc.get("allocation_rationale", ""),
+        }
+
+    allocations = []
+    # Handle non-HPO baselines (always 0 trials)
+    non_hpo_baselines = [b for b in baseline_models if not b.get("hpo_enabled")]
+    for b in non_hpo_baselines:
+        allocations.append(TrialAllocationItem(
+            model_id=b["model_id"],
+            max_trials=0,
+            allocation_rationale="Baseline model — fixed defaults, no HPO needed.",
+        ))
+
+    # Handle HPO baselines + candidates with LLM allocation
+    hpo_baselines = [b for b in baseline_models if b.get("hpo_enabled")]
+    all_hpo_models = hpo_baselines + candidate_models
+
+    # Sum of LLM-allocated trials
+    llm_total = sum(llm_map.get(m["model_id"], {}).get("max_trials", 0) for m in all_hpo_models)
+
+    # If LLM total differs from system max, scale proportionally
+    scale = (max_total_trials / llm_total) if llm_total > 0 else 1.0
+
+    for m in all_hpo_models:
+        mid = m["model_id"]
+        family = m.get("model_family", mid)
+        llm_entry = llm_map.get(mid) or llm_map.get(family, {})
+        trials = int(llm_entry.get("max_trials", 0) * scale) if llm_entry else 0
+        trials = max(1, min(trials, max_total_trials))  # at least 1 trial for HPO models
+        rationale = llm_entry.get("allocation_rationale", "")
+        allocations.append(TrialAllocationItem(
+            model_id=mid,
+            max_trials=trials,
+            allocation_rationale=rationale,
+        ))
+
+    return allocations
+
+
+def _allocate_trials(
+    candidate_models: List[dict],
+    baseline_models: List[dict],
+    max_total_trials: int,
+) -> List[TrialAllocationItem]:
+    """Allocate trial budget across models, weighted by priority."""
+    allocations = []
+
+    hpo_baselines = [b for b in baseline_models if b.get("hpo_enabled")]
+    non_hpo_baselines = [b for b in baseline_models if not b.get("hpo_enabled")]
+
+    for b in non_hpo_baselines:
+        allocations.append(TrialAllocationItem(model_id=b["model_id"], max_trials=0))
+
+    all_hpo_models = hpo_baselines + candidate_models
+    if not all_hpo_models:
+        return allocations
+
+    priority_weight = {"high": 3, "medium": 2, "low": 1}
+    weights = []
+    for m in all_hpo_models:
+        priority = m.get("priority", "medium")
+        weights.append(priority_weight.get(priority, 2))
+
+    total_weight = sum(weights)
+    remaining = max_total_trials
+
+    for i, m in enumerate(all_hpo_models):
+        if i == len(all_hpo_models) - 1:
+            trials = remaining
+        else:
+            trials = max(1, int(max_total_trials * weights[i] / total_weight))
+        trials = max(1, min(trials, remaining))
+        remaining -= trials
+        allocations.append(TrialAllocationItem(model_id=m["model_id"], max_trials=trials))
+
+    return allocations
+
+
+def build_validation_plan(updated_validation_strategy: dict) -> ValidationPlan:
+    """Build validation plan from updated strategy."""
+    return ValidationPlan(
+        split_strategy=updated_validation_strategy.get("split_strategy", "k_fold_cross_validation"),
+        n_splits=int(updated_validation_strategy.get("n_splits", 5)),
+        random_state=int(updated_validation_strategy.get("random_state", 42)),
+        shuffle=bool(updated_validation_strategy.get("shuffle", True)),
+        stratification_required=bool(updated_validation_strategy.get("stratification_required", False)),
+        benchmark_split=bool(updated_validation_strategy.get("benchmark_split", False)),
+    )
+
+
+def build_evaluation_plan(
+    primary_metric: str,
+    task_type: str,
+    updated_evaluation_strategy: dict,
+) -> EvaluationPlan:
+    """Build evaluation plan with metric direction and secondary metrics."""
+    metric_direction = _METRIC_DIRECTIONS.get(primary_metric, MetricDirection.MINIMIZE)
+    secondary = updated_evaluation_strategy.get(
+        "secondary_metrics",
+        _DEFAULT_SECONDARY.get(task_type, []),
+    )
+    return EvaluationPlan(
+        primary_metric=primary_metric,
+        metric_direction=metric_direction,
+        secondary_metrics=list(secondary) if secondary else [],
+        scorer_id=updated_evaluation_strategy.get("scorer_id"),
+    )

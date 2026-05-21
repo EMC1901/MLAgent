@@ -88,8 +88,104 @@ export interface ModelSearchContextInput {
   validation_strategy: Record<string, unknown>;
   evaluation_strategy: Record<string, unknown>;
   hpo_strategy: Record<string, unknown>;
-  ready_for_model_search_plan: boolean;
+  ready_for_pipeline_generation: boolean;
 }
+
+// ---- Execution Plan Types (merged from model search) ----
+
+export interface BaselineModelPlan {
+  model_id: string;
+  role: string;
+  hpo_enabled: boolean;
+}
+
+export interface CandidateModelPlan {
+  model_id: string;
+  model_family: string;
+  priority: string;
+  hpo_enabled: boolean;
+  reason?: string | null;
+}
+
+export interface ExcludedModelPlan {
+  model_id: string;
+  reason?: string | null;
+}
+
+export interface CandidateModelPlanGroup {
+  baseline_models: BaselineModelPlan[];
+  candidate_models: CandidateModelPlan[];
+  excluded_models: ExcludedModelPlan[];
+}
+
+export interface TrialAllocationItem {
+  model_id: string;
+  max_trials: number;
+  allocation_rationale?: string | null;
+}
+
+export interface HPOPlan {
+  enabled: boolean;
+  search_method?: string | null;
+  budget_level: string;
+  max_total_trials: number;
+  max_parallel_trials: number;
+  trial_allocation: TrialAllocationItem[];
+  early_stopping: boolean;
+  fallback_method?: string | null;
+}
+
+export interface SearchSpaceParameter {
+  name: string;
+  param_type: string;
+  low?: number | null;
+  high?: number | null;
+  choices: (string | number)[];
+  sampling: string;
+  default_value?: string | null;
+  override_rationale?: string | null;
+}
+
+export interface SearchSpaceItem {
+  model_id: string;
+  search_space_id: string;
+  parameters: SearchSpaceParameter[];
+}
+
+export interface SearchSpacePlan {
+  spaces: SearchSpaceItem[];
+}
+
+export interface ValidationPlan {
+  split_strategy: string;
+  n_splits: number;
+  random_state: number;
+  shuffle: boolean;
+  stratification_required: boolean;
+  benchmark_split: boolean;
+}
+
+export interface EvaluationPlan {
+  primary_metric?: string | null;
+  metric_direction: string;
+  secondary_metrics: string[];
+  scorer_id?: string | null;
+}
+
+export interface PipelineGenerationInput {
+  model_ready_matrix_path?: string | null;
+  preprocessing_pipeline_artifact_id?: string | null;
+  target_column?: string | null;
+  feature_columns: string[];
+  candidate_model_plan: Record<string, unknown>;
+  hpo_plan: Record<string, unknown>;
+  search_space_plan: Record<string, unknown>;
+  validation_plan: Record<string, unknown>;
+  evaluation_plan: Record<string, unknown>;
+  ready_for_pipeline_generation: boolean;
+}
+
+// ---- Response ----
 
 export interface ModelSearchContextResponse {
   context_id: string;
@@ -110,6 +206,13 @@ export interface ModelSearchContextResponse {
   updated_validation_strategy: Record<string, unknown>;
   updated_evaluation_strategy: Record<string, unknown>;
   model_search_context_input?: ModelSearchContextInput | null;
+  // Execution plans
+  candidate_model_plan?: CandidateModelPlanGroup | null;
+  hpo_plan?: HPOPlan | null;
+  search_space_plan?: SearchSpacePlan | null;
+  validation_plan?: ValidationPlan | null;
+  evaluation_plan?: EvaluationPlan | null;
+  pipeline_generation_input?: PipelineGenerationInput | null;
   strategy_changes: StrategyChange[];
   strategy_change_summary?: string | null;
   warnings: string[];

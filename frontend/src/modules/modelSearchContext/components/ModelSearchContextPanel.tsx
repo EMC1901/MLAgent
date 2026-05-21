@@ -3,7 +3,22 @@ import {
   createModelSearchContext,
   rerunModelSearchContext,
 } from '../../../api/modelSearchContextApi';
-import { ModelSearchContextResponse, StrategyChange, StrategyChangeRationale } from '../types';
+import {
+  ModelSearchContextResponse,
+  StrategyChange,
+  StrategyChangeRationale,
+  HPOPlan,
+  SearchSpacePlan,
+  ValidationPlan,
+  EvaluationPlan,
+  PipelineGenerationInput,
+} from '../types';
+
+const BUDGET_COLORS: Record<string, string> = {
+  low: '#ff9800',
+  moderate: '#1976d2',
+  high: '#2e7d32',
+};
 
 interface ModelSearchContextPanelProps {
   taskId: string;
@@ -224,10 +239,11 @@ const ModelSearchContextPanel: React.FC<ModelSearchContextPanelProps> = ({ taskI
 
   return (
     <div style={styles.container}>
-      <h3 style={styles.title}>Model Search Context Update</h3>
+      <h3 style={styles.title}>Model Search Plan</h3>
       <p style={styles.description}>
-        Analyze the model-ready dataset after preprocessing and use LLM-guided strategy
-        analysis to update the model search context before HPO and training.
+        LLM-guided strategy planning and execution plan generation. Analyzes the
+        preprocessed dataset to recommend model families, HPO settings, and produces
+        concrete execution plans with search spaces and trial allocation.
       </p>
 
       <div style={styles.buttonRow}>
@@ -362,101 +378,12 @@ const ModelSearchContextPanel: React.FC<ModelSearchContextPanelProps> = ({ taskI
             </div>
           )}
 
-          {/* System Validation */}
-          {result.system_validation_result && (
-            <Section title="System Validation">
-              <div>
-                Is Valid:{' '}
-                <span style={{ color: result.system_validation_result.is_valid ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                  {result.system_validation_result.is_valid ? 'Yes' : 'No'}
-                </span>
-              </div>
-              <div>
-                Fallback Applied:{' '}
-                <span style={{ color: result.system_validation_result.fallback_applied ? '#ff9800' : '#2e7d32', fontWeight: 600 }}>
-                  {result.system_validation_result.fallback_applied ? 'Yes' : 'No'}
-                </span>
-              </div>
-              {result.system_validation_result.rejected_suggestions && result.system_validation_result.rejected_suggestions.length > 0 && (
-                <div style={{ marginTop: '4px' }}>
-                  <strong style={{ color: '#c62828' }}>Rejected Suggestions:</strong>
-                  {result.system_validation_result.rejected_suggestions.map((s, i) => (
-                    <div key={i} style={{ marginLeft: '16px', fontSize: '12px', color: '#c62828' }}>
-                      ✗ {s}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
-          )}
-
           {/* Risk Notes */}
           {result.llm_strategy_advice?.risk_notes && result.llm_strategy_advice.risk_notes.length > 0 && (
             <Section title="Risk Notes">
               {result.llm_strategy_advice.risk_notes.map((r, i) => (
                 <div key={i} style={styles.riskItem}>⚠ {r}</div>
               ))}
-            </Section>
-          )}
-
-          {/* Dataset Effective Profile */}
-          {result.dataset_effective_profile && (
-            <Section title="Effective Dataset Profile">
-              <div>Samples: {result.dataset_effective_profile.n_samples}</div>
-              <div>Raw Features: {result.dataset_effective_profile.n_raw_features}</div>
-              <div>
-                Final Features:{' '}
-                <Badge
-                  label={String(result.dataset_effective_profile.n_final_features)}
-                  color={result.dataset_effective_profile.n_final_features < 20 ? '#ff9800' : '#1976d2'}
-                />
-              </div>
-              <div>Dropped Features: {result.dataset_effective_profile.n_dropped_features}</div>
-              <div>
-                Reduction Ratio:{' '}
-                <Badge
-                  label={`${(result.dataset_effective_profile.feature_reduction_ratio * 100).toFixed(1)}%`}
-                  color={result.dataset_effective_profile.feature_reduction_ratio > 0.8 ? '#ff9800' : '#1976d2'}
-                />
-              </div>
-              <div>Target Column: {result.dataset_effective_profile.target_column}</div>
-              <div>Task Type: {result.dataset_effective_profile.task_type}</div>
-            </Section>
-          )}
-
-          {/* Feature Group Summary */}
-          {result.feature_group_summary && (
-            <Section title="Feature Group Summary">
-              <div>
-                Retained Groups:{' '}
-                {result.feature_group_summary.retained_groups.length > 0
-                  ? result.feature_group_summary.retained_groups.map((g, i) => (
-                      <Badge key={i} label={g} color="#2e7d32" />
-                    ))
-                  : <Badge label="None" color="#9e9e9e" />}
-              </div>
-              <div>
-                Dropped Groups:{' '}
-                {result.feature_group_summary.dropped_groups.length > 0
-                  ? result.feature_group_summary.dropped_groups.map((g, i) => (
-                      <Badge key={i} label={g} color="#c62828" />
-                    ))
-                  : <Badge label="None" color="#9e9e9e" />}
-              </div>
-              {result.feature_group_summary.partially_retained_groups && result.feature_group_summary.partially_retained_groups.length > 0 && (
-                <div>
-                  Partially Retained:{' '}
-                  {result.feature_group_summary.partially_retained_groups.map((g, i) => (
-                    <Badge key={i} label={g} color="#ff9800" />
-                  ))}
-                </div>
-              )}
-              <div>
-                Low Feature Warning:{' '}
-                <span style={{ color: result.feature_group_summary.low_effective_feature_warning ? '#ff9800' : '#2e7d32', fontWeight: 600 }}>
-                  {result.feature_group_summary.low_effective_feature_warning ? 'Yes' : 'No'}
-                </span>
-              </div>
             </Section>
           )}
 
@@ -490,24 +417,144 @@ const ModelSearchContextPanel: React.FC<ModelSearchContextPanelProps> = ({ taskI
             </Section>
           )}
 
-          {/* Model Search Context Input */}
-          {result.model_search_context_input && (
-            <Section title="Model Search Context Input">
+          {/* HPO Plan */}
+          {result.hpo_plan && (
+            <Section title="HPO Plan">
               <div>
-                Ready for Model Search:{' '}
-                <span style={{ color: result.model_search_context_input.ready_for_model_search_plan ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                  {result.model_search_context_input.ready_for_model_search_plan ? 'Yes' : 'No'}
+                HPO Enabled:{' '}
+                <Badge label={result.hpo_plan.enabled ? 'Yes' : 'No'} color={result.hpo_plan.enabled ? '#2e7d32' : '#9e9e9e'} />
+              </div>
+              <div>Search Method: <Badge label={result.hpo_plan.search_method || 'N/A'} color="#1565c0" /></div>
+              <div>
+                Budget Level:{' '}
+                <Badge label={result.hpo_plan.budget_level} color={BUDGET_COLORS[result.hpo_plan.budget_level] || '#1976d2'} />
+              </div>
+              <div>Max Total Trials: <strong>{result.hpo_plan.max_total_trials}</strong></div>
+              <div>Max Parallel Trials: {result.hpo_plan.max_parallel_trials}</div>
+              <div>
+                Early Stopping:{' '}
+                <Badge label={result.hpo_plan.early_stopping ? 'Yes' : 'No'} color={result.hpo_plan.early_stopping ? '#ff9800' : '#9e9e9e'} />
+              </div>
+              {result.hpo_plan.fallback_method && (
+                <div>Fallback Method: {result.hpo_plan.fallback_method}</div>
+              )}
+              {result.hpo_plan.trial_allocation.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <strong>Trial Allocation:</strong>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...styles.th, width: '18%' }}>Model</th>
+                        <th style={{ ...styles.th, width: '12%' }}>Max Trials</th>
+                        <th style={{ ...styles.th, width: '70%' }}>Rationale</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.hpo_plan.trial_allocation.map((t, i) => (
+                        <tr key={i}>
+                          <td style={styles.td}>{t.model_id}</td>
+                          <td style={styles.td}>
+                            <Badge
+                              label={String(t.max_trials)}
+                              color={t.max_trials === 0 ? '#9e9e9e' : '#1565c0'}
+                            />
+                          </td>
+                          <td style={{ ...styles.td, fontSize: '11px', color: '#555' }}>
+                            {t.allocation_rationale || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* Search Space Plan */}
+          {result.search_space_plan && result.search_space_plan.spaces.length > 0 && (
+            <Section title="Search Space Plan">
+              {result.search_space_plan.spaces.map((sp, i) => (
+                <div key={i} style={{ marginBottom: '8px' }}>
+                  <strong>{sp.model_id}</strong> <span style={{ fontSize: '11px', color: '#888' }}>({sp.search_space_id})</span>
+                  {sp.parameters.length > 0 ? (
+                    <table style={{ ...styles.table, marginTop: '4px' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ ...styles.th, width: '18%' }}>Parameter</th>
+                          <th style={{ ...styles.th, width: '10%' }}>Type</th>
+                          <th style={{ ...styles.th, width: '22%' }}>Range</th>
+                          <th style={{ ...styles.th, width: '12%' }}>Sampling</th>
+                          <th style={{ ...styles.th, width: '10%' }}>Default</th>
+                          <th style={{ ...styles.th, width: '28%' }}>LLM Override</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sp.parameters.map((p, j) => (
+                          <tr key={j} style={p.override_rationale ? { backgroundColor: '#fff8e1' } : undefined}>
+                            <td style={styles.td}>
+                              {p.name}
+                              {p.override_rationale && (
+                                <span style={{ marginLeft: '4px', fontSize: '10px', color: '#f57c00' }}>⚡</span>
+                              )}
+                            </td>
+                            <td style={styles.td}>{p.param_type}</td>
+                            <td style={styles.td}>
+                              {p.choices.length > 0
+                                ? p.choices.join(', ')
+                                : `[${p.low ?? '?'}, ${p.high ?? '?'}]`}
+                            </td>
+                            <td style={styles.td}>{p.sampling}</td>
+                            <td style={styles.td}>{p.default_value || '-'}</td>
+                            <td style={{ ...styles.td, fontSize: '11px', color: p.override_rationale ? '#e65100' : '#9e9e9e', fontStyle: p.override_rationale ? 'normal' : 'italic' }}>
+                              {p.override_rationale || 'template default'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: '#888', marginLeft: '16px' }}>No HPO parameters (no HPO needed)</div>
+                  )}
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* Validation Plan */}
+          {result.validation_plan && (
+            <Section title="Validation Plan">
+              <div>Split Strategy: {result.validation_plan.split_strategy}</div>
+              <div>CV Splits: {result.validation_plan.n_splits}</div>
+              <div>Random State: {result.validation_plan.random_state}</div>
+              <div>Shuffle: <Badge label={result.validation_plan.shuffle ? 'Yes' : 'No'} color={result.validation_plan.shuffle ? '#2e7d32' : '#9e9e9e'} /></div>
+              <div>Benchmark Split: <Badge label={result.validation_plan.benchmark_split ? 'Yes' : 'No'} color={result.validation_plan.benchmark_split ? '#ff9800' : '#9e9e9e'} /></div>
+            </Section>
+          )}
+
+          {/* Evaluation Plan */}
+          {result.evaluation_plan && (
+            <Section title="Evaluation Plan">
+              <div>Primary Metric: {result.evaluation_plan.primary_metric || 'N/A'}</div>
+              <div>Direction: {result.evaluation_plan.metric_direction}</div>
+              <div>Scorer ID: {result.evaluation_plan.scorer_id || 'default'}</div>
+              {result.evaluation_plan.secondary_metrics.length > 0 && (
+                <div>Secondary Metrics: {result.evaluation_plan.secondary_metrics.join(', ')}</div>
+              )}
+            </Section>
+          )}
+
+          {/* Pipeline Generation Input */}
+          {result.pipeline_generation_input && (
+            <Section title="Pipeline Generation Input">
+              <div>
+                Ready for Pipeline Generation:{' '}
+                <span style={{ color: result.pipeline_generation_input.ready_for_pipeline_generation ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
+                  {result.pipeline_generation_input.ready_for_pipeline_generation ? 'Yes' : 'No'}
                 </span>
               </div>
-              <div>Task Type: {result.model_search_context_input.task_type}</div>
-              <div>Primary Metric: {result.model_search_context_input.primary_metric}</div>
-              <div>Target Column: {result.model_search_context_input.target_column}</div>
-              <div>
-                Feature Columns:{' '}
-                {result.model_search_context_input.feature_columns && result.model_search_context_input.feature_columns.length > 0
-                  ? `${result.model_search_context_input.feature_columns.length} columns`
-                  : 'None'}
-              </div>
+              <div>Target Column: {result.pipeline_generation_input.target_column || 'N/A'}</div>
+              <div>Feature Columns: {result.pipeline_generation_input.feature_columns.length} columns</div>
             </Section>
           )}
 
@@ -653,6 +700,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '12px',
     tableLayout: 'fixed' as const,
   },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+    marginTop: '4px',
+    fontSize: '12px',
+  },
   th: {
     textAlign: 'left' as const,
     padding: '6px 8px',
@@ -662,8 +715,8 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#fafafa',
   },
   td: {
-    padding: '8px',
-    borderBottom: '1px solid #e0e0e0',
+    padding: '3px 8px',
+    borderBottom: '1px solid #f0f0f0',
     verticalAlign: 'top',
     overflowWrap: 'break-word' as const,
     wordBreak: 'break-word' as const,

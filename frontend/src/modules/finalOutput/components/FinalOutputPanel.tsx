@@ -409,7 +409,6 @@ const WorkflowTraceTab: React.FC<{ trace?: Record<string, unknown> }> = ({ trace
     { key: 'feature_engineering_id', label: 'Feature Engineering' },
     { key: 'feature_preprocessing_id', label: 'Feature Preprocessing' },
     { key: 'model_search_context_id', label: 'Model Search Context' },
-    { key: 'model_search_plan_id', label: 'Model Search Plan' },
     { key: 'pipeline_generation_id', label: 'Pipeline Generation' },
     { key: 'pipeline_execution_id', label: 'Pipeline Execution' },
     { key: 'metric_evaluation_id', label: 'Metric Evaluation' },

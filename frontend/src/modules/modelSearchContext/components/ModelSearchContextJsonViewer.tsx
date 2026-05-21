@@ -10,9 +10,9 @@ const ModelSearchContextJsonViewer: React.FC<Props> = ({ input }) => {
   return (
     <Card title="Model Search Context Input" size="small" style={{ marginBottom: 16 }}>
       <Descriptions bordered size="small" column={2}>
-        <Descriptions.Item label="Ready for Model Search">
-          <Tag color={input.ready_for_model_search_plan ? 'success' : 'error'}>
-            {input.ready_for_model_search_plan ? 'Yes' : 'No'}
+        <Descriptions.Item label="Ready for Pipeline Generation">
+          <Tag color={input.ready_for_pipeline_generation ? 'success' : 'error'}>
+            {input.ready_for_pipeline_generation ? 'Yes' : 'No'}
           </Tag>
         </Descriptions.Item>
         <Descriptions.Item label="Task Type">

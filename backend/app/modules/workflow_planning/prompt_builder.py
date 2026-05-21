@@ -162,7 +162,7 @@ OUTPUT_JSON_SCHEMA = {
             ],
             "properties": {
                 "candidate_model_families": {"type": "array", "items": {"type": "string"}},
-                "baseline_models": {"type": "array", "items": {"type": "string"}},
+                "baseline_models": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"type": "string"}, "description": "EXACTLY ONE model family to serve as the comparative baseline. Must be a simple, fast, well-understood model."},
                 "preferred_model_bias": {"type": "string"},
                 "excluded_model_families": {"type": "array", "items": {"type": "string"}},
                 "model_selection_rationale_summary": {"type": "string"},
@@ -227,7 +227,7 @@ OUTPUT_JSON_SCHEMA = {
             "required": ["enabled", "search_method", "budget_level", "max_trials"],
             "properties": {
                 "enabled": {"type": "boolean"},
-                "search_method": {"type": "string", "enum": ["grid_search", "random_search", "bayesian_optimization"]},
+                "search_method": {"type": "string", "enum": ["grid_search", "random_search", "bayesian_optimization", "optuna_tpe", "successive_halving"]},
                 "budget_level": {"type": "string", "enum": ["low", "medium", "high"]},
                 "max_trials": {"type": "integer", "minimum": 1},
             },
@@ -316,6 +316,7 @@ The full WorkflowPlan must include: task_summary, data_strategy, feature_strateg
 
 **Model Selection Rules:**
 
+- You MUST pick EXACTLY ONE model as the baseline_model. The baseline must be a simple, fast, well-established model (e.g. dummy_mean, linear_regression, ridge) that serves as the minimum-performance reference point. Do NOT select more than one baseline.
 - You MUST provide detailed rationale for BOTH selected AND rejected models.
 - Each selected_model_action MUST have a complete decision_rationale with: reason, evidence, expected_performance, risk, fallback.
 - Each rejected model in rejected_model_actions MUST have a reason explaining why it was excluded for this specific task.

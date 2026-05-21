@@ -18,7 +18,6 @@ def collect_workflow_trace(
     feature_engineering_id: Optional[str] = None,
     feature_preprocessing_id: Optional[str] = None,
     model_search_context_id: Optional[str] = None,
-    model_search_plan_id: Optional[str] = None,
     pipeline_generation_id: Optional[str] = None,
     pipeline_execution_id: Optional[str] = None,
     metric_evaluation_id: Optional[str] = None,
@@ -35,7 +34,6 @@ def collect_workflow_trace(
         feature_engineering_id=feature_engineering_id,
         feature_preprocessing_id=feature_preprocessing_id,
         model_search_context_id=model_search_context_id,
-        model_search_plan_id=model_search_plan_id,
         pipeline_generation_id=pipeline_generation_id,
         pipeline_execution_id=pipeline_execution_id,
         metric_evaluation_id=metric_evaluation_id,
@@ -114,14 +112,6 @@ def _collect_module_summaries(session: Session, trace: WorkflowTraceSummary, tas
             session, summaries, "model_search_context",
             "app.modules.model_search_context.model", "ModelSearchContext",
             trace.model_search_context_id,
-        )
-
-    # Model Search Plan
-    if trace.model_search_plan_id:
-        _safe_collect(
-            session, summaries, "model_search_plan",
-            "app.modules.model_search.model", "ModelSearch",
-            trace.model_search_plan_id,
         )
 
     # Pipeline Generation

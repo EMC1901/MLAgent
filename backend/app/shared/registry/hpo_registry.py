@@ -29,7 +29,7 @@ HPO_METHODS: List[dict] = [
         "default_max_trials_large": 50,
     },
     {
-        "method": "bayesian_search",
+        "method": "bayesian_optimization",
         "display_name": "Bayesian Optimization",
         "description": "Bayesian optimization with Gaussian Process.",
         "requires_budget": True,

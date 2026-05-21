@@ -147,7 +147,7 @@ class ExecutionInput(BaseModel):
 class PipelineBundle(BaseModel):
     bundle_id: str
     task_id: str
-    model_search_plan_id: str
+    model_search_context_id: str
     task_type: Optional[str] = None
     target_column: Optional[str] = None
     feature_columns: List[str] = []
@@ -217,7 +217,7 @@ class LLMAdvisoryReview(BaseModel):
 class PipelineGenerationResponse(BaseModel):
     pipeline_generation_id: Optional[str] = None
     task_id: Optional[str] = None
-    model_search_plan_id: Optional[str] = None
+    model_search_context_id: Optional[str] = None
     feature_preprocessing_id: Optional[str] = None
     status: str = "pending"
     generation_mode: Optional[str] = None

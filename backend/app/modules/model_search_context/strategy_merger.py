@@ -135,6 +135,10 @@ def merge_strategies(
         adjustment_reasons=adjustment_reasons,
     )
 
+    # Pass through LLM's trial_allocation and search_space_overrides if provided
+    llm_trial_allocation = llm_advice.get("trial_allocation", []) if isinstance(llm_advice, dict) else []
+    llm_search_space_overrides = llm_advice.get("search_space_overrides", []) if isinstance(llm_advice, dict) else []
+
     return {
         "updated_model_strategy": model_strategy,
         "updated_hpo_strategy": hpo_strategy,
@@ -143,6 +147,8 @@ def merge_strategies(
         "strategy_adjustment": strategy_adjustment,
         "strategy_changes": applied_changes,
         "strategy_change_summary": llm_advice.get("strategy_change_summary", ""),
+        "llm_trial_allocation": llm_trial_allocation,
+        "llm_search_space_overrides": llm_search_space_overrides,
     }
 
 

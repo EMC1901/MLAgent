@@ -73,7 +73,7 @@ PREPROCESSING_PLAN_SCHEMA = {
                 "required": ["feature_group", "policy", "operations"],
                 "properties": {
                     "feature_group": {"type": "string"},
-                    "policy": {"type": "string", "enum": ["preserve", "filter", "transform", "reduce_dimension", "drop"]},
+                    "policy": {"type": "string", "enum": ["preserve", "filter", "transform", "reduce_dimension", "drop", "flag_for_review"]},
                     "operations": {
                         "type": "array",
                         "items": {
@@ -199,6 +199,13 @@ Your task is to generate a structured, executable PreprocessingPlan based on:
 - For feature selection: prefer unsupervised methods unless target-aware is explicitly safe.
 - For dimensionality reduction: only recommend when n_features >> n_samples and interpretability impact is acceptable.
 - For materials science: protect composition and structure feature groups for interpretability.
+
+**FIELD VALUE DISAMBIGUATION — Do NOT confuse these similar fields:**
+
+- `column_policies[*].action`:  keep | drop | transform | flag_for_review  (individual column actions)
+- `feature_group_policies[*].policy`:  preserve | filter | transform | reduce_dimension | drop | flag_for_review  (group-level policies)
+
+These two fields look similar but have DIFFERENT allowed values. `action` uses "keep"/"drop" for single columns. `policy` uses "preserve"/"filter"/"reduce_dimension"/"drop" for whole feature groups. Never use column-level action values in group-level policy fields.
 
 **Output Format:**
 You MUST output ONLY a valid JSON object matching the exact schema provided. No markdown, no code blocks, no other text."""

@@ -5,7 +5,7 @@ import {
   ApiResponse,
 } from '../modules/modelSearchContext/types';
 
-const MODEL_SEARCH_TIMEOUT = 300000; // 5 minutes (includes LLM call)
+const MODEL_SEARCH_TIMEOUT = 1_000_000; // ~16.7 min (covers up to 2 LLM attempts at 480s each + backoff)
 
 export const createModelSearchContext = async (
   taskId: string,

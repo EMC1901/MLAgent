@@ -97,10 +97,10 @@ def execute_training(
 
             if trial_result.status == "completed":
                 pr.n_trials_completed += 1
-                if trial_result.prediction_artifact_path:
-                    pr.prediction_artifact_paths.append(trial_result.prediction_artifact_path)
-                if trial_result.model_artifact_path:
-                    pr.model_artifact_paths.append(trial_result.model_artifact_path)
+                if trial_result.prediction_artifact_paths:
+                    pr.prediction_artifact_paths.extend(trial_result.prediction_artifact_paths)
+                if trial_result.model_artifact_paths:
+                    pr.model_artifact_paths.extend(trial_result.model_artifact_paths)
             else:
                 pr.n_trials_failed += 1
                 if fail_fast:

@@ -375,92 +375,6 @@ const MetricEvaluationPanel: React.FC<MetricEvaluationPanelProps> = ({ taskId, i
             </Section>
           )}
 
-          {/* Metric Validation */}
-          {result.metric_validation_result && (
-            <Section title="Metric Validation">
-              <div style={s.field}>
-                <strong>Overall Valid:</strong>{' '}
-                <span style={{
-                  color: result.metric_validation_result.is_valid ? '#2e7d32' : '#c62828',
-                  fontWeight: 600,
-                }}>
-                  {result.metric_validation_result.is_valid ? 'Yes' : 'No'}
-                </span>
-              </div>
-              <div style={s.checkGrid}>
-                <div>All Metrics Finite: <span style={{ color: result.metric_validation_result.all_metrics_finite ? '#2e7d32' : '#c62828' }}>{result.metric_validation_result.all_metrics_finite ? 'OK' : 'FAIL'}</span></div>
-                <div>Primary Metric Present: <span style={{ color: result.metric_validation_result.primary_metric_present ? '#2e7d32' : '#c62828' }}>{result.metric_validation_result.primary_metric_present ? 'OK' : 'FAIL'}</span></div>
-                <div>Ranking Consistent: <span style={{ color: result.metric_validation_result.ranking_consistent ? '#2e7d32' : '#c62828' }}>{result.metric_validation_result.ranking_consistent ? 'OK' : 'FAIL'}</span></div>
-                <div>Best Trial in Results: <span style={{ color: result.metric_validation_result.best_trial_in_results ? '#2e7d32' : '#c62828' }}>{result.metric_validation_result.best_trial_in_results ? 'OK' : 'FAIL'}</span></div>
-                <div>Baseline Refs Valid: <span style={{ color: result.metric_validation_result.baseline_references_valid ? '#2e7d32' : '#c62828' }}>{result.metric_validation_result.baseline_references_valid ? 'OK' : 'FAIL'}</span></div>
-                <div>Diagnosis Input Complete: <span style={{ color: result.metric_validation_result.diagnosis_input_complete ? '#2e7d32' : '#c62828' }}>{result.metric_validation_result.diagnosis_input_complete ? 'OK' : 'FAIL'}</span></div>
-              </div>
-              {result.metric_validation_result.issues.length > 0 && (
-                <div style={{ marginTop: '8px' }}>
-                  <strong style={{ color: '#c62828' }}>Issues:</strong>
-                  {result.metric_validation_result.issues.map((issue, i) => (
-                    <div key={i} style={{ fontSize: '12px', color: '#c62828', marginTop: '2px' }}>
-                      - {issue}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
-          )}
-
-          {/* Evaluation Artifact Manifest */}
-          {result.evaluation_artifact_manifest && (
-            <Section title="Evaluation Artifacts">
-              <div>Artifact Dir: <code style={{ fontSize: '11px' }}>{result.evaluation_artifact_manifest.artifact_dir}</code></div>
-              {result.evaluation_artifact_manifest.manifest_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Manifest: {result.evaluation_artifact_manifest.manifest_path}</div>
-              )}
-              {result.evaluation_artifact_manifest.metric_results_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Metric Results: {result.evaluation_artifact_manifest.metric_results_path}</div>
-              )}
-              {result.evaluation_artifact_manifest.fold_metrics_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Fold Metrics: {result.evaluation_artifact_manifest.fold_metrics_path}</div>
-              )}
-              {result.evaluation_artifact_manifest.trial_metrics_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Trial Metrics: {result.evaluation_artifact_manifest.trial_metrics_path}</div>
-              )}
-              {result.evaluation_artifact_manifest.model_ranking_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Model Ranking: {result.evaluation_artifact_manifest.model_ranking_path}</div>
-              )}
-              {result.evaluation_artifact_manifest.baseline_comparison_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Baseline Comparison: {result.evaluation_artifact_manifest.baseline_comparison_path}</div>
-              )}
-              {result.evaluation_artifact_manifest.result_diagnosis_input_path && (
-                <div style={{ fontSize: '12px', color: '#888' }}>Diagnosis Input: {result.evaluation_artifact_manifest.result_diagnosis_input_path}</div>
-              )}
-            </Section>
-          )}
-
-          {/* Result Diagnosis Input Preview */}
-          {result.result_diagnosis_input && (
-            <Section title="Result Diagnosis Input">
-              <div style={s.field}>
-                <strong>Ready for Diagnosis:</strong>{' '}
-                <span style={{
-                  color: result.result_diagnosis_input.ready_for_result_diagnosis ? '#2e7d32' : '#c62828',
-                  fontWeight: 600,
-                }}>
-                  {result.result_diagnosis_input.ready_for_result_diagnosis ? 'Yes' : 'No'}
-                </span>
-              </div>
-              {result.result_diagnosis_input.best_trial && (
-                <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                  Best Trial: {String(result.result_diagnosis_input.best_trial['trial_id'] || 'N/A')}
-                  {' - '}{String(result.result_diagnosis_input.best_trial['model_id'] || 'N/A')}
-                </div>
-              )}
-              <div style={{ fontSize: '12px', color: '#666' }}>
-                Failed Trials: {String(
-                  (result.result_diagnosis_input.failed_trials_summary as any)?.n_failed_trials ?? '0'
-                )}
-              </div>
-            </Section>
-          )}
 
           {/* Warnings */}
           {result.warnings && result.warnings.length > 0 && (
@@ -500,6 +414,8 @@ const s: Record<string, React.CSSProperties> = {
     backgroundColor: '#f5f0ff',
     border: '1px solid #7b1fa2',
     borderRadius: '8px',
+    maxHeight: '80vh',
+    overflowY: 'auto',
   },
   title: {
     margin: '0 0 8px 0',

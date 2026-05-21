@@ -25,8 +25,8 @@ def create_pipeline_generation(
     except BusinessException as e:
         status_code = 404 if e.error_code in (
             "NOT_FOUND", "PIPELINE_GENERATION_NOT_FOUND",
-            "TASK_NOT_FOUND", "MODEL_SEARCH_PLAN_REQUIRED",
-            "MODEL_SEARCH_PLAN_NOT_READY", "PIPELINE_GENERATION_INPUT_MISSING",
+            "TASK_NOT_FOUND", "MODEL_SEARCH_CONTEXT_REQUIRED",
+            "MODEL_SEARCH_CONTEXT_NOT_READY", "PIPELINE_GENERATION_INPUT_MISSING",
             "ARTIFACT_RESOLVE_FAILED",
         ) else 400
         raise HTTPException(
@@ -89,8 +89,8 @@ def rerun_pipeline_generation(
     except BusinessException as e:
         status_code = 404 if e.error_code in (
             "NOT_FOUND", "PIPELINE_GENERATION_NOT_FOUND",
-            "TASK_NOT_FOUND", "MODEL_SEARCH_PLAN_REQUIRED",
-            "MODEL_SEARCH_PLAN_NOT_READY", "PIPELINE_GENERATION_INPUT_MISSING",
+            "TASK_NOT_FOUND", "MODEL_SEARCH_CONTEXT_REQUIRED",
+            "MODEL_SEARCH_CONTEXT_NOT_READY", "PIPELINE_GENERATION_INPUT_MISSING",
             "ARTIFACT_RESOLVE_FAILED",
         ) else 400
         raise HTTPException(

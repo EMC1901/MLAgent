@@ -7,15 +7,30 @@ Validates LLM-generated PreprocessingPlan against:
 3. Operational sequence ordering
 4. Rationale completeness
 5. Schema compliance
+
+Includes auto-repair for common LLM field-value confusions (e.g. using
+column_policies action values in feature_group_policies policy fields).
 """
 from typing import Dict, Any, List
 from app.shared.registry.fp_capability_registry import get_fp_capability_by_id, CAPABILITY_GROUPS
 
 VALID_EXECUTION_SCOPES = {"dataset_profile_only", "train_only", "fold_only"}
 VALID_ACTIONS = {"keep", "drop", "transform", "flag_for_review"}
-VALID_POLICIES = {"preserve", "filter", "transform", "reduce_dimension", "drop"}
+VALID_POLICIES = {"preserve", "filter", "transform", "reduce_dimension", "drop", "flag_for_review"}
 VALID_VARIANT_MODES = {"single", "model_family_specific", "multiple_variants"}
 RATIONALE_REQUIRED = {"reason", "evidence", "expected_benefit", "risk", "fallback"}
+
+# Maps from column-level action values → group-level policy values (LLM confusion repair)
+ACTION_TO_POLICY_REPAIR: Dict[str, str] = {
+    "keep": "preserve",
+}
+
+# Maps from group-level policy values → column-level action values (LLM confusion repair)
+POLICY_TO_ACTION_REPAIR: Dict[str, str] = {
+    "preserve": "keep",
+    "filter": "drop",
+    "reduce_dimension": "drop",
+}
 
 # Ordered operation types for sequence validation
 OPERATION_ORDER = [
@@ -42,6 +57,10 @@ def validate_preprocessing_plan(plan: Dict[str, Any], decision_input: Dict[str, 
     if not plan:
         errors.append("PreprocessingPlan is empty.")
         return {"is_valid": False, "errors": errors, "warnings": warnings}
+
+    # 0. Auto-repair common LLM field-value confusions before strict validation
+    repair_warnings = _repair_common_llm_mistakes(plan)
+    warnings.extend(repair_warnings)
 
     # 1. Top-level required fields
     required_top = ["plan_version", "global_policy", "capability_groups_used", "operation_sequence", "rejected_operations", "warnings_for_downstream"]
@@ -83,6 +102,56 @@ def validate_preprocessing_plan(plan: Dict[str, Any], decision_input: Dict[str, 
         _validate_rejected_operation(ro, i, errors)
 
     return {"is_valid": len(errors) == 0, "errors": errors, "warnings": warnings}
+
+
+def _repair_common_llm_mistakes(plan: Dict[str, Any]) -> List[str]:
+    """Auto-repair known LLM field-value confusions. Returns repair warnings.
+
+    The LLM sometimes confuses column_policies[*].action values (keep/drop/...)
+    with feature_group_policies[*].policy values (preserve/filter/...), and vice
+    versa. These repairs fix such mistakes silently so the plan can proceed,
+    while recording a warning for observability.
+    """
+    warnings: List[str] = []
+
+    # Repair feature_group_policies[*].policy
+    for i, fgp in enumerate(plan.get("feature_group_policies", [])):
+        policy = fgp.get("policy", "")
+        if policy and policy not in VALID_POLICIES:
+            repaired = ACTION_TO_POLICY_REPAIR.get(policy, "") or _fuzzy_repair(policy, VALID_POLICIES)
+            if repaired and repaired != policy:
+                fgp["policy"] = repaired
+                warnings.append(
+                    f"Auto-repaired feature_group_policies[{i}].policy: "
+                    f"'{policy}' → '{repaired}' (LLM used column action value in group policy field)"
+                )
+
+    # Repair column_policies[*].action
+    for i, cp in enumerate(plan.get("column_policies", [])):
+        action = cp.get("action", "")
+        if action and action not in VALID_ACTIONS:
+            repaired = POLICY_TO_ACTION_REPAIR.get(action, "") or _fuzzy_repair(action, VALID_ACTIONS)
+            if repaired and repaired != action:
+                cp["action"] = repaired
+                warnings.append(
+                    f"Auto-repaired column_policies[{i}].action: "
+                    f"'{action}' → '{repaired}' (LLM used group policy value in column action field)"
+                )
+
+    return warnings
+
+
+def _fuzzy_repair(value: str, valid_set: set) -> str:
+    """Attempt to find the closest valid value via substring or prefix match."""
+    value_lower = value.lower().strip()
+    for valid in valid_set:
+        if value_lower in valid or valid in value_lower:
+            return valid
+    for valid in valid_set:
+        if len(value_lower) >= 3 and len(valid) >= 3:
+            if valid[:3] == value_lower[:3]:
+                return valid
+    return ""
 
 
 def _validate_global_policy(gp: Dict, errors: List[str], warnings: List[str]):

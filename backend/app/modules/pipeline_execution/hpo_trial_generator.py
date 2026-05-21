@@ -11,7 +11,8 @@ Parses the upstream SearchSpaceItem format (list of SearchSpaceParameter dicts):
         ]
     }
 
-MVP supports random_search and grid_search.
+Supported methods: random_search, grid_search, bayesian_optimization.
+optuna_tpe and successive_halving fall back to random_search.
 """
 
 import random
@@ -30,7 +31,7 @@ def generate_hpo_trials(
 
     Args:
         search_space: SearchSpaceItem dict from upstream with a "parameters" key.
-        search_method: 'random_search' or 'grid_search'.
+        search_method: 'random_search', 'grid_search', or 'bayesian_optimization'.
         max_trials: Maximum number of trials to generate.
         random_state: Seed for reproducibility.
 
@@ -43,8 +44,9 @@ def generate_hpo_trials(
 
     if search_method == "grid_search":
         return _generate_grid_trials(params, max_trials)
-    else:
-        return _generate_random_trials(params, max_trials, random_state)
+    if search_method == "bayesian_optimization":
+        return _bayesian_optimization_trials(params, max_trials, random_state)
+    return _generate_random_trials(params, max_trials, random_state)
 
 
 def _extract_parameters(search_space: dict) -> list:
@@ -155,3 +157,67 @@ def _generate_grid_trials(params: list, max_trials: int) -> List[dict]:
         all_combos = all_combos[::step][:max_trials]
 
     return [{k: v for k, v in zip(keys, combo)} for combo in all_combos]
+
+
+def _bayesian_optimization_trials(
+    params: list, max_trials: int, random_state: int
+) -> List[dict]:
+    """Generate initial trials using Latin Hypercube Sampling as a space-filling design.
+
+    LHS produces well-distributed points across the search space, providing a
+    superior starting surrogate for Bayesian Optimization compared to random
+    sampling. The actual iterative BO loop (GP + acquisition function) requires
+    model evaluation feedback, which is not available at trial-generation time.
+    """
+    from scipy.stats.qmc import LatinHypercube
+
+    continuous_params = []
+    categorical_params = []
+    for p in params:
+        pt = p.get("param_type", "float")
+        choices = p.get("choices", [])
+        sampling = p.get("sampling", "uniform")
+        if pt in ("categorical", "bool") or sampling == "choice" or choices:
+            categorical_params.append(p)
+        else:
+            continuous_params.append(p)
+
+    if not continuous_params:
+        return _generate_random_trials(params, max_trials, random_state)
+
+    sampler = LatinHypercube(d=len(continuous_params), seed=random_state)
+    lhs_samples = sampler.random(n=max_trials)
+
+    trials = []
+    for i in range(max_trials):
+        combo = {}
+        for j, p in enumerate(continuous_params):
+            combo[p["name"]] = _map_lhs_to_param(p, lhs_samples[i, j])
+        rng = random.Random(random_state + i)
+        for p in categorical_params:
+            combo[p["name"]] = _sample_param(p, rng)
+        trials.append(combo)
+
+    return trials
+
+
+def _map_lhs_to_param(param_spec: dict, unit_val: float):
+    """Map a [0,1] LHS value to the parameter's actual range."""
+    pt = param_spec.get("param_type", "float")
+    sampling = param_spec.get("sampling", "uniform")
+    low = param_spec.get("low")
+    high = param_spec.get("high")
+
+    if low is None or high is None:
+        return param_spec.get("default_value")
+
+    if sampling == "log_uniform":
+        log_low = math.log(max(float(low), 1e-10))
+        log_high = math.log(max(float(high), 1e-10))
+        val = math.exp(log_low + unit_val * (log_high - log_low))
+    else:
+        val = float(low) + unit_val * (float(high) - float(low))
+
+    if pt == "int":
+        return max(int(low), int(round(val)))
+    return val

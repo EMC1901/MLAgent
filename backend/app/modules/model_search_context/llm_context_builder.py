@@ -73,6 +73,64 @@ OUTPUT_JSON_SCHEMA = {
                 },
             },
         },
+        "trial_allocation": {
+            "type": "array",
+            "description": "Per-model-family trial budget allocation with detailed rationale. Allocate the total max_trials across the candidate and baseline model families you recommended. Each entry explains WHY that specific model family deserves its allocated trial count.",
+            "items": {
+                "type": "object",
+                "required": ["model_family", "max_trials", "allocation_rationale"],
+                "properties": {
+                    "model_family": {
+                        "type": "string",
+                        "description": "The exact model family name (snake_case, e.g. 'random_forest', 'xgboost'). Must match a family from allowed_model_families.",
+                    },
+                    "max_trials": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Number of HPO trials to allocate to this model family. 0 means no HPO for this model.",
+                    },
+                    "allocation_rationale": {
+                        "type": "string",
+                        "description": "WHY this specific number of trials for this model family. Reference: model complexity, expected sensitivity to hyperparameters, risk of overfitting given dataset size, and how critical this model is to the search strategy.",
+                    },
+                },
+            },
+        },
+        "search_space_overrides": {
+            "type": "array",
+            "description": "Optional per-parameter search space overrides. Use this to adjust specific parameter ranges based on dataset characteristics (n_samples, n_features). Only include overrides where the template defaults are clearly wrong for this dataset.",
+            "items": {
+                "type": "object",
+                "required": ["model_family", "parameter_name", "override_rationale"],
+                "properties": {
+                    "model_family": {
+                        "type": "string",
+                        "description": "The exact model family name (snake_case, e.g. 'random_forest', 'xgboost').",
+                    },
+                    "parameter_name": {
+                        "type": "string",
+                        "description": "The exact parameter name to override, e.g. 'n_estimators', 'learning_rate', 'max_depth'.",
+                    },
+                    "low": {
+                        "type": "number",
+                        "description": "Override the lower bound. Only include if you want to change it.",
+                    },
+                    "high": {
+                        "type": "number",
+                        "description": "Override the upper bound. Only include if you want to change it.",
+                    },
+                    "choices": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Override the categorical choices. Only include if you want to change them.",
+                    },
+                    "override_rationale": {
+                        "type": "string",
+                        "description": "WHY this parameter range should be different from the default. Reference: dataset size, feature count, expected model sensitivity, and risk of overfitting/underfitting.",
+                    },
+                },
+            },
+        },
         "strategy_change_summary": {
             "type": "string",
             "description": "A 2-4 sentence narrative summary of the overall strategy changes and their rationale. Written for a materials scientist to understand the big picture.",
@@ -118,14 +176,47 @@ Each change MUST have a complete decision_rationale with:
 - **risk**: What could go wrong.
 - **fallback**: What to revert to if this fails.
 
+**TRIAL ALLOCATION REQUIREMENTS:**
+
+You MUST also output a `trial_allocation` array that allocates the HPO trial budget across ALL model families you recommended (candidate + baseline). This is a critical decision because it determines how much computational resource each model receives.
+
+Guidelines for trial allocation:
+- Complex models (xgboost, lightgbm, mlp, gradient_boosting): allocate MORE trials — they have larger search spaces and are more sensitive to hyperparameters.
+- Simpler models (ridge, lasso, linear_regression): allocate FEWER trials — they have small or no search spaces.
+- Tree-based ensemble models (random_forest, extra_trees): allocate MODERATE trials.
+- Baseline models: allocate 0 trials (they use default parameters, no HPO).
+- The sum of all max_trials in the allocation should approximately match your recommended max_trials.
+- Each allocation_rationale MUST explain WHY that specific model gets that specific number of trials — reference the model's complexity, search space size, expected sensitivity to HPO, and the dataset characteristics (n_samples, n_final_features).
+
 **Strategy guidance:**
 
 - Low feature count (< 20): prefer linear models, ridge/lasso, random_forest. Avoid xgboost with shallow trees.
-- High feature reduction (> 80%): be conservative — fewer model families, more baselines.
+- High feature reduction (> 80%): be conservative — fewer model families.
 - Small samples (< 200): prefer ridge, lasso over gradient_boosting. Use k-fold CV with fewer splits.
+- **Baseline model rule:** You MUST keep exactly ONE baseline model. The baseline is the minimum-performance reference (e.g. dummy_mean, linear_regression, ridge). If you change the baseline, replace the old one — never have more than one.
 - Large samples (>= 1000): allow full candidate list and moderate HPO.
 - If scaling was executed: tree-based models that don't need scaling are less critical; models that benefit from scaling are well-prepared.
 - If feature selection removed many features: reassess whether the original model families still make sense.
+
+**SEARCH SPACE WIDTH GUIDANCE:**
+
+You should set `search_space_width` based on dataset characteristics:
+- **narrow**: Small samples (< 200) OR low features (< 10) — tighter parameter ranges to prevent overfitting from excessive search.
+- **moderate**: Medium samples (200–1000) with moderate features (10–50) — standard ranges, good default.
+- **wide**: Large samples (>= 1000) with many features (>= 50) — expanded ranges to explore more possibilities with sufficient data.
+- Also consider: if the dataset has high feature reduction (> 80%), prefer narrow to avoid overfitting on the reduced feature set.
+
+**SEARCH SPACE OVERRIDES GUIDANCE:**
+
+You may optionally provide `search_space_overrides` to fine-tune specific parameter ranges for individual model families. This is for cases where the default ranges are clearly wrong for this dataset.
+
+When to provide overrides:
+- Small samples (< 200): reduce n_estimators high bound (e.g., 500 → 200) for tree models to avoid overfitting.
+- Many features (>= 50): increase max_depth high bound for tree models to allow deeper splits.
+- Low features (< 10): reduce max_depth high bound (shallow trees are sufficient).
+- High feature reduction (> 80%): tighten learning_rate range for gradient-based models (less exploration needed).
+
+Each override MUST have an `override_rationale` explaining WHY with concrete numbers. Only include overrides you are confident about — the system will ignore invalid ones.
 
 You MUST output ONLY the JSON object."""
 

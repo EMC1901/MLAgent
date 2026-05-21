@@ -81,7 +81,7 @@ class Operation(BaseModel):
 
 class FeatureGroupPolicy(BaseModel):
     feature_group: str = ""
-    policy: str = "preserve"  # preserve | filter | transform | reduce_dimension | drop
+    policy: str = "preserve"  # preserve | filter | transform | reduce_dimension | drop | flag_for_review
     operations: List[Operation] = []
 
 

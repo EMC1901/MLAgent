@@ -67,8 +67,8 @@ class Settings(BaseSettings):
     # Model search context configuration
     MODEL_CONTEXT_ENABLE_LLM_ADVISOR: bool = True
     MODEL_CONTEXT_LLM_TEMPERATURE: float = 0.0
-    MODEL_CONTEXT_LLM_TIMEOUT: int = 60
-    MODEL_CONTEXT_LLM_MAX_RETRIES: int = 3
+    MODEL_CONTEXT_LLM_TIMEOUT: int = 480
+    MODEL_CONTEXT_LLM_MAX_RETRIES: int = 1
 
     MODEL_CONTEXT_LOW_FEATURE_THRESHOLD: int = 20
     MODEL_CONTEXT_HIGH_REDUCTION_RATIO: float = 0.8

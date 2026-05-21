@@ -91,16 +91,16 @@ def _load_upstream_modules(session: Session, task_id: str, context: Dict[str, An
         logger.debug("Could not load pipeline generation: %s", str(e))
 
     try:
-        from app.modules.model_search.repository import ModelSearchRepository
-        ms_repo = ModelSearchRepository()
-        ms = ms_repo.get_latest_by_task_id(session, task_id)
-        if ms:
-            context["model_search_plan"] = {
-                "model_search_plan_id": ms.id,
-                "plan_json": ms.plan_json,
+        from app.modules.model_search_context.repository import ModelSearchContextRepository
+        msc_repo = ModelSearchContextRepository()
+        msc = msc_repo.get_latest_by_task_id(session, task_id)
+        if msc:
+            context["model_search_context"] = {
+                "model_search_context_id": msc.id,
+                "context_json": msc.context_json,
             }
     except Exception as e:
-        logger.debug("Could not load model search plan: %s", str(e))
+        logger.debug("Could not load model search context: %s", str(e))
 
     try:
         from app.modules.workflow_planning.repository import WorkflowPlanRepository
