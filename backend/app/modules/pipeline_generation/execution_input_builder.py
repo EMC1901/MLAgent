@@ -35,13 +35,24 @@ def build_execution_input(
     eval_plan = context.get("evaluation_plan", {})
     validation_plan = context.get("validation_plan", {})
 
+    # Derive fold pipeline spec path from model_ready_matrix_path
+    fold_spec_path = None
+    matrix_path = context.get("model_ready_matrix_path")
+    if matrix_path:
+        import os
+        artifact_dir = os.path.dirname(matrix_path)
+        candidate = os.path.join(artifact_dir, "fold_pipeline_spec.json")
+        if os.path.exists(candidate):
+            fold_spec_path = candidate
+
     return ExecutionInput(
         pipeline_generation_id=pipeline_generation_id,
         pipeline_bundle_id=pipeline_bundle_id,
         task_id=context.get("task_id", ""),
         task_type=context.get("task_type"),
-        model_ready_matrix_path=context.get("model_ready_matrix_path"),
+        model_ready_matrix_path=matrix_path,
         preprocessor_artifact_path=context.get("preprocessor_artifact_path"),
+        fold_pipeline_spec_path=fold_spec_path,
         target_column=context.get("target_column"),
         feature_columns=context.get("feature_columns", []),
         pipeline_specs=[s if isinstance(s, dict) else s.model_dump() for s in pipeline_specs],

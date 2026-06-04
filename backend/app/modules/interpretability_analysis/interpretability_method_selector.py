@@ -71,6 +71,8 @@ def select_interpretability_methods(
             methods.append(ImportanceMethod.PERMUTATION)
         notes.append(f"Unknown model family '{family}', defaulting to permutation importance only.")
 
+    logger.info("Methods selected — family=%s profile=%s methods=%s",
+                 family, profile, [m for m in methods])
     return InterpretabilityMethodPlan(
         methods_selected=methods,
         methods_skipped=skipped,

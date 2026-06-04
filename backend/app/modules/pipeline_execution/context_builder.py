@@ -1,5 +1,6 @@
 """Context Builder — validates upstream PipelineGeneration readiness."""
 
+import logging
 from typing import Optional
 from sqlmodel import Session
 from app.modules.pipeline_generation.model import PipelineGeneration
@@ -8,6 +9,8 @@ from app.modules.pipeline_execution.exceptions import (
     PipelineGenerationRequiredException,
     PipelineGenerationNotReadyException,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def build_execution_context(
@@ -31,6 +34,8 @@ def build_execution_context(
     """
     repo = PipelineGenerationRepository()
 
+    logger.debug("building execution context for task_id=%s pg_id=%s", task_id, pipeline_generation_id or "latest")
+
     pg: Optional[PipelineGeneration] = None
     if pipeline_generation_id:
         pg = repo.get_by_id(session, pipeline_generation_id)
@@ -40,6 +45,7 @@ def build_execution_context(
             )
     else:
         pg = repo.get_latest_by_task_id(session, task_id)
+        logger.debug("latest PipelineGeneration: pg_id=%s status=%s", pg.id if pg else "none", pg.status if pg else "none")
 
     if pg is None:
         raise PipelineGenerationRequiredException(
@@ -68,4 +74,5 @@ def build_execution_context(
             "PipelineGeneration.execution_input_json is empty or missing."
         )
 
+    logger.debug("execution context OK: pg_id=%s status=%s ready=True", pg.id, pg.status)
     return pg

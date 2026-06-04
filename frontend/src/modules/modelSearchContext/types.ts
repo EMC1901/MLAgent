@@ -47,6 +47,12 @@ export interface PreprocessingSummary {
   feature_selection_executed: boolean;
   categorical_encoding_executed: boolean;
   preprocessing_pipeline_artifact_id?: string | null;
+  // Fold-safe execution mode — "global" | "fold_safe" | "none"
+  imputation_execution_mode?: string | null;
+  scaling_execution_mode?: string | null;
+  feature_selection_execution_mode?: string | null;
+  // Deferred fold operations summary
+  fold_safe_deferred?: Record<string, unknown> | null;
 }
 
 export interface LLMStrategyAdvice {

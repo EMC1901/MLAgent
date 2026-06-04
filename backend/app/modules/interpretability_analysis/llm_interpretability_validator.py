@@ -1,7 +1,8 @@
 import re
 import logging
 from app.modules.interpretability_analysis.enums import (
-    DANGEROUS_PATTERNS,
+    DANGEROUS_PATTERNS_LITERAL,
+    DANGEROUS_PATTERNS_REGEX,
     FORBIDDEN_LLM_FIELDS,
     VALID_CONFIDENCE_LEVELS,
 )
@@ -58,19 +59,46 @@ def _scan_dangerous_patterns(raw: str) -> str:
         return ""
     raw_lower = raw.lower()
     found = []
-    for pattern in DANGEROUS_PATTERNS:
+
+    # Literal substrings (already specific enough)
+    for pattern in DANGEROUS_PATTERNS_LITERAL:
         pattern_lower = pattern.lower()
         count = len(re.findall(re.escape(pattern_lower), raw_lower))
         if count > 0:
             found.append(f"{pattern}(x{count})")
+
+    # Regex patterns (word-boundary-aware to avoid false positives)
+    for regex, label in DANGEROUS_PATTERNS_REGEX:
+        count = len(re.findall(regex, raw_lower))
+        if count > 0:
+            found.append(f"{label}(x{count})")
+
     return ", ".join(found) if found else ""
 
 
 def _scan_forbidden_fields(summary: LLMInterpretabilitySummary) -> str:
+    """Check if any top-level keys in the LLM output match forbidden field names.
+
+    Only checks actual JSON keys, not arbitrary substrings in values,
+    to avoid false positives (e.g. 'description' containing 'script').
+    """
     summary_dict = summary.model_dump() if hasattr(summary, "model_dump") else {}
-    summary_str = str(summary_dict).lower()
+    forbidden_set = {f.lower() for f in FORBIDDEN_LLM_FIELDS}
     found = []
-    for field in FORBIDDEN_LLM_FIELDS:
-        if field.lower() in summary_str:
-            found.append(field)
-    return ", ".join(found) if found else ""
+    _collect_matching_keys(summary_dict, forbidden_set, found)
+    return ", ".join(sorted(set(found))) if found else ""
+
+
+def _collect_matching_keys(obj, forbidden_set: set, found: list, prefix: str = ""):
+    """Recursively collect keys that match forbidden field names."""
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            full_key = f"{prefix}.{key}" if prefix else key
+            if key.lower() in forbidden_set:
+                found.append(full_key)
+            if isinstance(value, (dict, list)):
+                _collect_matching_keys(value, forbidden_set, found, full_key)
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            if isinstance(item, (dict, list)):
+                _collect_matching_keys(item, forbidden_set, found, f"{prefix}[{i}]")

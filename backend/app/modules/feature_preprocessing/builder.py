@@ -61,7 +61,7 @@ def build_preprocessing_object(
     preprocessor_path = artifact_result.get("preprocessor_file_path")
 
     is_model_ready = (
-        status in (FeaturePreprocessingStatus.PREPROCESSED, FeaturePreprocessingStatus.PREPROCESSED_WITH_WARNING)
+        status in (FeaturePreprocessingStatus.PREPROCESSED, FeaturePreprocessingStatus.PREPROCESSED_WITH_WARNING, "success")
         and len(final_features) > 0
         and n_samples > 0
         and target_column is not None

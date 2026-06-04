@@ -391,10 +391,10 @@ const ResultDiagnosisPanel: React.FC<ResultDiagnosisPanelProps> = ({ taskId, ini
   };
 
   const renderLLMDiagnosis = (llm: LLMDiagnosisResult | null | undefined) => {
-    if (!llm) return <p>LLM diagnosis not available (fallback mode or LLM disabled).</p>;
+    if (!llm) return <p>AI diagnosis not available (fallback mode or AI disabled).</p>;
     return (
       <div style={s.card}>
-        <h4 style={s.cardTitle}>LLM Diagnosis</h4>
+        <h4 style={s.cardTitle}>AI Diagnosis</h4>
         <div style={s.field}>
           <strong>Confidence: </strong>
           <Badge label={llm.confidence_level || 'unknown'} color={CONFIDENCE_COLORS[llm.confidence_level] || '#9e9e9e'} />
@@ -486,16 +486,16 @@ const ResultDiagnosisPanel: React.FC<ResultDiagnosisPanelProps> = ({ taskId, ini
     { id: 'hypotheses', label: 'Hypotheses' },
     { id: 'recommendations', label: 'Recommendations' },
     { id: 'system', label: 'System Checks' },
-    { id: 'llm', label: 'LLM Diagnosis' },
+    { id: 'llm', label: 'AI Diagnosis' },
     { id: 'closed_loop', label: 'Closed-loop Input' },
     { id: 'json', label: 'Full JSON' },
   ];
 
   return (
     <div style={s.container}>
-      <h3 style={s.title}>LLM-based Result Diagnosis</h3>
+      <h3 style={s.title}>AI-based Result Diagnosis</h3>
       <p style={s.description}>
-        Analyzes model evaluation results using LLM and rule-based diagnostics to identify
+        Analyzes model evaluation results using AI and rule-based diagnostics to identify
         potential issues (overfitting, underfitting, feature insufficiency, HPO limitations, etc.)
         and generates structured refinement recommendations for closed-loop optimization.
       </p>

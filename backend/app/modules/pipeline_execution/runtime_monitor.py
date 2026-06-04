@@ -41,8 +41,13 @@ def build_runtime_log(
     status: str,
     warnings: list,
     error_message: str = None,
+    events: list = None,
+    env_info: dict = None,
+    n_trials_planned: int = 0,
+    n_trials_completed: int = 0,
+    n_trials_failed: int = 0,
 ) -> dict:
-    """Build a runtime log summary."""
+    """Build a runtime log summary with optional event timeline."""
     return {
         "started_at": started_at.isoformat() if started_at else None,
         "finished_at": finished_at.isoformat() if finished_at else None,
@@ -54,4 +59,11 @@ def build_runtime_log(
         "status": status,
         "warnings": warnings,
         "error_message": error_message,
+        "events": events or [],
+        "environment": env_info or {},
+        "trial_summary": {
+            "n_trials_planned": n_trials_planned,
+            "n_trials_completed": n_trials_completed,
+            "n_trials_failed": n_trials_failed,
+        },
     }

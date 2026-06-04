@@ -1,8 +1,11 @@
 """Prediction Writer — saves validation predictions to parquet."""
 
+import logging
 import os
 import pandas as pd
 from app.modules.pipeline_execution.exceptions import TrainingArtifactSaveException
+
+logger = logging.getLogger(__name__)
 
 
 def save_predictions(

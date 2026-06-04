@@ -72,12 +72,6 @@ export interface TaskSpecificationResponse {
   updated_at?: string;
 }
 
-export interface ValidationResultResponse {
-  status: string;
-  missing_fields?: string[];
-  validation_messages?: string[];
-  warnings?: string[];
-}
 
 export interface TaskSummaryResponse {
   task_id: string;
@@ -120,13 +114,6 @@ export const updateTask = async (
 
 export const listTasks = async (): Promise<ApiResponse<TaskSummaryResponse[]>> => {
   const response = await api.get<ApiResponse<TaskSummaryResponse[]>>('/api/tasks');
-  return response.data;
-};
-
-export const validateTask = async (
-  taskId: string
-): Promise<ApiResponse<ValidationResultResponse>> => {
-  const response = await api.post<ApiResponse<ValidationResultResponse>>(`/api/tasks/${taskId}/validate`);
   return response.data;
 };
 

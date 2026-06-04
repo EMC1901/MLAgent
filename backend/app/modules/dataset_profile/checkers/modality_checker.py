@@ -48,8 +48,17 @@ def _detect_modality(df: pd.DataFrame, input_columns: List[str]) -> str:
     if not input_columns:
         return "unknown"
 
+    # Use only columns that actually exist in the dataframe.
+    # LLM-interpreted expected_input_columns may not match the actual file columns.
+    available_cols = [c for c in input_columns if c in df.columns]
+    if not available_cols:
+        available_cols = list(df.columns)
+    if not available_cols:
+        return "unknown"
+
+    col_to_check = available_cols[0]
     col_names_lower = " ".join(c.lower() for c in input_columns)
-    sample_values = df[input_columns[0]].dropna().head(20).astype(str)
+    sample_values = df[col_to_check].dropna().head(20).astype(str)
 
     if any(kw in col_names_lower for kw in ("composition", "formula", "chemical")):
         return "composition"
@@ -60,7 +69,8 @@ def _detect_modality(df: pd.DataFrame, input_columns: List[str]) -> str:
     if _looks_like_composition(sample_values):
         return "composition"
 
-    if df[input_columns].select_dtypes(include=["number"]).shape[1] == len(input_columns):
+    numeric_input_cols = [c for c in input_columns if c in df.columns]
+    if numeric_input_cols and df[numeric_input_cols].select_dtypes(include=["number"]).shape[1] == len(numeric_input_cols):
         return "descriptor"
 
     sample_str = sample_values.str.cat(sep=" ")

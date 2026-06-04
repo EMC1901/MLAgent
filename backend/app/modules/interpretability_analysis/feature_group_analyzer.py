@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from app.modules.interpretability_analysis.schemas import (
     FeatureGroupSummary,
@@ -33,8 +33,50 @@ GROUP_PATTERNS = {
     "range": FeatureGroup.STATISTICAL_DESCRIPTOR,
 }
 
+LINEAGE_GROUP_MAP = {
+    "composition": FeatureGroup.COMPOSITION_DESCRIPTOR,
+    "composition_descriptor": FeatureGroup.COMPOSITION_DESCRIPTOR,
+    "elemental": FeatureGroup.ELEMENTAL_DESCRIPTOR,
+    "elemental_descriptor": FeatureGroup.ELEMENTAL_DESCRIPTOR,
+    "structure": FeatureGroup.STRUCTURE_DESCRIPTOR,
+    "structure_descriptor": FeatureGroup.STRUCTURE_DESCRIPTOR,
+    "statistical": FeatureGroup.STATISTICAL_DESCRIPTOR,
+    "statistical_descriptor": FeatureGroup.STATISTICAL_DESCRIPTOR,
+    "derived": FeatureGroup.DERIVED_FEATURE,
+    "derived_feature": FeatureGroup.DERIVED_FEATURE,
+    "engineered": FeatureGroup.DERIVED_FEATURE,
+}
 
-def classify_feature_group(feature_name: str) -> str:
+
+def _build_lineage_group_map(feature_lineage: Dict[str, Any]) -> Dict[str, str]:
+    """Build a feature_name → group mapping from feature_lineage data."""
+    group_map: Dict[str, str] = {}
+    if not feature_lineage:
+        return group_map
+
+    for entry in feature_lineage.values() if isinstance(feature_lineage, dict) else feature_lineage:
+        if isinstance(entry, dict):
+            feature_name = entry.get("feature_name") or entry.get("name") or ""
+            group = entry.get("group") or entry.get("feature_group") or entry.get("category") or entry.get("type") or ""
+            source = entry.get("source") or entry.get("origin") or ""
+            if feature_name and group:
+                group_lower = group.lower()
+                mapped = LINEAGE_GROUP_MAP.get(group_lower)
+                if mapped:
+                    group_map[feature_name] = mapped
+            if feature_name and source:
+                source_lower = source.lower()
+                mapped = LINEAGE_GROUP_MAP.get(source_lower)
+                if mapped and feature_name not in group_map:
+                    group_map[feature_name] = mapped
+
+    return group_map
+
+
+def classify_feature_group(feature_name: str, lineage_group_map: Optional[Dict[str, str]] = None) -> str:
+    """Classify a feature into a group. Uses lineage map first, then keyword matching."""
+    if lineage_group_map and feature_name in lineage_group_map:
+        return lineage_group_map[feature_name]
     name_lower = feature_name.lower()
     for pattern, group in GROUP_PATTERNS.items():
         if pattern in name_lower:
@@ -44,11 +86,16 @@ def classify_feature_group(feature_name: str) -> str:
 
 def build_feature_group_summary(
     feature_importance: List[GlobalFeatureImportanceItem],
+    feature_lineage: Optional[Dict[str, Any]] = None,
 ) -> FeatureGroupSummary:
+    lineage_group_map = _build_lineage_group_map(feature_lineage) if feature_lineage else {}
+    if lineage_group_map:
+        logger.info("Using feature_lineage for precise grouping (%d mappings).", len(lineage_group_map))
+
     groups: Dict[str, Dict[str, Any]] = {}
 
     for fi in feature_importance:
-        group_name = fi.feature_group if fi.feature_group and fi.feature_group != "other" else classify_feature_group(fi.feature_name)
+        group_name = fi.feature_group if fi.feature_group and fi.feature_group != "other" else classify_feature_group(fi.feature_name, lineage_group_map)
         if group_name not in groups:
             groups[group_name] = {
                 "feature_count": 0,

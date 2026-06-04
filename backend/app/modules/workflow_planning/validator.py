@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Any, List
 from app.shared.registry.featurizer_registry import resolve, get_default_fallback
 from app.shared.registry.fe_capability_registry import get_fe_capability_by_id
@@ -34,13 +35,22 @@ VALID_PRIORITIES = {"required", "recommended", "optional", "fallback"}
 RATIONALE_REQUIRED_FIELDS = ["reason", "evidence", "material_science_basis", "expected_benefit", "risk", "fallback"]
 MODEL_RATIONALE_REQUIRED_FIELDS = ["reason", "evidence", "expected_performance", "risk", "fallback"]
 
-FORBIDDEN_CONTENT = [
+FORBIDDEN_CODE_PATTERNS = [
     "import pandas", "import numpy", "import sklearn", "from sklearn",
     "def train", "def predict", "def fit", "class Model", "exec(",
-    "MAE of", "RMSE of", "R² of", "R2 of", "accuracy of",
-    "F1 score of", "training loss", "validation loss", "test loss",
     "model.fit", "model.predict",
 ]
+
+# Regex patterns for fabricated metrics: metric name followed by a numeric value
+# e.g. "MAE of 0.05" or "R² of 0.92" — this indicates the LLM invented results.
+# Mere mention of the metric name (e.g. "use MAE as primary_metric") is allowed.
+FORBIDDEN_METRIC_REGEX = re.compile(
+    r"(?:MAE|RMSE|R²|R2)\s+of\s+[\d.\-]"
+    r"|accuracy\s+of\s+[\d.\-]"
+    r"|F1\s+score\s+of\s+[\d.\-]"
+    r"|(?:training|validation|test)\s+loss\s*[=:]\s*[\d.\-]",
+    re.IGNORECASE,
+)
 
 
 def validate_workflow_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
@@ -150,12 +160,24 @@ def _check_arrays(plan: Dict[str, Any], errors: List[str]):
 
 def _check_forbidden_content(plan: Dict[str, Any], errors: List[str]):
     plan_str = str(plan).lower()
-    for forbidden in FORBIDDEN_CONTENT:
+
+    # Code injection patterns — simple substring match
+    for forbidden in FORBIDDEN_CODE_PATTERNS:
         if forbidden.lower() in plan_str:
             errors.append(
                 f"Forbidden content detected: '{forbidden}'. "
                 "Workflow Plan must not contain executable code, training results, or fabricated metrics."
             )
+
+    # Fabricated metric patterns — only flag when a metric name is
+    # followed by a numeric value (e.g. "MAE of 0.05"), not when the
+    # metric is merely mentioned as a planning choice.
+    metric_match = FORBIDDEN_METRIC_REGEX.search(plan_str)
+    if metric_match:
+        errors.append(
+            f"Forbidden content detected: '{metric_match.group()}'. "
+            "Workflow Plan must not contain executable code, training results, or fabricated metrics."
+        )
 
 
 def _check_featurizer_registry(plan: Dict[str, Any], errors: List[str]):
@@ -264,6 +286,33 @@ def _check_feature_strategy_actions(plan: Dict[str, Any], errors: List[str]):
             errors.append(
                 f"{prefix}: capability_id '{capability_id}' has status '{cap.status}' and cannot be used."
             )
+
+        # Cross-registry check: capability must have at least one executable featurizer
+        featurizer_ids = cap.featurizer_ids
+        if not featurizer_ids:
+            priority = action.get("priority", "")
+            if priority in ("required", "recommended"):
+                errors.append(
+                    f"{prefix}: capability_id '{capability_id}' has no executable "
+                    f"featurizer_ids mapped. It cannot be used as a '{priority}' action. "
+                    f"Use as 'optional' at most."
+                )
+        else:
+            from app.shared.registry.featurizer_registry import (
+                get_featurizer_by_id,
+                get_featurizer_effective_status,
+            )
+            any_available = False
+            for fid in featurizer_ids:
+                spec = get_featurizer_by_id(fid)
+                if spec and get_featurizer_effective_status(spec) == "available":
+                    any_available = True
+                    break
+            if not any_available:
+                errors.append(
+                    f"{prefix}: capability_id '{capability_id}' maps to featurizers "
+                    f"{featurizer_ids} but none are currently available (check dependencies)."
+                )
 
         # Note: required_input_columns validation is deferred to Feature Engineering
         # execution time, where the actual dataset columns are available. The

@@ -79,3 +79,14 @@ export const getDownloadLinks = async (
   );
   return response.data;
 };
+
+export const downloadArtifactZip = (foId: string): void => {
+  const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  const url = `${baseUrl}/api/final-outputs/${foId}/download`;
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${foId}_package.zip`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};

@@ -22,6 +22,23 @@ def analyze_high_error_samples(
         logger.warning("Cannot analyze high-error samples: missing or mismatched predictions.")
         return items
 
+    # Defensive: X and y must be row-aligned. If not, this is a caller bug.
+    n_x = len(X)
+    if len(y_true) != n_x:
+        logger.warning(
+            "High-error analysis: X has %d rows but y_true has %d — data not aligned. "
+            "Align y_true/y_pred to X indices before calling this function.",
+            n_x, len(y_true),
+        )
+        # Best-effort: take the intersection by positional overlap
+        n = min(n_x, len(y_true))
+        y_true = y_true.iloc[:n]
+        y_pred = np.asarray(y_pred)[:n]
+        if shap_values is not None and len(shap_values) > n:
+            shap_values = shap_values[:n]
+        if n == 0:
+            return items
+
     errors = np.abs(np.asarray(y_true) - np.asarray(y_pred))
     n = len(errors)
 

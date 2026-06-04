@@ -1,13 +1,58 @@
-"""Training Artifact Manager — saves models, metadata, and manifest."""
+"""Training Artifact Manager — saves models, metadata, manifest, and execution logs."""
 
+import logging
 import os
 import json
 import joblib
 from datetime import datetime
 from app.modules.pipeline_execution.exceptions import TrainingArtifactSaveException
 
+logger = logging.getLogger(__name__)
+
+
+class ExecutionLogHandler(logging.Handler):
+    """Dual-purpose handler: writes log lines to a file AND collects structured
+    event dicts in memory (for DB persistence and the /logs API)."""
+
+    def __init__(self, log_file_path: str):
+        super().__init__()
+        self.log_file_path = log_file_path
+        self.events: list = []
+        os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+        self._file = open(log_file_path, "a", encoding="utf-8")
+        fmt = logging.Formatter(
+            "%(asctime)s  %(levelname)-5s [%(name)s] %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        self.setFormatter(fmt)
+        self.setLevel(logging.DEBUG)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        msg = self.format(record)
+        try:
+            self._file.write(msg + "\n")
+            self._file.flush()
+        except Exception:
+            pass  # never let a file write break training
+        self.events.append({
+            "timestamp": datetime.utcnow().isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        })
+
+    def close(self) -> None:
+        try:
+            self._file.close()
+        except Exception:
+            pass
+        super().close()
 
 TRAINING_ARTIFACT_ROOT = "/app/artifacts/training"
+
+
+def get_execution_log_path(exec_dir: str) -> str:
+    return os.path.join(exec_dir, "logs", "execution.log")
 
 
 def ensure_execution_dir(pipeline_execution_id: str) -> str:
@@ -16,6 +61,7 @@ def ensure_execution_dir(pipeline_execution_id: str) -> str:
     os.makedirs(exec_dir, exist_ok=True)
     for sub in ["predictions", "models", "logs", "splits"]:
         os.makedirs(os.path.join(exec_dir, sub), exist_ok=True)
+    logger.info("artifact dir created: %s", exec_dir)
     return exec_dir
 
 
@@ -27,6 +73,7 @@ def save_model(model, trial_id: str, fold_index: int, exec_dir: str) -> str:
     filepath = os.path.join(models_dir, filename)
     try:
         joblib.dump(model, filepath)
+        logger.info("model saved: %s (%s)", filename, type(model).__name__)
     except Exception as e:
         raise TrainingArtifactSaveException(
             f"Failed to save model for {trial_id} fold {fold_index}: {e}"

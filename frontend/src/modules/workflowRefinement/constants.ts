@@ -39,17 +39,15 @@ export const RERUN_STAGE_COLORS: Record<string, string> = {
   pipeline_generation: '#00838f',
   pipeline_execution: '#2e7d32',
   metric_evaluation: '#4527a0',
-  final_pipeline_selection: '#2e7d32',
 };
 
 export const RERUN_STAGE_LABELS: Record<string, string> = {
   workflow_planning: 'Workflow Planning',
   feature_engineering: 'Feature Engineering',
-  feature_preprocessing: 'Feature Preprocessing',
+  feature_preprocessing: 'Data Preprocessing',
   model_search_context: 'Model Search Context',
   model_search: 'Model Search',
   pipeline_generation: 'Pipeline Generation',
   pipeline_execution: 'Pipeline Execution',
   metric_evaluation: 'Metric Evaluation',
-  final_pipeline_selection: 'Final Pipeline Selection',
 };

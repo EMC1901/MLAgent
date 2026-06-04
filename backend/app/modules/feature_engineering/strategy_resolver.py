@@ -9,6 +9,7 @@ from app.shared.registry.featurizer_registry import (
     resolve_to_available,
     get_default_fallback,
     get_available_featurizers,
+    resolve_featurizers_from_capability_actions,
 )
 from app.modules.feature_engineering.schemas import ResolvedFeatureStrategy
 
@@ -19,6 +20,7 @@ def resolve_feature_strategy(feature_context: dict, input_modality: str) -> Reso
     """Resolve the feature strategy using the Featurizer Registry.
 
     Priority:
+      0. feature_strategy.selected_feature_actions (capability-aware, resolved via mapping)
       1. feature_strategy.executable_featurizers
       2. feature_strategy.recommended_featurizers (legacy, resolved via Registry aliases)
       3. Registry fallback (highest-priority available featurizer for this modality)
@@ -39,61 +41,93 @@ def resolve_feature_strategy(feature_context: dict, input_modality: str) -> Reso
     resolution_log = []
     warnings = []
 
-    # ---- Priority 1: executable_featurizers ----
-    if executable is not None and isinstance(executable, list) and len(executable) > 0:
-        for name in executable:
-            result = resolve_to_available(name, input_modality)
-            resolution_log.append({
-                "input": name,
-                "resolved_to": result.resolved_id,
-                "matched_by": result.matched_by,
-                "status": result.status,
-            })
+    # ---- Priority 0: selected_feature_actions (capability-aware) ----
+    capability_actions = feature_strategy.get("selected_feature_actions") or []
+    capability_resolutions = []
 
-            if result.status == "available":
-                if result.resolved_id not in selected:
-                    selected.append(result.resolved_id)
-            else:
+    if isinstance(capability_actions, list) and len(capability_actions) > 0:
+        capability_resolutions = resolve_featurizers_from_capability_actions(
+            capability_actions, input_modality
+        )
+        for cr in capability_resolutions:
+            if cr["status"] == "resolved" and cr["featurizer_id"] not in selected:
+                selected.append(cr["featurizer_id"])
+                resolution_log.append({
+                    "input": cr["capability_id"],
+                    "resolved_to": cr["featurizer_id"],
+                    "matched_by": "capability_action",
+                    "status": "available",
+                    "action_id": cr["action_id"],
+                })
+            elif cr["status"] == "unavailable":
                 warnings.append(
-                    f"Featurizer '{name}' resolved to '{result.resolved_id}' "
-                    f"(status={result.status}) — not executable."
+                    f"Capability '{cr['capability_id']}' (action '{cr['action_id']}') "
+                    f"mapped to featurizer '{cr['featurizer_id']}' but it is not available "
+                    f"(check dependencies)."
+                )
+            elif cr["status"] == "no_implementation":
+                warnings.append(
+                    f"Capability '{cr['capability_id']}' (action '{cr['action_id']}') "
+                    f"has no executable featurizer implementation."
                 )
 
-    # ---- Priority 2: legacy recommended_featurizers ----
-    elif recommended is not None and isinstance(recommended, list) and len(recommended) > 0:
-        warnings.append(
-            "Using legacy 'recommended_featurizers' field. "
-            "Workflow Plan should be updated to use 'executable_featurizers'."
-        )
-        for name in recommended:
-            result = resolve(name)
-            resolution_log.append({
-                "input": name,
-                "resolved_to": result.resolved_id,
-                "matched_by": result.matched_by,
-                "status": result.status,
-            })
+    # ---- Priority 1: executable_featurizers ----
+    if not selected:
+        if executable is not None and isinstance(executable, list) and len(executable) > 0:
+            for name in executable:
+                result = resolve_to_available(name, input_modality)
+                resolution_log.append({
+                    "input": name,
+                    "resolved_to": result.resolved_id,
+                    "matched_by": result.matched_by,
+                    "status": result.status,
+                })
 
-            if result.status == "available":
-                # Also check modality compatibility
-                spec_resolved = resolve_to_available(name, input_modality)
-                if spec_resolved.status == "available":
+                if result.status == "available":
                     if result.resolved_id not in selected:
                         selected.append(result.resolved_id)
                 else:
                     warnings.append(
                         f"Featurizer '{name}' resolved to '{result.resolved_id}' "
-                        f"but does not support input modality '{input_modality}'."
+                        f"(status={result.status}) — not executable."
                     )
-            elif result.resolved_id:
-                warnings.append(
-                    f"Featurizer '{name}' resolved to '{result.resolved_id}' "
-                    f"but has status '{result.status}'."
-                )
-            else:
-                warnings.append(
-                    f"Featurizer '{name}' not found in Registry."
-                )
+
+    # ---- Priority 2: legacy recommended_featurizers ----
+    if not selected:
+        if recommended is not None and isinstance(recommended, list) and len(recommended) > 0:
+            warnings.append(
+                "Using legacy 'recommended_featurizers' field. "
+                "Workflow Plan should be updated to use 'executable_featurizers'."
+            )
+            for name in recommended:
+                result = resolve(name)
+                resolution_log.append({
+                    "input": name,
+                    "resolved_to": result.resolved_id,
+                    "matched_by": result.matched_by,
+                    "status": result.status,
+                })
+
+                if result.status == "available":
+                    # Also check modality compatibility
+                    spec_resolved = resolve_to_available(name, input_modality)
+                    if spec_resolved.status == "available":
+                        if result.resolved_id not in selected:
+                            selected.append(result.resolved_id)
+                    else:
+                        warnings.append(
+                            f"Featurizer '{name}' resolved to '{result.resolved_id}' "
+                            f"but does not support input modality '{input_modality}'."
+                        )
+                elif result.resolved_id:
+                    warnings.append(
+                        f"Featurizer '{name}' resolved to '{result.resolved_id}' "
+                        f"but has status '{result.status}'."
+                    )
+                else:
+                    warnings.append(
+                        f"Featurizer '{name}' not found in Registry."
+                    )
 
     # ---- Priority 3: Registry fallback ----
     if not selected:

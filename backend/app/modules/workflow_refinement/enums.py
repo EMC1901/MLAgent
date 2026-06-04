@@ -26,7 +26,6 @@ class RerunStage:
     PIPELINE_GENERATION = "pipeline_generation"
     PIPELINE_EXECUTION = "pipeline_execution"
     METRIC_EVALUATION = "metric_evaluation"
-    FINAL_PIPELINE_SELECTION = "final_pipeline_selection"
 
 
 VALID_RERUN_STAGES = {
@@ -38,7 +37,6 @@ VALID_RERUN_STAGES = {
     RerunStage.PIPELINE_GENERATION,
     RerunStage.PIPELINE_EXECUTION,
     RerunStage.METRIC_EVALUATION,
-    RerunStage.FINAL_PIPELINE_SELECTION,
 }
 
 VALID_DECISIONS = {
@@ -72,5 +70,4 @@ RERUN_STAGE_RECOMMENDATIONS = {
     "limited_pipeline_gain": RerunStage.WORKFLOW_PLANNING,
     "pipeline_execution_failure": RerunStage.PIPELINE_GENERATION,
     "metric_calculation_issue": RerunStage.METRIC_EVALUATION,
-    "result_good_enough": RerunStage.FINAL_PIPELINE_SELECTION,
 }

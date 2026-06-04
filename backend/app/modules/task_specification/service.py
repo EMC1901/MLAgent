@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from sqlmodel import Session
 from app.modules.task_specification.model import TaskSpecification
 from app.modules.task_specification.schemas import (
@@ -22,6 +22,35 @@ class TaskSpecificationService:
     def __init__(self):
         self.repository = TaskSpecificationRepository()
 
+    @staticmethod
+    def _to_response(
+        task: TaskSpecification,
+        task_spec_json: Dict[str, Any],
+        validation_result: Optional[Dict[str, Any]] = None,
+    ) -> TaskSpecificationResponse:
+        """Build a response from a model row and its JSONB blob, avoiding
+        duplicated field-mapping across create / get / update."""
+        vr = validation_result or {}
+        return TaskSpecificationResponse(
+            task_id=task.id,
+            task_name=task.task_name,
+            task_description=task_spec_json.get("task_description"),
+            material_system=task_spec_json.get("material_system"),
+            prediction_target=task.prediction_target,
+            task_type=task.task_type,
+            dataset_description=task.dataset_description,
+            input_type=task.input_type,
+            target_column=task.target_column,
+            evaluation_metric=task.evaluation_metric,
+            user_priority=task_spec_json.get("user_priority", []),
+            constraints=task_spec_json.get("constraints", []),
+            status=task.status or "received",
+            missing_fields=vr.get("missing_fields", task_spec_json.get("missing_fields", [])),
+            validation_messages=vr.get("validation_messages", task_spec_json.get("validation_messages", [])),
+            created_at=task.created_at,
+            updated_at=task.updated_at,
+        )
+
     def create_task(self, session: Session, request: TaskSpecificationCreateRequest) -> TaskSpecificationResponse:
         task_id = f"task_{uuid.uuid4().hex[:8]}"
 
@@ -31,7 +60,6 @@ class TaskSpecificationService:
         validation_result = validate(normalized_data)
 
         task_spec_dict = build_task_specification(
-            raw_data=raw_data,
             normalized_data=normalized_data,
             validation_result=validation_result,
             task_id=task_id,
@@ -53,56 +81,16 @@ class TaskSpecificationService:
         )
 
         created_task = self.repository.create(session, task_spec_model)
-
-        return TaskSpecificationResponse(
-            task_id=created_task.id,
-            task_name=created_task.task_name,
-            task_description=task_spec_dict.get("task_description"),
-            material_system=task_spec_dict.get("material_system"),
-            prediction_target=created_task.prediction_target,
-            task_type=created_task.task_type,
-            dataset_description=created_task.dataset_description,
-            input_type=created_task.input_type,
-            target_column=created_task.target_column,
-            evaluation_metric=created_task.evaluation_metric,
-            user_priority=task_spec_dict.get("user_priority", []),
-            constraints=task_spec_dict.get("constraints", []),
-            status=created_task.status,
-            missing_fields=validation_result.get("missing_fields", []),
-            validation_messages=validation_result.get("validation_messages", []),
-            created_at=created_task.created_at,
-            updated_at=created_task.updated_at,
-        )
+        return self._to_response(created_task, task_spec_dict, validation_result)
 
     def get_task(self, session: Session, task_id: str) -> TaskSpecificationResponse:
         task = self.repository.get_by_id(session, task_id)
         if not task:
             raise NotFoundException(f"Task specification with id {task_id} not found.")
+        return self._to_response(task, task.task_spec_json or {})
 
-        task_spec_json = task.task_spec_json or {}
-
-        return TaskSpecificationResponse(
-            task_id=task.id,
-            task_name=task.task_name,
-            task_description=task_spec_json.get("task_description"),
-            material_system=task_spec_json.get("material_system"),
-            prediction_target=task.prediction_target,
-            task_type=task.task_type,
-            dataset_description=task.dataset_description,
-            input_type=task.input_type,
-            target_column=task.target_column,
-            evaluation_metric=task.evaluation_metric,
-            user_priority=task_spec_json.get("user_priority", []),
-            constraints=task_spec_json.get("constraints", []),
-            status=task.status,
-            missing_fields=task_spec_json.get("missing_fields", []),
-            validation_messages=task_spec_json.get("validation_messages", []),
-            created_at=task.created_at,
-            updated_at=task.updated_at,
-        )
-
-    def list_tasks(self, session: Session) -> List[TaskSummaryResponse]:
-        tasks = self.repository.list_tasks(session)
+    def list_tasks(self, session: Session, offset: int = 0, limit: int = 50) -> List[TaskSummaryResponse]:
+        tasks, total = self.repository.list_tasks(session, offset=offset, limit=limit)
         return [
             TaskSummaryResponse(
                 task_id=t.id,
@@ -114,7 +102,7 @@ class TaskSpecificationService:
                 updated_at=t.updated_at,
             )
             for t in tasks
-        ]
+        ], total
 
     def update_task(self, session: Session, task_id: str, request: TaskSpecificationUpdateRequest) -> TaskSpecificationResponse:
         existing_task = self.repository.get_by_id(session, task_id)
@@ -122,7 +110,6 @@ class TaskSpecificationService:
             raise NotFoundException(f"Task specification with id {task_id} not found.")
 
         existing_json = existing_task.task_spec_json or {}
-
         update_data = request.model_dump(exclude_unset=True)
 
         merged_data = {
@@ -140,11 +127,9 @@ class TaskSpecificationService:
         }
 
         normalized_data = normalize_fields(merged_data)
-
         validation_result = validate(normalized_data)
 
         task_spec_dict = build_task_specification(
-            raw_data=merged_data,
             normalized_data=normalized_data,
             validation_result=validation_result,
             task_id=task_id,
@@ -164,26 +149,7 @@ class TaskSpecificationService:
         existing_task.updated_at = task_spec_dict["updated_at"]
 
         updated_task = self.repository.update(session, task_id, existing_task)
-
-        return TaskSpecificationResponse(
-            task_id=updated_task.id,
-            task_name=updated_task.task_name,
-            task_description=task_spec_dict.get("task_description"),
-            material_system=task_spec_dict.get("material_system"),
-            prediction_target=updated_task.prediction_target,
-            task_type=updated_task.task_type,
-            dataset_description=updated_task.dataset_description,
-            input_type=updated_task.input_type,
-            target_column=updated_task.target_column,
-            evaluation_metric=updated_task.evaluation_metric,
-            user_priority=task_spec_dict.get("user_priority", []),
-            constraints=task_spec_dict.get("constraints", []),
-            status=updated_task.status,
-            missing_fields=validation_result.get("missing_fields", []),
-            validation_messages=validation_result.get("validation_messages", []),
-            created_at=updated_task.created_at,
-            updated_at=updated_task.updated_at,
-        )
+        return self._to_response(updated_task, task_spec_dict, validation_result)
 
     def validate_task(self, session: Session, task_id: str) -> ValidationResultResponse:
         task = self.repository.get_by_id(session, task_id)

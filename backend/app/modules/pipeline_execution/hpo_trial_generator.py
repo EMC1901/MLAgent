@@ -11,14 +11,30 @@ Parses the upstream SearchSpaceItem format (list of SearchSpaceParameter dicts):
         ]
     }
 
-Supported methods: random_search, grid_search, bayesian_optimization.
-optuna_tpe and successive_halving fall back to random_search.
+Supported methods:
+  - random_search:        Simple random sampling.
+  - grid_search:          Grid or sub-sampled grid via islice.
+  - bayesian_optimization: Optuna TPE sampler if optuna is installed, otherwise
+                          falls back to Latin Hypercube Sampling (LHS).
 """
 
+import logging
 import random
 import math
 import itertools
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
+
+
+# ---- Optuna availability ----
+
+_OPTUNA_AVAILABLE = False
+try:
+    import optuna
+    _OPTUNA_AVAILABLE = True
+except ImportError:
+    pass
 
 
 def generate_hpo_trials(
@@ -45,7 +61,12 @@ def generate_hpo_trials(
     if search_method == "grid_search":
         return _generate_grid_trials(params, max_trials)
     if search_method == "bayesian_optimization":
+        if _OPTUNA_AVAILABLE:
+            return _optuna_tpe_trials(params, max_trials, random_state)
+        logger.debug("Optuna not installed, falling back to LHS for bayesian_optimization")
         return _bayesian_optimization_trials(params, max_trials, random_state)
+    if _OPTUNA_AVAILABLE and search_method in ("optuna_tpe", "successive_halving"):
+        return _optuna_tpe_trials(params, max_trials, random_state)
     return _generate_random_trials(params, max_trials, random_state)
 
 
@@ -151,12 +172,23 @@ def _generate_grid_trials(params: list, max_trials: int) -> List[dict]:
         return [{}]
 
     keys = list(grids.keys())
-    all_combos = list(itertools.product(*(grids[k] for k in keys)))
-    if len(all_combos) > max_trials:
-        step = max(1, len(all_combos) // max_trials)
-        all_combos = all_combos[::step][:max_trials]
+    # Use islice to avoid materializing the full Cartesian product when the
+    # space is large.  Compute the step size so we sample evenly across the
+    # full enumerated space without building the intermediate list.
+    total_size = 1
+    for k in keys:
+        total_size *= len(grids[k])
+    take = min(total_size, max_trials)
+    step = max(1, total_size // take) if take > 0 else 1
 
-    return [{k: v for k, v in zip(keys, combo)} for combo in all_combos]
+    combos = []
+    for i, combo in enumerate(itertools.product(*(grids[k] for k in keys))):
+        if i % step == 0:
+            combos.append({k: v for k, v in zip(keys, combo)})
+            if len(combos) >= take:
+                break
+
+    return combos
 
 
 def _bayesian_optimization_trials(
@@ -221,3 +253,70 @@ def _map_lhs_to_param(param_spec: dict, unit_val: float):
     if pt == "int":
         return max(int(low), int(round(val)))
     return val
+
+
+def _optuna_tpe_trials(
+    params: list, max_trials: int, random_state: int
+) -> List[dict]:
+    """Generate trial parameter sets using Optuna's TPE sampler.
+
+    Uses a dummy study with TPE sampler to produce parameter suggestions that
+    respect the distributions defined in the search space.  Without objective
+    values the TPE prior acts as a structured space-filling design (better
+    than pure random, especially for mixed continuous/categorical spaces).
+
+    Falls back to random search if Optuna raises an exception.
+    """
+    if not params or max_trials <= 0:
+        return [{}]
+
+    try:
+        recorded: List[dict] = []
+
+        def _objective(trial):
+            combo = {}
+            for p in params:
+                name = p["name"]
+                pt = p.get("param_type", "float")
+                choices = p.get("choices", [])
+                low = p.get("low")
+                high = p.get("high")
+                sampling = p.get("sampling", "uniform")
+
+                if pt in ("categorical", "bool") or sampling == "choice" or choices:
+                    combo[name] = trial.suggest_categorical(name, choices if choices else [])
+                elif pt == "int":
+                    if low is None or high is None:
+                        combo[name] = p.get("default_value")
+                    elif sampling == "log_uniform":
+                        combo[name] = trial.suggest_int(name, int(low), int(high), log=True)
+                    else:
+                        combo[name] = trial.suggest_int(name, int(low), int(high))
+                else:  # float
+                    if low is None or high is None:
+                        combo[name] = p.get("default_value")
+                    elif sampling == "log_uniform":
+                        combo[name] = trial.suggest_float(name, float(low), float(high), log=True)
+                    else:
+                        combo[name] = trial.suggest_float(name, float(low), float(high))
+            recorded.append(combo)
+            return 0.0
+
+        sampler = optuna.samplers.TPESampler(
+            seed=random_state,
+            n_startup_trials=max(1, max_trials // 3),
+        )
+        study = optuna.create_study(
+            sampler=sampler,
+            direction="minimize",
+        )
+        # Suppress optuna's default logging to keep our log output clean
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+        study.optimize(_objective, n_trials=max_trials, show_progress_bar=False)
+
+        logger.debug("Optuna TPE generated %d trials", len(recorded))
+        return recorded
+
+    except Exception as e:
+        logger.debug("Optuna TPE failed (%s), falling back to random search", e)
+        return _generate_random_trials(params, max_trials, random_state)

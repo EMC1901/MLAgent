@@ -18,6 +18,10 @@ def compute_permutation_importance(
     n_repeats: int = 10,
     scoring: str = "neg_mean_squared_error",
 ) -> List[PermutationImportanceResult]:
+    import time
+    logger.info("Permutation importance — %d features, %d repeats, scoring=%s",
+                 len(feature_columns), n_repeats, scoring)
+    t0 = time.time()
     try:
         result = permutation_importance(
             model, X, y,
@@ -45,7 +49,7 @@ def compute_permutation_importance(
     for rank, item in enumerate(items, start=1):
         item.rank = rank
 
-    logger.info("Computed permutation importance for %d features.", len(items))
+    logger.info("Permutation importance done — %d features in %.1fs", len(items), time.time() - t0)
     return items
 
 

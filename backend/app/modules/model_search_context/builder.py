@@ -1,8 +1,11 @@
+import logging
 import uuid
 from datetime import datetime
 from typing import List, Optional
 from app.shared.config.settings import settings
 from app.shared.registry.hpo_registry import get_hpo_method_spec
+
+logger = logging.getLogger(__name__)
 from app.modules.model_search_context.schemas import (
     LLMStrategyAdvice,
     ModelSearchContextInput,
@@ -108,14 +111,28 @@ def build_model_search_context_response(
         validation_plan = execution_plans.get("validation_plan")
         evaluation_plan = execution_plans.get("evaluation_plan")
 
+        ss_dump = search_space_plan.model_dump() if search_space_plan else {}
+        cm_dump = candidate_model_plan.model_dump() if candidate_model_plan else {}
+        spaces_model_ids = [s.get("model_id") for s in ss_dump.get("spaces", [])]
+        cand_model_ids = [c.get("model_id") for c in cm_dump.get("candidate_models", [])]
+        logger.info(
+            "PG input: search_space_plan model_ids=%s | candidate_model_plan model_ids=%s",
+            spaces_model_ids, cand_model_ids,
+        )
+        if set(spaces_model_ids) != set(cand_model_ids):
+            logger.warning(
+                "PG input MISMATCH: search_space has model_ids=%s but candidates have model_ids=%s",
+                spaces_model_ids, cand_model_ids,
+            )
+
         pipeline_gen_input = PipelineGenerationInput(
             model_ready_matrix_path=fmp_ctx.get("model_ready_artifact_path"),
             preprocessing_pipeline_artifact_id=fmp_ctx.get("preprocessor_artifact_id"),
             target_column=task_ctx.get("target_column"),
             feature_columns=feature_columns,
-            candidate_model_plan=candidate_model_plan.model_dump() if candidate_model_plan else {},
+            candidate_model_plan=cm_dump,
             hpo_plan=hpo_plan.model_dump() if hpo_plan else {},
-            search_space_plan=search_space_plan.model_dump() if search_space_plan else {},
+            search_space_plan=ss_dump,
             validation_plan=validation_plan.model_dump() if validation_plan else {},
             evaluation_plan=evaluation_plan.model_dump() if evaluation_plan else {},
             ready_for_pipeline_generation=True,
@@ -201,16 +218,16 @@ _METRIC_DIRECTIONS = {
     "RMSE": MetricDirection.MINIMIZE,
     "R2": MetricDirection.MAXIMIZE,
     "MAPE": MetricDirection.MINIMIZE,
-    "accuracy": MetricDirection.MAXIMIZE,
-    "precision": MetricDirection.MAXIMIZE,
-    "recall": MetricDirection.MAXIMIZE,
-    "f1": MetricDirection.MAXIMIZE,
-    "roc_auc": MetricDirection.MAXIMIZE,
+    "Accuracy": MetricDirection.MAXIMIZE,
+    "Precision": MetricDirection.MAXIMIZE,
+    "Recall": MetricDirection.MAXIMIZE,
+    "F1": MetricDirection.MAXIMIZE,
+    "ROC_AUC": MetricDirection.MAXIMIZE,
 }
 
 _DEFAULT_SECONDARY = {
     TaskType.REGRESSION: ["RMSE", "R2"],
-    TaskType.CLASSIFICATION: ["accuracy", "f1"],
+    TaskType.CLASSIFICATION: ["Accuracy", "F1"],
 }
 
 
@@ -293,19 +310,33 @@ def _apply_llm_trial_allocation(
     hpo_baselines = [b for b in baseline_models if b.get("hpo_enabled")]
     all_hpo_models = hpo_baselines + candidate_models
 
-    # Sum of LLM-allocated trials
-    llm_total = sum(llm_map.get(m["model_id"], {}).get("max_trials", 0) for m in all_hpo_models)
+    # Sum of LLM-allocated trials (keyed by model_family, not model_id)
+    llm_total = sum(llm_map.get(m.get("model_family", ""), {}).get("max_trials", 0)
+                    for m in all_hpo_models)
 
     # If LLM total differs from system max, scale proportionally
     scale = (max_total_trials / llm_total) if llm_total > 0 else 1.0
 
+    allocated = 0
+    items: list = []
     for m in all_hpo_models:
         mid = m["model_id"]
         family = m.get("model_family", mid)
         llm_entry = llm_map.get(mid) or llm_map.get(family, {})
-        trials = int(llm_entry.get("max_trials", 0) * scale) if llm_entry else 0
+        raw = llm_entry.get("max_trials", 0) if llm_entry else 0
+        trials = int(raw * scale) if llm_entry else 0
         trials = max(1, min(trials, max_total_trials))  # at least 1 trial for HPO models
-        rationale = llm_entry.get("allocation_rationale", "")
+        rationale = llm_entry.get("allocation_rationale", "") if llm_entry else ""
+        items.append((mid, trials, rationale))
+        allocated += trials
+
+    # Redistribute remainder to the last HPO model (int() truncation may drop trials)
+    if items and allocated < max_total_trials:
+        remainder = max_total_trials - allocated
+        last_mid, last_trials, last_rationale = items[-1]
+        items[-1] = (last_mid, last_trials + remainder, last_rationale)
+
+    for mid, trials, rationale in items:
         allocations.append(TrialAllocationItem(
             model_id=mid,
             max_trials=trials,
@@ -366,12 +397,23 @@ def build_validation_plan(updated_validation_strategy: dict) -> ValidationPlan:
     )
 
 
+def _normalize_metric_name(name: str) -> str:
+    """Map any casing of a known metric name to its canonical (Title Case) form."""
+    if not name:
+        return name
+    for canonical in _METRIC_DIRECTIONS:
+        if canonical.lower() == name.lower():
+            return canonical
+    return name
+
+
 def build_evaluation_plan(
     primary_metric: str,
     task_type: str,
     updated_evaluation_strategy: dict,
 ) -> EvaluationPlan:
     """Build evaluation plan with metric direction and secondary metrics."""
+    primary_metric = _normalize_metric_name(primary_metric)
     metric_direction = _METRIC_DIRECTIONS.get(primary_metric, MetricDirection.MINIMIZE)
     secondary = updated_evaluation_strategy.get(
         "secondary_metrics",

@@ -1,3 +1,6 @@
+import json
+import os
+import sys
 import uuid
 import logging
 from datetime import datetime, date, timezone
@@ -12,6 +15,11 @@ from app.modules.final_output.schemas import (
 )
 from app.modules.final_output.enums import FinalOutputStatus
 
+
+def _diag(msg, *args):
+    formatted = msg % args if args else msg
+    print(f"DIAG     [fo-svc] {formatted}", file=sys.stderr, flush=True)
+
 from app.modules.final_output.context_builder import build_final_output_context
 from app.modules.final_output.final_output_input_loader import load_final_output_input
 from app.modules.final_output.workflow_trace_collector import collect_workflow_trace
@@ -20,17 +28,6 @@ from app.modules.final_output.reproducibility_summary_builder import build_repro
 from app.modules.final_output.final_summary_builder import (
     build_final_summaries,
     build_summary_dicts,
-)
-from app.modules.final_output.llm_report_prompt_builder import build_llm_report_context
-from app.modules.final_output.llm_report_writer import LLMReportWriter
-from app.modules.final_output.llm_report_parser import parse_llm_report
-from app.modules.final_output.llm_report_validator import validate_llm_report
-from app.modules.final_output.llm_report_normalizer import normalize_llm_report
-from app.modules.final_output.report_renderer import (
-    build_final_report_from_llm,
-    build_fallback_report,
-    render_json_report,
-    render_markdown_report,
 )
 from app.modules.final_output.output_package_builder import (
     build_output_package,
@@ -45,12 +42,24 @@ from app.modules.final_output.exceptions import (
 
 logger = logging.getLogger(__name__)
 
+_TOPIC_FILES = [
+    ("01_task_specification", "task_specification"),
+    ("02_dataset_profile", "dataset_profile"),
+    ("03_workflow_plan", "workflow_plan"),
+    ("04_model_ready_feature_summary", "model_ready_feature_summary"),
+    ("05_candidate_model_plan", "candidate_model_plan"),
+    ("06_hpo_plan", "hpo_plan"),
+    ("07_pipeline_specs", "pipeline_specs"),
+    ("08_training_evaluation_results", "training_evaluation_results"),
+    ("09_interpretability_analysis", "interpretability_analysis"),
+    ("10_final_output_package", "final_output_package"),
+]
+
 
 class FinalOutputService:
 
     def __init__(self):
         self.repo = FinalOutputRepository()
-        self.llm_report_writer = LLMReportWriter()
 
     def create_final_output(
         self,
@@ -58,12 +67,15 @@ class FinalOutputService:
         task_id: str,
         request: FinalOutputCreateRequest,
     ) -> FinalOutputResponse:
+        _diag("=== create_final_output START task_id=%s force_rerun=%s ===", task_id, request.force_rerun)
         warnings_list: list = []
 
-        # Step 1: Build context - validate upstream InterpretabilityAnalysis
+        # Step 1: Validate upstream InterpretabilityAnalysis
+        _diag("Step 1: Building context / validating InterpretabilityAnalysis ...")
         ia = build_final_output_context(
             session, task_id, request.interpretability_analysis_id
         )
+        _diag("Step 1: OK — ia.id=%s ia.status=%s", ia.id, ia.status)
 
         # Early return if not force_rerun and existing output is available
         if not request.force_rerun:
@@ -74,41 +86,38 @@ class FinalOutputService:
                 and existing.status
                 in (FinalOutputStatus.GENERATED, FinalOutputStatus.GENERATED_WITH_WARNING)
             ):
-                return self.get_final_output(session, existing.id)
+                existing_topics = (existing.final_output_json or {}).get("topic_files")
+                if existing_topics and len(existing_topics) >= 9:
+                    _diag("Step 1b: Early return — existing output id=%s (has %d topic files)",
+                          existing.id, len(existing_topics))
+                    return self.get_final_output(session, existing.id)
+                else:
+                    _diag("Step 1b: Existing output id=%s is old format (no topic_files), regenerating ...",
+                          existing.id)
 
         # Step 2: Load final output input
+        _diag("Step 2: Loading final output input ...")
         fo_input = load_final_output_input(ia)
+        _diag("Step 2: OK — model_id=%s trial_id=%s", fo_input.final_model_id, fo_input.final_trial_id)
 
-        # Step 3: Collect workflow trace
+        # Step 3: Collect full workflow trace from all upstream modules
+        _diag("Step 3: Collecting workflow trace from upstream modules ...")
         try:
             workflow_trace = collect_workflow_trace(
-                session,
-                task_id,
-                task_spec_id=_safe_get_id(ia.task_id, "task_specification"),
-                task_interp_id=None,
-                dataset_profile_id=None,
-                workflow_plan_id=None,
-                feature_engineering_id=None,
-                feature_preprocessing_id=None,
-                model_search_context_id=None,
-                pipeline_generation_id=None,
-                pipeline_execution_id=None,
-                metric_evaluation_id=None,
-                result_diagnosis_id=None,
-                workflow_refinement_id=None,
-                final_pipeline_selection_id=fo_input.final_pipeline_selection_id,
-                interpretability_analysis_id=ia.id,
+                session, task_id, interpretability_analysis_id=ia.id,
             )
         except Exception as e:
             logger.warning("Workflow trace collection failed: %s", str(e))
             warnings_list.append(f"Workflow trace: {str(e)}")
             from app.modules.final_output.schemas import WorkflowTraceSummary
             workflow_trace = WorkflowTraceSummary(
-                final_pipeline_selection_id=fo_input.final_pipeline_selection_id,
                 interpretability_analysis_id=ia.id,
             )
+        _diag("Step 3: Done — trace has %d topics in workflow_trace_artifacts",
+              len(workflow_trace.workflow_trace_artifacts or {}))
 
         # Step 4: Resolve final artifacts
+        _diag("Step 4: Resolving final artifacts (model, predictions, etc.) ...")
         try:
             artifact_manifest = resolve_final_artifacts(session, fo_input)
         except Exception as e:
@@ -134,122 +143,94 @@ class FinalOutputService:
                 model_artifact_path=fo_input.model_artifact_path,
             )
 
-        # Step 6: Build system fact summaries
+        # Step 6: Build system fact summaries (model / metric / interpretability)
         summaries = build_final_summaries(fo_input, interpretability_analysis_id=ia.id)
         summary_dicts = build_summary_dicts(summaries)
 
-        # Step 7: Build LLM report context
-        llm_context = build_llm_report_context(
-            task_summary={"task_type": "", "target_column": "", "primary_metric": fo_input.metric_summary.get("primary_metric", "")},
-            dataset_summary={"source": "", "target_column": "", "feature_count": len(fo_input.global_feature_importance)},
-            workflow_summary={"steps_completed": 15, "iterations": workflow_trace.iteration_count, "refinement_performed": workflow_trace.iteration_count > 0},
-            feature_summary={"strategies": [], "feature_count": len(fo_input.global_feature_importance)},
-            model_search_summary={"search_method": "auto", "models_evaluated": 0, "hpo_method": "auto"},
-            final_model={
-                "model_id": fo_input.final_model_id,
-                "trial_id": fo_input.final_trial_id,
-                "model_family": fo_input.final_model_id,
-            },
-            final_metrics={
-                "primary_metric": fo_input.metric_summary.get("primary_metric", ""),
-                "primary_metric_value": fo_input.metric_summary.get("primary_metric_value"),
-            },
-            selection_summary=fo_input.selection_summary,
-            interpretability={"top_features": summaries.interpretability_summary.top_features if summaries.interpretability_summary else []},
-            shap_summary=fo_input.shap_summary,
-            material_insight=fo_input.material_insight_summary,
-            reproducibility=reproducibility_summary.model_dump(),
-            artifact_list=artifact_manifest.model_dump(),
-            warnings_list=warnings_list,
-        )
+        # Step 7: Generate IDs and directory
+        fo_id = f"fo_{uuid.uuid4().hex[:8]}"
+        artifact_dir = f"/app/artifacts/final_output/{fo_id}"
+        _diag("Step 7: Generated fo_id=%s artifact_dir=%s", fo_id, artifact_dir)
 
-        # Step 8-12: LLM Report Writer
-        llm_used = False
-        llm_report = None
-        final_report = None
-        llm_confidence = None
-        llm_raw_request = None
-        llm_raw_response = None
+        # Step 8: Write topic report files
+        _diag("Step 8: Writing topic report files ...")
+        topic_file_paths: Dict[str, str] = {}
+        topic_file_list: List[Dict[str, str]] = []
+        try:
+            os.makedirs(artifact_dir, exist_ok=True)
+            _diag("Step 8: artifact_dir created: %s", artifact_dir)
+            for filename, topic_key in _TOPIC_FILES:
+                data = (workflow_trace.workflow_trace_artifacts or {}).get(topic_key)
+                if data is None:
+                    data = {}
+                file_path = os.path.join(artifact_dir, f"{filename}.json")
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False, default=str)
+                topic_file_paths[topic_key] = file_path
+                topic_file_list.append({
+                    "file": f"{filename}.json",
+                    "topic": topic_key,
+                })
+                data_keys = list(data.keys()) if isinstance(data, dict) else "not-a-dict"
+                _diag("Step 8: wrote %s  keys=%s", f"{filename}.json", data_keys)
+                logger.info("Wrote topic file: %s", file_path)
 
-        if request.use_llm_report_writer:
-            try:
-                llm_raw_request = llm_context
-                llm_result = self.llm_report_writer.write_report(
-                    llm_context["system_prompt"], llm_context["user_message"]
-                )
-                raw_response = llm_result.get("raw_response", "")
-                llm_raw_response = raw_response
+            # Patch the final_output_package topic to list all generated files
+            final_pkg = (workflow_trace.workflow_trace_artifacts or {}).get("final_output_package") or {}
+            final_pkg["status"] = "generated"
+            final_pkg["generated_files"] = topic_file_list
+            final_pkg["artifact_dir"] = artifact_dir
+            final_pkg["final_output_id"] = fo_id
+            workflow_trace.workflow_trace_artifacts["final_output_package"] = final_pkg
 
-                llm_report = parse_llm_report(raw_response)
-                validation = validate_llm_report(llm_report, raw_response)
+            # Re-write the final_output_package file with updated content
+            pkg_path = topic_file_paths.get("final_output_package")
+            if pkg_path:
+                with open(pkg_path, "w", encoding="utf-8") as f:
+                    json.dump(final_pkg, f, indent=2, ensure_ascii=False, default=str)
 
-                if validation.is_valid:
-                    llm_report = normalize_llm_report(llm_report)
-                    final_report = build_final_report_from_llm(llm_report)
-                    llm_used = True
-                    llm_confidence = llm_report.confidence_level if llm_report else None
-                else:
-                    logger.warning("LLM report validation failed: %s", validation.issues)
-                    warnings_list.append(
-                        f"LLM report validation failed: {'; '.join(validation.issues)}"
-                    )
-                    final_report = build_fallback_report(
-                        final_model_id=fo_input.final_model_id,
-                        primary_metric=fo_input.metric_summary.get("primary_metric", ""),
-                        primary_metric_value=fo_input.metric_summary.get("primary_metric_value"),
-                    )
-                    llm_report = None
+            # Update artifact manifest with topic files
+            artifact_manifest.final_report_json_path = topic_file_paths.get("task_specification", "")
+            artifact_manifest.final_report_md_path = ""
+            artifact_manifest.workflow_trace_path = os.path.join(artifact_dir, "workflow_trace.json")
+            artifact_manifest.reproducibility_summary_path = os.path.join(artifact_dir, "reproducibility_summary.json")
+            artifact_manifest.manifest_path = os.path.join(artifact_dir, "manifest.json")
 
-            except Exception as e:
-                logger.error("LLM report writer failed: %s", str(e))
-                warnings_list.append(f"LLM report writer: {str(e)}")
-                final_report = build_fallback_report(
-                    final_model_id=fo_input.final_model_id,
-                    primary_metric=fo_input.metric_summary.get("primary_metric", ""),
-                    primary_metric_value=fo_input.metric_summary.get("primary_metric_value"),
-                )
-        else:
-            final_report = build_fallback_report(
-                final_model_id=fo_input.final_model_id,
-                primary_metric=fo_input.metric_summary.get("primary_metric", ""),
-                primary_metric_value=fo_input.metric_summary.get("primary_metric_value"),
-            )
+        except Exception as e:
+            logger.warning("Topic file writing failed: %s", str(e))
+            warnings_list.append(f"Topic file writing: {str(e)}")
+        _diag("Step 8: Done — wrote %d topic files to %s", len(topic_file_list), artifact_dir)
 
-        # Step 13: Determine status
+        # Step 9: Write workflow trace & reproducibility summary files
+        _diag("Step 9: Writing workflow trace & reproducibility summary ...")
+        workflow_trace_path = os.path.join(artifact_dir, "workflow_trace.json")
+        reproducibility_path = os.path.join(artifact_dir, "reproducibility_summary.json")
+        try:
+            with open(workflow_trace_path, "w", encoding="utf-8") as f:
+                json.dump(_make_json_safe(workflow_trace.model_dump()), f, indent=2, ensure_ascii=False, default=str)
+        except Exception as e:
+            logger.warning("Workflow trace write failed: %s", str(e))
+        try:
+            with open(reproducibility_path, "w", encoding="utf-8") as f:
+                json.dump(_make_json_safe(reproducibility_summary.model_dump()), f, indent=2, ensure_ascii=False, default=str)
+        except Exception as e:
+            logger.warning("Reproducibility summary write failed: %s", str(e))
+
+        # Step 10: Determine status
         status = FinalOutputStatus.GENERATED
         if warnings_list:
             status = FinalOutputStatus.GENERATED_WITH_WARNING
+        _diag("Step 10: status=%s warnings=%d", status, len(warnings_list))
 
-        # Step 14: Generate IDs and directory
-        fo_id = f"fo_{uuid.uuid4().hex[:8]}"
-        artifact_dir = f"/app/artifacts/final_output/{fo_id}"
-
-        # Step 15: Render reports
-        json_report_path = f"{artifact_dir}/final_report.json"
-        markdown_report_path = f"{artifact_dir}/final_report.md"
-        workflow_trace_path = f"{artifact_dir}/workflow_trace.json"
-        reproducibility_path = f"{artifact_dir}/reproducibility_summary.json"
-
-        try:
-            render_json_report(final_report, json_report_path)
-        except Exception as e:
-            logger.warning("JSON report render failed: %s", str(e))
-            warnings_list.append(f"JSON report render: {str(e)}")
-
-        try:
-            render_markdown_report(final_report, markdown_report_path)
-        except Exception as e:
-            logger.warning("Markdown report render failed: %s", str(e))
-            warnings_list.append(f"Markdown report render: {str(e)}")
-
-        # Step 16: Build output package
+        # Step 11: Build output package
+        _diag("Step 11: Building output package ...")
         try:
             package_manifest = build_output_package(
                 final_output_id=fo_id,
                 artifact_dir=artifact_dir,
                 artifact_manifest=artifact_manifest,
-                json_report_path=json_report_path,
-                markdown_report_path=markdown_report_path,
+                json_report_path=topic_file_paths.get("task_specification", ""),
+                markdown_report_path="",
                 workflow_trace_path=workflow_trace_path,
                 reproducibility_summary_path=reproducibility_path,
             )
@@ -263,7 +244,7 @@ class FinalOutputService:
                 package_status="partial",
             )
 
-        # Step 17: Build download links
+        # Step 12: Build download links
         download_links = build_download_links(
             final_output_id=fo_id,
             artifact_dir=artifact_dir,
@@ -271,14 +252,16 @@ class FinalOutputService:
             package_manifest=package_manifest,
         )
 
-        # Step 18: Determine ready_for_delivery
+        # Step 13: Determine ready_for_delivery
         ready_for_delivery = bool(
-            final_report
-            and json_report_path
+            len(topic_file_list) >= 9
             and artifact_manifest.model_artifact_path
         )
+        _diag("Step 13: ready_for_delivery=%s topic_files=%d model_artifact=%s",
+              ready_for_delivery, len(topic_file_list), bool(artifact_manifest.model_artifact_path))
 
-        # Step 19: Build final output JSON
+        # Step 14: Build final output JSON
+        _diag("Step 14: Building final output JSON ...")
         final_output_json = {
             **summary_dicts,
             "workflow_trace_summary": workflow_trace.model_dump(),
@@ -286,17 +269,18 @@ class FinalOutputService:
             "artifact_manifest": artifact_manifest.model_dump(),
             "output_package_manifest": package_manifest.model_dump(),
             "download_links": download_links.model_dump(),
+            "topic_files": topic_file_list,
             "ready_for_delivery": ready_for_delivery,
         }
 
-        # Step 20: Persist
+        # Step 15: Persist
+        _diag("Step 15: Persisting to database ...")
         now = datetime.now(timezone.utc)
 
         record = FinalOutput(
             id=fo_id,
             task_id=task_id,
             interpretability_analysis_id=ia.id,
-            final_pipeline_selection_id=fo_input.final_pipeline_selection_id,
             status=status,
             report_profile=request.report_profile,
             final_model_id=fo_input.final_model_id,
@@ -305,17 +289,17 @@ class FinalOutputService:
             primary_metric_value=fo_input.metric_summary.get("primary_metric_value"),
             ready_for_delivery=ready_for_delivery,
             final_output_json=_make_json_safe(final_output_json),
-            final_report_json=_make_json_safe(final_report.model_dump()) if final_report else None,
-            llm_report_json=_make_json_safe(llm_report.model_dump()) if llm_report else None,
+            final_report_json=None,
+            llm_report_json=None,
             workflow_trace_json=_make_json_safe(workflow_trace.model_dump()),
             reproducibility_summary_json=_make_json_safe(reproducibility_summary.model_dump()),
             artifact_manifest_json=_make_json_safe(artifact_manifest.model_dump()),
             output_package_manifest_json=_make_json_safe(package_manifest.model_dump()),
             download_links_json=_make_json_safe(download_links.model_dump()),
-            llm_used=llm_used,
-            llm_confidence_level=llm_confidence,
-            llm_request_json=_make_json_safe(llm_raw_request),
-            llm_response_json=_make_json_safe({"raw_response": llm_raw_response}) if llm_raw_response else None,
+            llm_used=False,
+            llm_confidence_level=None,
+            llm_request_json=None,
+            llm_response_json=None,
             artifact_dir=artifact_dir,
             error_message=None,
             created_at=now,
@@ -323,14 +307,16 @@ class FinalOutputService:
         )
 
         record = self.repo.create(session, record)
+        _diag("Step 15: Persisted — record.id=%s", record.id)
 
-        # Step 21: Save final output artifacts
+        # Step 16: Save final output artifacts (manifest, etc.)
+        _diag("Step 16: Saving final output artifacts ...")
         try:
             save_final_output_artifacts(
                 final_output_id=fo_id,
                 final_output_result=_safe_dump(record),
-                final_report=final_report.model_dump() if final_report else {},
-                llm_report=llm_report.model_dump() if llm_report else None,
+                final_report={},
+                llm_report=None,
                 workflow_trace=workflow_trace.model_dump(),
                 reproducibility_summary=reproducibility_summary.model_dump(),
                 artifact_manifest=artifact_manifest.model_dump(),
@@ -340,16 +326,18 @@ class FinalOutputService:
             logger.warning("Artifact save failed: %s", str(e))
             warnings_list.append(f"Artifact save: {str(e)}")
 
+        _diag("=== create_final_output DONE: fo_id=%s status=%s topic_files=%d warnings=%d ===",
+              fo_id, status, len(topic_file_list), len(warnings_list))
         return build_response(record=record, warnings=warnings_list)
+
+    # ── Read methods ────────────────────────────────────────────────
 
     def get_final_output(
         self, session: Session, fo_id: str
     ) -> FinalOutputResponse:
         record = self.repo.get_by_id(session, fo_id)
         if not record:
-            raise FinalOutputNotFoundException(
-                f"FinalOutput {fo_id} not found."
-            )
+            raise FinalOutputNotFoundException(f"FinalOutput {fo_id} not found.")
         return self._record_to_response(record)
 
     def get_latest_by_task_id(
@@ -392,16 +380,68 @@ class FinalOutputService:
             raise FinalOutputNotFoundException(f"FinalOutput {fo_id} not found.")
         return record.download_links_json or {}
 
+    def download_artifact_zip(self, session: Session, fo_id: str) -> str:
+        import zipfile
+
+        _diag("download_artifact_zip: fo_id=%s", fo_id)
+        record = self.repo.get_by_id(session, fo_id)
+        if not record:
+            _diag("download_artifact_zip: record NOT FOUND for %s", fo_id)
+            raise FinalOutputNotFoundException(f"FinalOutput {fo_id} not found.")
+
+        artifact_dir = record.artifact_dir
+        _diag("download_artifact_zip: artifact_dir=%s", artifact_dir)
+        if not artifact_dir or not os.path.isdir(artifact_dir):
+            _diag("download_artifact_zip: artifact_dir NOT FOUND or not a directory")
+            raise FinalOutputNotFoundException(
+                f"Artifact directory not found for FinalOutput {fo_id}."
+            )
+
+        # Only include: topic files, workflow_trace, reproducibility_summary, package/ refs
+        _keep_patterns = [
+            "01_task_specification.json", "02_dataset_profile.json",
+            "03_workflow_plan.json", "04_model_ready_feature_summary.json",
+            "05_candidate_model_plan.json", "06_hpo_plan.json",
+            "07_pipeline_specs.json", "08_training_evaluation_results.json",
+            "09_interpretability_analysis.json", "10_final_output_package.json",
+            "workflow_trace.json", "reproducibility_summary.json",
+        ]
+        _keep_dirs = ["package"]
+
+        zip_path = os.path.join(artifact_dir, f"{fo_id}_package.zip")
+        file_count = 0
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for root, dirs, files in os.walk(artifact_dir):
+                for fname in files:
+                    if fname.endswith(".zip"):
+                        continue
+                    file_path = os.path.join(root, fname)
+                    arcname = os.path.relpath(file_path, artifact_dir).replace("\\", "/")
+                    # Include only whitelisted files and package/ subdirectory
+                    include = fname in _keep_patterns
+                    if not include:
+                        for keep_dir in _keep_dirs:
+                            if arcname.startswith(keep_dir + "/"):
+                                include = True
+                                break
+                    if not include:
+                        _diag("download_artifact_zip: skipped %s", arcname)
+                        continue
+                    zf.write(file_path, arcname)
+                    _diag("download_artifact_zip: added %s", arcname)
+                    file_count += 1
+
+        _diag("download_artifact_zip: created %s (%d files)", zip_path, file_count)
+        logger.info("Created download zip: %s (%d files)", zip_path, file_count)
+        return zip_path
+
     def _record_to_response(self, record: FinalOutput) -> FinalOutputResponse:
         return build_response(record=record)
 
 
-def _safe_get_id(source_id: str, module_name: str) -> Optional[str]:
-    return source_id
-
+# ── JSON-safe helpers ─────────────────────────────────────────────
 
 def _make_json_safe(obj: Any) -> Any:
-    """Recursively convert non-JSON-serializable objects (datetime, etc.) to safe types."""
     if obj is None:
         return None
     if isinstance(obj, datetime):

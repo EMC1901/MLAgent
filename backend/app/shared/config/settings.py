@@ -10,14 +10,16 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:3000"]
 
     # LLM configuration
-    LLM_PROVIDER: str = "openai"
-    LLM_MODEL: str = "gpt-4.1"
+    LLM_PROVIDER: str = "dashscope"
+    LLM_MODEL: str = "glm-5.1"
     LLM_API_KEY: str = ""
-    LLM_BASE_URL: str = "https://api.openai.com/v1"
+    LLM_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     LLM_TIMEOUT: int = 120
-    LLM_MAX_RETRIES: int = 3
+    LLM_MAX_RETRIES: int = 4
     LLM_TEMPERATURE: float = 0.0
-    LLM_THINKING: bool = False
+    LLM_CALL_COOLDOWN_SECONDS: int = 20
+    LLM_THINKING: bool = True
+    LLM_REASONING_EFFORT: str = "high"
 
     # Dataset upload configuration
     DATASET_UPLOAD_DIR: str = "/app/uploads"
@@ -68,7 +70,7 @@ class Settings(BaseSettings):
     MODEL_CONTEXT_ENABLE_LLM_ADVISOR: bool = True
     MODEL_CONTEXT_LLM_TEMPERATURE: float = 0.0
     MODEL_CONTEXT_LLM_TIMEOUT: int = 480
-    MODEL_CONTEXT_LLM_MAX_RETRIES: int = 1
+    MODEL_CONTEXT_LLM_MAX_RETRIES: int = 2
 
     MODEL_CONTEXT_LOW_FEATURE_THRESHOLD: int = 20
     MODEL_CONTEXT_HIGH_REDUCTION_RATIO: float = 0.8

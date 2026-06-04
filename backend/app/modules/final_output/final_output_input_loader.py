@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 class FinalOutputInput:
     def __init__(self, data: Dict[str, Any]):
         self.interpretability_analysis_id: str = data.get("interpretability_analysis_id", "")
-        self.final_pipeline_selection_id: str = data.get("final_pipeline_selection_id", "")
         self.task_id: str = data.get("task_id", "")
         self.final_model_id: str = data.get("final_model_id", "")
         self.final_trial_id: str = data.get("final_trial_id", "")

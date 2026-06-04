@@ -4,7 +4,6 @@ from typing import List, Dict, Any, Optional
 from app.modules.final_output.schemas import (
     FinalModelSummary,
     FinalMetricSummary,
-    FinalSelectionSummary,
     InterpretabilitySummary,
 )
 from app.modules.final_output.final_output_input_loader import FinalOutputInput
@@ -16,7 +15,6 @@ class FinalOutputSummaries:
     def __init__(self):
         self.final_model_summary: Optional[FinalModelSummary] = None
         self.final_metric_summary: Optional[FinalMetricSummary] = None
-        self.final_selection_summary: Optional[FinalSelectionSummary] = None
         self.interpretability_summary: Optional[InterpretabilitySummary] = None
 
 
@@ -31,9 +29,6 @@ def build_final_summaries(
 
     # Build final metric summary
     summaries.final_metric_summary = _build_metric_summary(fo_input)
-
-    # Build final selection summary
-    summaries.final_selection_summary = _build_selection_summary(fo_input)
 
     # Build interpretability summary
     summaries.interpretability_summary = _build_interpretability_summary(
@@ -72,18 +67,6 @@ def _build_metric_summary(fo_input: FinalOutputInput) -> FinalMetricSummary:
     )
 
 
-def _build_selection_summary(fo_input: FinalOutputInput) -> FinalSelectionSummary:
-    sel_data = fo_input.selection_summary
-    return FinalSelectionSummary(
-        final_pipeline_selection_id=fo_input.final_pipeline_selection_id,
-        selection_profile=sel_data.get("selection_profile", ""),
-        selection_score=sel_data.get("selection_score"),
-        system_selection_reason=sel_data.get("system_selection_reason", {}),
-        llm_selection_explanation=sel_data.get("llm_selection_explanation", {}),
-        candidate_difference_summary=sel_data.get("candidate_difference_summary", []),
-        risk_notes=sel_data.get("risk_notes", []),
-    )
-
 
 def _build_interpretability_summary(
     fo_input: FinalOutputInput,
@@ -115,8 +98,6 @@ def build_summary_dicts(summaries: FinalOutputSummaries) -> Dict[str, Any]:
         if summaries.final_model_summary else {},
         "final_metric_summary": summaries.final_metric_summary.model_dump()
         if summaries.final_metric_summary else {},
-        "final_selection_summary": summaries.final_selection_summary.model_dump()
-        if summaries.final_selection_summary else {},
         "interpretability_summary": summaries.interpretability_summary.model_dump()
         if summaries.interpretability_summary else {},
     }

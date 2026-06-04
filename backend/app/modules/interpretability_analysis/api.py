@@ -1,10 +1,13 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 from app.shared.database.session import get_session
 from app.modules.interpretability_analysis.schemas import InterpretabilityAnalysisCreateRequest
 from app.modules.interpretability_analysis.service import InterpretabilityAnalysisService
-from app.shared.common.response import success_response
+from app.shared.common.response import success_response, error_response
 from app.shared.common.exceptions import BusinessException
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["interpretability-analysis"])
 service = InterpretabilityAnalysisService()
@@ -24,13 +27,17 @@ def create_interpretability_analysis(
         )
     except BusinessException as e:
         status_code = 404 if e.error_code in (
-            "FINAL_PIPELINE_SELECTION_REQUIRED",
-            "FINAL_SELECTION_NOT_READY_FOR_INTERPRETABILITY",
             "INTERPRETABILITY_ANALYSIS_NOT_FOUND",
         ) else 400
         raise HTTPException(
             status_code=status_code,
             detail={"message": e.message, "error_code": e.error_code},
+        )
+    except Exception as e:
+        logger.exception("Unexpected error in interpretability analysis for task %s: %s", task_id, str(e))
+        raise HTTPException(
+            status_code=500,
+            detail={"message": f"Internal error: {str(e)}", "error_code": "INTERPRETABILITY_INTERNAL_ERROR"},
         )
 
 
@@ -85,8 +92,6 @@ def rerun_interpretability_analysis(
         )
     except BusinessException as e:
         status_code = 404 if e.error_code in (
-            "FINAL_PIPELINE_SELECTION_REQUIRED",
-            "FINAL_SELECTION_NOT_READY_FOR_INTERPRETABILITY",
             "INTERPRETABILITY_ANALYSIS_NOT_FOUND",
         ) else 400
         raise HTTPException(

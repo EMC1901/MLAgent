@@ -6,7 +6,6 @@ from pydantic import BaseModel
 # ---- Request schemas ----
 
 class InterpretabilityAnalysisCreateRequest(BaseModel):
-    final_pipeline_selection_id: Optional[str] = None
     force_rerun: bool = False
     use_llm_summarizer: bool = True
     interpretability_profile: str = "standard"
@@ -15,6 +14,13 @@ class InterpretabilityAnalysisCreateRequest(BaseModel):
     include_high_error_samples: bool = True
     include_permutation_importance: bool = True
     include_shap: bool = True
+    include_pdp: bool = True
+    include_correlation: bool = True
+    include_residual_analysis: bool = True
+    include_cross_method_consensus: bool = True
+    include_physics_constraints: bool = True
+    pdp_top_n_features: int = 10
+    correlation_top_n_features: int = 30
     notes: Optional[str] = None
 
 
@@ -133,7 +139,6 @@ class InterpretabilityMethodPlan(BaseModel):
 
 class FinalOutputInput(BaseModel):
     interpretability_analysis_id: Optional[str] = None
-    final_pipeline_selection_id: Optional[str] = None
     task_id: Optional[str] = None
     final_model_id: Optional[str] = None
     final_trial_id: Optional[str] = None
@@ -155,6 +160,64 @@ class InterpretabilityRiskNote(BaseModel):
     severity: str = "low"
 
 
+# ---- Phase 2: New analysis DTOs ----
+
+class CrossMethodConsensus(BaseModel):
+    """Cross-method rank correlation analysis."""
+    rank_correlation_matrix: Dict[str, Dict[str, float]] = {}
+    consensus_features: List[str] = []
+    divergent_features: List[Dict[str, Any]] = []
+    overall_agreement_score: float = 0.0
+
+
+class PDP1D(BaseModel):
+    """1D partial dependence for a single feature."""
+    feature_name: str = ""
+    grid_values: List[float] = []
+    pdp_values: List[float] = []
+
+
+class PDP2D(BaseModel):
+    """2D partial dependence for a feature pair."""
+    feature_1: str = ""
+    feature_2: str = ""
+    grid_1: List[float] = []
+    grid_2: List[float] = []
+    pdp_matrix: List[List[float]] = []
+
+
+class PartialDependenceResult(BaseModel):
+    """Partial dependence analysis results."""
+    pdp_1d: List[PDP1D] = []
+    pdp_2d: List[PDP2D] = []
+
+
+class ResidualAnalysisResult(BaseModel):
+    """Residual analysis with systematic error detection."""
+    residuals: List[float] = []
+    predicted_values: List[float] = []
+    r_squared: float = 0.0
+    rmse: float = 0.0
+    residual_mean: float = 0.0
+    residual_std: float = 0.0
+    histogram_bins: List[Dict[str, Any]] = []
+    systematic_error_segments: List[Dict[str, Any]] = []
+
+
+class CorrelationAnalysisResult(BaseModel):
+    """Feature correlation analysis."""
+    feature_correlation_matrix: List[List[float]] = []
+    feature_names: List[str] = []
+    target_correlations: List[Dict[str, Any]] = []
+    high_correlation_pairs: List[Dict[str, Any]] = []
+
+
+class PhysicsConstraintCheck(BaseModel):
+    """Physics constraint validation result."""
+    constraints: List[Dict[str, Any]] = []
+    passed: bool = True
+
+
 class ArtifactManifest(BaseModel):
     manifest_path: Optional[str] = None
     interpretability_analysis_result_path: Optional[str] = None
@@ -168,6 +231,53 @@ class ArtifactManifest(BaseModel):
     material_insight_summary_path: Optional[str] = None
     llm_interpretability_summary_path: Optional[str] = None
     final_output_input_path: Optional[str] = None
+    cross_method_consensus_path: Optional[str] = None
+    partial_dependence_path: Optional[str] = None
+    residual_analysis_path: Optional[str] = None
+    correlation_analysis_path: Optional[str] = None
+    physics_constraint_check_path: Optional[str] = None
+
+
+class InterpretabilityAnalysisInput(BaseModel):
+    """Input data for interpretability analysis, gathered from upstream modules."""
+    # Model artifacts
+    model_artifact_path: Optional[str] = None
+    model_ready_matrix_path: Optional[str] = None
+    prediction_artifact_paths: List[str] = []
+    preprocessor_artifact_path: Optional[str] = None
+
+    # Task context
+    task_id: Optional[str] = None
+    task_type: Optional[str] = None
+    target_column: Optional[str] = None
+    primary_metric: Optional[str] = None
+    primary_metric_value: Optional[float] = None
+    metric_direction: Optional[str] = None
+
+    # Model info
+    final_model_id: Optional[str] = None
+    final_model_family: Optional[str] = None
+    final_trial_id: Optional[str] = None
+
+    # Feature info
+    feature_columns: List[str] = []
+    feature_lineage: Dict[str, Any] = {}
+
+    # Domain context (for LLM)
+    material_domain: Optional[str] = None
+    dataset_description: Optional[str] = None
+    prediction_target_name: Optional[str] = None
+    stop_rationale: Optional[Dict[str, Any]] = None
+
+    # Upstream references
+    metric_evaluation_id: Optional[str] = None
+    pipeline_execution_id: Optional[str] = None
+    pipeline_generation_id: Optional[str] = None
+
+    # Selection context
+    selection_reason_summary: Optional[str] = None
+    model_ranking: List[Dict[str, Any]] = []
+    metric_summary: Optional[Dict[str, Any]] = None
 
 
 # ---- Response schema ----
@@ -175,7 +285,6 @@ class ArtifactManifest(BaseModel):
 class InterpretabilityAnalysisResponse(BaseModel):
     interpretability_analysis_id: Optional[str] = None
     task_id: Optional[str] = None
-    final_pipeline_selection_id: Optional[str] = None
     metric_evaluation_id: Optional[str] = None
     pipeline_execution_id: Optional[str] = None
     status: str = "analyzing"
@@ -193,6 +302,11 @@ class InterpretabilityAnalysisResponse(BaseModel):
     material_insight_summary: Optional[Dict[str, Any]] = None
     llm_interpretability_summary: Optional[Dict[str, Any]] = None
     interpretability_risk_notes: List[Dict[str, Any]] = []
+    cross_method_consensus: Optional[Dict[str, Any]] = None
+    partial_dependence: Optional[Dict[str, Any]] = None
+    residual_analysis: Optional[Dict[str, Any]] = None
+    correlation_analysis: Optional[Dict[str, Any]] = None
+    physics_constraint_check: Optional[Dict[str, Any]] = None
     analysis_artifact_manifest: Optional[Dict[str, Any]] = None
     final_output_input: Optional[Dict[str, Any]] = None
     ready_for_final_output: bool = False

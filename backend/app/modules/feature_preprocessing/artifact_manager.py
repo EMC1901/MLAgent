@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import logging
+import tempfile
 import numpy as np
 import pandas as pd
 import joblib
@@ -41,19 +42,25 @@ def save_model_ready_artifact(
     except OSError as e:
         raise ModelReadyArtifactSaveException(f"Failed to create artifact directory: {e}")
 
-    # Save model-ready matrix
+    # Save model-ready matrix (atomic: write to temp then rename)
     file_path = os.path.join(artifact_dir, "model_ready_features.parquet")
     try:
-        model_ready_df.to_parquet(file_path, index=False)
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".parquet", dir=artifact_dir)
+        os.close(tmp_fd)
+        model_ready_df.to_parquet(tmp_path, index=False)
+        os.replace(tmp_path, file_path)
     except Exception as e:
         raise ModelReadyArtifactSaveException(f"Failed to save model-ready matrix: {e}")
 
     model_ready_artifact_id = f"artifact_model_ready_{uuid.uuid4().hex[:8]}"
 
-    # Save preprocessor pipeline
+    # Save preprocessor pipeline (atomic write)
     preprocessor_path = os.path.join(artifact_dir, "preprocessor.joblib")
     try:
-        joblib.dump(preprocessing_pipeline, preprocessor_path)
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".joblib", dir=artifact_dir)
+        os.close(tmp_fd)
+        joblib.dump(preprocessing_pipeline, tmp_path)
+        os.replace(tmp_path, preprocessor_path)
     except Exception as e:
         raise PreprocessorArtifactSaveException(f"Failed to save preprocessor: {e}")
 
@@ -79,16 +86,23 @@ def save_model_ready_artifact(
         "preprocessor_format": PREPROCESSOR_ARTIFACT_FORMAT,
         "created_at": pd.Timestamp.now().isoformat(),
     }
+    def _atomic_write_json(filepath, data):
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".json", dir=os.path.dirname(filepath))
+        os.close(tmp_fd)
+        with open(tmp_path, "w") as f:
+            json.dump(data, f, indent=2, default=str)
+        os.replace(tmp_path, filepath)
+
+    meta_path = os.path.join(artifact_dir, "preprocessing_metadata.json")
     try:
-        with open(os.path.join(artifact_dir, "preprocessing_metadata.json"), "w") as f:
-            json.dump(metadata, f, indent=2, default=str)
+        _atomic_write_json(meta_path, metadata)
     except OSError:
         logger.warning("Failed to write preprocessing_metadata.json")
 
     # Save validation report (placeholder)
+    val_path = os.path.join(artifact_dir, "validation_report.json")
     try:
-        with open(os.path.join(artifact_dir, "validation_report.json"), "w") as f:
-            json.dump({"is_model_ready": True}, f)
+        _atomic_write_json(val_path, {"is_model_ready": True})
     except OSError:
         logger.warning("Failed to write validation_report.json")
 
@@ -102,9 +116,9 @@ def save_model_ready_artifact(
         "total_rows": len(model_ready_df),
         "rows": preview_df.to_dict(orient="records"),
     }
+    preview_path = os.path.join(artifact_dir, "preview.json")
     try:
-        with open(os.path.join(artifact_dir, "preview.json"), "w") as f:
-            json.dump(preview_json, f, indent=2, default=str)
+        _atomic_write_json(preview_path, preview_json)
     except OSError:
         logger.warning("Failed to write preview.json")
 
@@ -117,6 +131,36 @@ def save_model_ready_artifact(
         "preprocessor_file_path": preprocessor_path,
         "preview_json": preview_json,
     }
+
+
+def save_fold_pipeline_spec(fmp_id: str, spec) -> str:
+    """Save FoldPipelineSpec as JSON alongside the model-ready artifact."""
+    artifact_dir = os.path.join(MODEL_READY_ARTIFACT_DIR, fmp_id)
+    os.makedirs(artifact_dir, exist_ok=True)
+    spec_path = os.path.join(artifact_dir, "fold_pipeline_spec.json")
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".json", dir=artifact_dir)
+    os.close(tmp_fd)
+    with open(tmp_path, "w") as f:
+        json.dump(spec.model_dump(mode="json") if hasattr(spec, "model_dump") else spec,
+                  f, indent=2, default=str)
+    os.replace(tmp_path, spec_path)
+    logger.info("FoldPipelineSpec saved: %s (%d ops)", spec_path,
+                len(spec.operations) if hasattr(spec, "operations") else 0)
+    return spec_path
+
+
+def load_fold_pipeline_spec(filepath: str):
+    """Load a FoldPipelineSpec from JSON file. Returns FoldPipelineSpec or None."""
+    from app.modules.feature_preprocessing.schemas import FoldPipelineSpec
+    if not filepath or not os.path.exists(filepath):
+        return None
+    try:
+        with open(filepath, "r") as f:
+            data = json.load(f)
+        return FoldPipelineSpec(**data)
+    except Exception as e:
+        logger.warning("Failed to load fold pipeline spec from %s: %s", filepath, e)
+        return None
 
 
 def read_preview_from_model_ready(preprocessing_id: str, max_rows: int = 20) -> dict:

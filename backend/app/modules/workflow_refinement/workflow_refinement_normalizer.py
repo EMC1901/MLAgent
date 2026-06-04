@@ -31,8 +31,6 @@ def normalize_workflow_refinement_result(parsed: Dict[str, Any]) -> Dict[str, An
     if decision == "proceed_next_stage":
         parsed.setdefault("revised_workflow_plan", None)
         parsed.setdefault("iteration_rerun_plan", None)
-    elif decision == "iterate_refinement":
-        parsed.setdefault("final_pipeline_selection_input", None)
 
     confidence = parsed.get("confidence_level", "")
     if confidence and confidence not in VALID_CONFIDENCE_LEVELS:
@@ -128,8 +126,6 @@ def _normalize_rerun_stage(raw: str) -> str:
         "train": "pipeline_execution",
         "metric": "metric_evaluation",
         "evaluation": "metric_evaluation",
-        "final": "final_pipeline_selection",
-        "selection": "final_pipeline_selection",
     }
     for key, value in stage_map.items():
         if key in raw_lower:

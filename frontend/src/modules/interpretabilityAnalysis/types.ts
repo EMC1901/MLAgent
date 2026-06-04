@@ -1,5 +1,4 @@
 export interface InterpretabilityAnalysisCreateRequest {
-  final_pipeline_selection_id?: string;
   force_rerun?: boolean;
   use_llm_summarizer?: boolean;
   interpretability_profile?: string;
@@ -99,7 +98,6 @@ export interface InterpretabilityRiskNote {
 
 export interface FinalOutputInput {
   interpretability_analysis_id?: string;
-  final_pipeline_selection_id?: string;
   task_id?: string;
   final_model_id?: string;
   final_trial_id?: string;
@@ -114,7 +112,6 @@ export interface FinalOutputInput {
 export interface InterpretabilityAnalysisResponse {
   interpretability_analysis_id?: string;
   task_id?: string;
-  final_pipeline_selection_id?: string;
   metric_evaluation_id?: string;
   pipeline_execution_id?: string;
   status: string;

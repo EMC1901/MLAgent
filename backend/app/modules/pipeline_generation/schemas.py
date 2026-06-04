@@ -134,6 +134,7 @@ class ExecutionInput(BaseModel):
     task_type: Optional[str] = None
     model_ready_matrix_path: Optional[str] = None
     preprocessor_artifact_path: Optional[str] = None
+    fold_pipeline_spec_path: Optional[str] = None
     target_column: Optional[str] = None
     feature_columns: List[str] = []
     pipeline_specs: List[PipelineSpec] = []

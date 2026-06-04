@@ -8,7 +8,7 @@ from pydantic import BaseModel
 class FinalOutputCreateRequest(BaseModel):
     interpretability_analysis_id: Optional[str] = None
     force_rerun: bool = False
-    use_llm_report_writer: bool = True
+    use_llm_report_writer: bool = False
     report_profile: str = "standard"
     output_format: List[str] = ["json", "markdown"]
     include_model_artifact: bool = True
@@ -41,15 +41,6 @@ class FinalMetricSummary(BaseModel):
     stability_summary: Dict[str, Any] = {}
 
 
-class FinalSelectionSummary(BaseModel):
-    final_pipeline_selection_id: str = ""
-    selection_profile: str = ""
-    selection_score: Optional[float] = None
-    system_selection_reason: Dict[str, Any] = {}
-    llm_selection_explanation: Dict[str, Any] = {}
-    candidate_difference_summary: List[Dict[str, Any]] = []
-    risk_notes: List[str] = []
-
 
 class InterpretabilitySummary(BaseModel):
     interpretability_analysis_id: str = ""
@@ -72,9 +63,7 @@ class WorkflowTraceSummary(BaseModel):
     pipeline_generation_id: Optional[str] = None
     pipeline_execution_id: Optional[str] = None
     metric_evaluation_id: Optional[str] = None
-    result_diagnosis_id: Optional[str] = None
-    workflow_refinement_id: Optional[str] = None
-    final_pipeline_selection_id: Optional[str] = None
+    iteration_decision_id: Optional[str] = None
     interpretability_analysis_id: Optional[str] = None
     iteration_count: int = 0
     workflow_trace_artifacts: Dict[str, Any] = {}
@@ -186,12 +175,10 @@ class FinalOutputResponse(BaseModel):
     final_output_id: Optional[str] = None
     task_id: Optional[str] = None
     interpretability_analysis_id: Optional[str] = None
-    final_pipeline_selection_id: Optional[str] = None
     status: str = "generating"
     report_profile: str = "standard"
     final_model_summary: Optional[Dict[str, Any]] = None
     final_metric_summary: Optional[Dict[str, Any]] = None
-    final_selection_summary: Optional[Dict[str, Any]] = None
     interpretability_summary: Optional[Dict[str, Any]] = None
     workflow_trace_summary: Optional[Dict[str, Any]] = None
     reproducibility_summary: Optional[Dict[str, Any]] = None
@@ -200,6 +187,7 @@ class FinalOutputResponse(BaseModel):
     llm_report_summary: Optional[Dict[str, Any]] = None
     output_package_manifest: Optional[Dict[str, Any]] = None
     download_links: Optional[Dict[str, Any]] = None
+    topic_files: Optional[List[Dict[str, Any]]] = None
     ready_for_delivery: bool = False
     warnings: List[str] = []
     error_message: Optional[str] = None

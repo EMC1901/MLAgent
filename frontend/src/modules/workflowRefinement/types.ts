@@ -17,7 +17,6 @@ export interface WorkflowRefinementDecisionDTO {
   primary_reason: string;
   should_generate_revised_workflow_plan: boolean;
   recommended_rerun_from_stage?: string | null;
-  should_proceed_to_final_selection: boolean;
 }
 
 export interface DecisionReasoning {
@@ -93,34 +92,12 @@ export interface IterationRerunPlan {
   reasoning: string;
 }
 
-export interface SelectionPolicy {
-  metric?: string | null;
-  direction?: string | null;
-  selection_criteria: string[];
-}
-
-export interface FinalPipelineSelectionInput {
-  workflow_refinement_id?: string | null;
-  task_id?: string | null;
-  decision: string;
-  candidate_metric_evaluation_ids: string[];
-  candidate_pipeline_execution_ids: string[];
-  best_metric_evaluation_id?: string | null;
-  current_best_model_id?: string | null;
-  current_best_trial_id?: string | null;
-  current_best_pipeline_spec_id?: string | null;
-  selection_policy?: SelectionPolicy | null;
-  constraints?: Record<string, unknown> | null;
-  ready_for_final_pipeline_selection: boolean;
-}
-
 export interface LLMWorkflowRefinementResult {
   workflow_refinement_decision?: WorkflowRefinementDecisionDTO | null;
   decision_reasoning?: DecisionReasoning | null;
   evidence_used: EvidenceUsed[];
   revised_workflow_plan?: Record<string, unknown> | null;
   iteration_rerun_plan?: Record<string, unknown> | null;
-  final_pipeline_selection_input?: Record<string, unknown> | null;
   confidence_level: string;
 }
 
@@ -130,7 +107,6 @@ export interface WorkflowRefinementValidationResult {
   reasoning_valid: boolean;
   revised_plan_valid?: boolean | null;
   rerun_plan_valid?: boolean | null;
-  final_selection_input_valid?: boolean | null;
   safety_scan_passed: boolean;
   issues: string[];
   warnings: string[];
@@ -145,7 +121,6 @@ export interface ArtifactManifest {
   revised_workflow_plan_path?: string | null;
   workflow_plan_delta_path?: string | null;
   iteration_rerun_plan_path?: string | null;
-  final_pipeline_selection_input_path?: string | null;
   validation_result_path?: string | null;
 }
 
@@ -164,12 +139,10 @@ export interface WorkflowRefinementResponse {
   revised_workflow_plan?: RevisedWorkflowPlanResponse | null;
   workflow_plan_delta?: WorkflowPlanDelta | null;
   iteration_rerun_plan?: IterationRerunPlan | null;
-  final_pipeline_selection_input?: FinalPipelineSelectionInput | null;
   llm_workflow_refinement?: LLMWorkflowRefinementResult | null;
   workflow_refinement_validation_result?: WorkflowRefinementValidationResult | null;
   artifact_manifest?: ArtifactManifest | null;
   ready_for_iteration: boolean;
-  ready_for_final_pipeline_selection: boolean;
   warnings: string[];
   error_message?: string | null;
   created_at?: string | null;

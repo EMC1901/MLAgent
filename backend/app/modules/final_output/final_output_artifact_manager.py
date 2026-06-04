@@ -30,27 +30,6 @@ def save_final_output_artifacts(
     try:
         os.makedirs(artifact_dir, exist_ok=True)
 
-        _save_json(os.path.join(artifact_dir, "final_output_result.json"), final_output_result)
-        _save_json(os.path.join(artifact_dir, "final_report.json"), final_report)
-        _save_json(os.path.join(artifact_dir, "workflow_trace.json"), workflow_trace)
-        _save_json(os.path.join(artifact_dir, "reproducibility_summary.json"), reproducibility_summary)
-        _save_json(os.path.join(artifact_dir, "artifact_manifest.json"), artifact_manifest)
-        _save_json(os.path.join(artifact_dir, "output_package_manifest.json"), output_package_manifest)
-        _save_json(os.path.join(artifact_dir, "manifest.json"), {
-            "final_output_id": final_output_id,
-            "artifact_dir": artifact_dir,
-            "items": [
-                "final_output_result.json",
-                "final_report.json",
-                "final_report.md",
-                "workflow_trace.json",
-                "reproducibility_summary.json",
-                "artifact_manifest.json",
-                "output_package_manifest.json",
-                "llm_report.json",
-            ],
-        })
-
         if llm_report:
             _save_json(os.path.join(artifact_dir, "llm_report.json"), llm_report)
 

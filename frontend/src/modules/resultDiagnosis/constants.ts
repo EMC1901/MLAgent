@@ -94,7 +94,7 @@ export const RECOMMENDATION_TYPE_LABELS: Record<string, string> = {
 };
 
 export const DIAGNOSIS_MODE_LABELS: Record<string, string> = {
-  llm_based: 'LLM Based',
-  hybrid: 'Hybrid (LLM + System)',
+  llm_based: 'AI Based',
+  hybrid: 'Hybrid (AI + System)',
   system_rule_based: 'System Rule Based',
 };

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -62,6 +62,11 @@ class GlobalPolicy(BaseModel):
     leakage_prevention: LeakagePrevention = LeakagePrevention()
     variant_strategy: VariantStrategy = VariantStrategy()
 
+    @field_validator("leakage_prevention", "variant_strategy", mode="before")
+    @classmethod
+    def _null_to_empty_dict_nested(cls, v):
+        return v if v is not None else {}
+
 
 class ColumnPolicy(BaseModel):
     column_name: str = ""
@@ -77,6 +82,16 @@ class Operation(BaseModel):
     parameters: Dict[str, Any] = {}
     execution_scope: str = "train_only"  # dataset_profile_only | train_only | fold_only
     decision_rationale: PPRationale = PPRationale()
+
+    @field_validator("parameters", mode="before")
+    @classmethod
+    def _null_to_empty_dict_params(cls, v):
+        return v if v is not None else {}
+
+    @field_validator("decision_rationale", mode="before")
+    @classmethod
+    def _null_to_empty_rationale(cls, v):
+        return v if v is not None else {}
 
 
 class FeatureGroupPolicy(BaseModel):
@@ -94,6 +109,22 @@ class OperationSequenceItem(BaseModel):
     parameters: Dict[str, Any] = {}
     execution_scope: str = "train_only"
     decision_rationale: PPRationale = PPRationale()
+
+    @field_validator("target_columns", "target_feature_groups", mode="before")
+    @classmethod
+    def _null_to_empty_list(cls, v):
+        """LLM may emit null instead of [] for empty list fields."""
+        return v if v is not None else []
+
+    @field_validator("parameters", mode="before")
+    @classmethod
+    def _null_to_empty_dict_params(cls, v):
+        return v if v is not None else {}
+
+    @field_validator("decision_rationale", mode="before")
+    @classmethod
+    def _null_to_empty_rationale(cls, v):
+        return v if v is not None else {}
 
 
 class ModelFamilyNote(BaseModel):
@@ -119,6 +150,28 @@ class PreprocessingPlan(BaseModel):
     model_family_specific_notes: List[ModelFamilyNote] = []
     rejected_operations: List[RejectedOperation] = []
     warnings_for_downstream: List[str] = []
+
+    @field_validator(
+        "global_policy",
+        mode="before",
+    )
+    @classmethod
+    def _null_to_empty_global_policy(cls, v):
+        return v if v is not None else {}
+
+    @field_validator(
+        "capability_groups_used",
+        "column_policies",
+        "feature_group_policies",
+        "operation_sequence",
+        "model_family_specific_notes",
+        "rejected_operations",
+        "warnings_for_downstream",
+        mode="before",
+    )
+    @classmethod
+    def _null_to_empty_list_plan(cls, v):
+        return v if v is not None else []
 
 
 # ---- Execution Report DTOs ----
@@ -369,6 +422,34 @@ class PreviewResponse(BaseModel):
     preview_rows: int = 0
     total_rows: int = 0
     rows: List[dict] = []
+
+
+# ---- Fold Pipeline Spec (fold-safe preprocessing) ----
+
+class FoldOperationSpec(BaseModel):
+    """A single operation to execute within each CV fold."""
+    step_order: int = 0
+    operation_id: str = ""
+    capability_id: str = ""
+    capability_group: str = ""
+    target_columns: List[str] = []
+    target_feature_groups: List[str] = []
+    parameters: Dict[str, Any] = {}
+    operation_type: str = ""
+
+
+class FoldPipelineSpec(BaseModel):
+    """Serializable spec for fold-level preprocessing operations.
+
+    Built by Data Preprocessing after global phase, consumed by
+    FoldPipelineExecutor inside each CV fold during Pipeline Execution.
+    """
+    spec_version: str = "1.0.0"
+    operations: List[FoldOperationSpec] = []
+    feature_columns: List[str] = []
+    target_column: str = ""
+    task_type: str = ""
+    random_seed: int = 42
 
 
 # ---- Sub-resource responses ----

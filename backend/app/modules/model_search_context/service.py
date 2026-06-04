@@ -25,6 +25,7 @@ from app.modules.model_search_context.builder import (
     build_hpo_plan,
     build_validation_plan,
     build_evaluation_plan,
+    _normalize_metric_name,
 )
 from app.modules.model_search_context.candidate_model_selector import select_candidate_models
 from app.modules.model_search_context.search_space_builder import build_search_space_plan
@@ -100,7 +101,7 @@ class ModelSearchContextService:
         plan_ctx = context.get("plan_context", {})
         task_type = task_ctx.get("task_type", "regression")
         target_column = task_ctx.get("target_column", "")
-        primary_metric = task_ctx.get("primary_metric") or "MAE"
+        primary_metric = _normalize_metric_name(task_ctx.get("primary_metric") or "MAE")
 
         # --- 2. Analyze effective dataset profile ---
         dataset_result = analyze_effective_dataset(context)
@@ -261,6 +262,10 @@ class ModelSearchContextService:
         # Convert Pydantic models to dicts for downstream builders
         all_candidates = [m.model_dump() for m in candidate_model_data.get("candidate_models", [])]
         all_baselines = [m.model_dump() for m in candidate_model_data.get("baseline_models", [])]
+        logger.info(
+            "MSC candidate models: %s",
+            [(c["model_id"], c.get("model_family"), c["hpo_enabled"]) for c in all_candidates],
+        )
 
         # Build HPO plan (with LLM trial allocation if available)
         llm_trial_alloc = merge_result.get("llm_trial_allocation", [])
@@ -279,6 +284,11 @@ class ModelSearchContextService:
             task_type=task_type,
             search_space_profile=search_space_profile,
             llm_overrides=llm_search_overrides if llm_search_overrides else None,
+        )
+        logger.info(
+            "MSC search_space_plan built: %d spaces for models=%s",
+            len(search_space_plan.spaces),
+            [(s.model_id, len(s.parameters)) for s in search_space_plan.spaces],
         )
 
         # Build validation plan

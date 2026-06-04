@@ -17,7 +17,6 @@ import {
   RevisedWorkflowPlanResponse,
   WorkflowPlanDelta,
   IterationRerunPlan,
-  FinalPipelineSelectionInput,
   WorkflowRefinementValidationResult,
   AdoptRevisedPlanResult,
 } from '../types';
@@ -200,12 +199,6 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
               {result.ready_for_iteration ? 'Yes' : 'No'}
             </span>
           </div>
-          <div style={s.field}>
-            <strong>Ready for Final Selection: </strong>
-            <span style={{ color: result.ready_for_final_pipeline_selection ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-              {result.ready_for_final_pipeline_selection ? 'Yes' : 'No'}
-            </span>
-          </div>
           {result.llm_workflow_refinement?.workflow_refinement_decision?.primary_reason && (
             <div style={{ ...s.field, gridColumn: '1 / -1' }}>
               <strong>Primary Reason: </strong>
@@ -312,7 +305,7 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
         </div>
         {rwp.llm_reasoning_summary && (
           <div style={s.subCard}>
-            <strong>LLM Reasoning:</strong>
+            <strong>AI Reasoning:</strong>
             <p style={s.summaryText}>{rwp.llm_reasoning_summary}</p>
           </div>
         )}
@@ -447,32 +440,6 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
     );
   };
 
-  const renderFinalPipelineSelectionInput = (fpsi: FinalPipelineSelectionInput | null | undefined) => {
-    if (!fpsi) return <p>No final pipeline selection input (decision was iterate_refinement).</p>;
-    return (
-      <div style={s.card}>
-        <h4 style={s.cardTitle}>Final Pipeline Selection Input</h4>
-        <div style={s.grid}>
-          <div style={s.field}>
-            <strong>Ready for Selection: </strong>
-            <span style={{ color: fpsi.ready_for_final_pipeline_selection ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-              {fpsi.ready_for_final_pipeline_selection ? 'Yes' : 'No'}
-            </span>
-          </div>
-          <div style={s.field}><strong>Best Model: </strong><span>{fpsi.current_best_model_id || 'N/A'}</span></div>
-          <div style={s.field}><strong>Best Trial: </strong><span>{fpsi.current_best_trial_id || 'N/A'}</span></div>
-          <div style={s.field}><strong>Best Pipeline: </strong><span>{fpsi.current_best_pipeline_spec_id || 'N/A'}</span></div>
-        </div>
-        {fpsi.candidate_metric_evaluation_ids && fpsi.candidate_metric_evaluation_ids.length > 0 && (
-          <div style={s.subCard}>
-            <strong>Candidate Evaluations: </strong>
-            {fpsi.candidate_metric_evaluation_ids.join(', ')}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const renderValidation = (vr: WorkflowRefinementValidationResult | null | undefined) => {
     if (!vr) return null;
     return (
@@ -537,16 +504,15 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
     { id: 'revised_plan', label: 'Revised Plan' },
     { id: 'delta', label: 'Plan Delta' },
     { id: 'rerun_plan', label: 'Rerun Plan' },
-    { id: 'final_selection', label: 'Final Selection' },
     { id: 'validation', label: 'Validation' },
     { id: 'json', label: 'Full JSON' },
   ];
 
   return (
     <div style={s.container}>
-      <h3 style={s.title}>LLM-driven Workflow Refinement</h3>
+      <h3 style={s.title}>AI-driven Workflow Refinement</h3>
       <p style={s.description}>
-        LLM-based closed-loop decision maker. Reads result diagnosis, metrics, and experiment history
+        AI-based closed-loop decision maker. Reads result diagnosis, metrics, and experiment history
         to decide whether to proceed to Final Pipeline Selection or generate a revised WorkflowPlanResponse
         for another iteration. Outputs detailed reasoning, evidence, and rerun plans.
       </p>
@@ -607,7 +573,7 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
             <div style={s.adoptSection}>
               <h4 style={s.cardTitle}>Iterate: Adopt Revised Plan & Rerun Pipeline</h4>
               <p style={s.description}>
-                The LLM recommends iteration. Adopting the revised plan creates a new WorkflowPlan
+                The AI recommends iteration. Adopting the revised plan creates a new WorkflowPlan
                 and re-executes the pipeline stages listed below. Existing results are preserved.
               </p>
 
@@ -705,19 +671,19 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
                   <h4 style={{ margin: '0 0 8px 0', fontSize: '15px' }}>Next Steps</h4>
                   <ol style={{ margin: '0', paddingLeft: '20px', fontSize: '14px', lineHeight: 1.8 }}>
                     <li>
-                      <strong>Re-run Result Diagnosis</strong> — scroll up to <em>LLM-based Result Diagnosis</em> and
+                      <strong>Re-run Result Diagnosis</strong> — scroll up to <em>AI-based Result Diagnosis</em> and
                       click <strong style={{ color: '#f57c00' }}>Re-run Diagnosis</strong> (the orange button).
                       This ensures a fresh analysis against the newly created metric results.
                     </li>
                     <li>
                       <strong>Run Workflow Refinement again</strong> — click <strong>Run Workflow Refinement</strong> above.
-                      The LLM will compare results across iterations and decide whether to proceed to Final Selection
+                      The AI will compare results across iterations and decide whether to proceed to Final Selection
                       or iterate further.
                     </li>
                   </ol>
                   <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#666' }}>
                     The closed-loop cycle: <strong>Re-run Diagnosis → Workflow Refinement → Adopt &amp; Rerun → repeat</strong> until
-                    the LLM returns <em>Proceed to Final Selection</em>.
+                    the AI returns <em>Proceed to Final Selection</em>.
                   </p>
                   <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#c62828' }}>
                     Important: Use <strong>Re-run Diagnosis</strong> (not Run Diagnosis) after each Adopt &amp; Rerun.
@@ -741,7 +707,6 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
             {activeTab === 'revised_plan' && renderRevisedWorkflowPlan(result.revised_workflow_plan)}
             {activeTab === 'delta' && renderWorkflowPlanDelta(result.workflow_plan_delta)}
             {activeTab === 'rerun_plan' && renderIterationRerunPlan(result.iteration_rerun_plan)}
-            {activeTab === 'final_selection' && renderFinalPipelineSelectionInput(result.final_pipeline_selection_input)}
             {activeTab === 'validation' && renderValidation(result.workflow_refinement_validation_result)}
             {activeTab === 'json' && (
               <div style={s.card}>

@@ -1,7 +1,14 @@
 import logging
+import sys
+import time as _time
 import uuid
 from datetime import datetime
 from sqlmodel import Session
+
+def _diag(msg, *args):
+    """Diagnostic output – writes directly to stderr to bypass uvicorn log suppression."""
+    formatted = msg % args if args else msg
+    print(f"DIAG     [fe] {formatted}", file=sys.stderr, flush=True)
 
 from app.modules.task_specification.repository import TaskSpecificationRepository
 from app.modules.feature_engineering.model import FeatureEngineering
@@ -49,6 +56,36 @@ from app.modules.feature_engineering.exceptions import (
 )
 
 logger = logging.getLogger(__name__)
+# Ensure logger output is visible even when uvicorn overrides basicConfig
+logger.setLevel(logging.INFO)
+logger.propagate = False
+_h = logging.StreamHandler(sys.stderr)
+_h.setFormatter(logging.Formatter("%(levelname)-5.5s [%(name)s] %(message)s"))
+logger.addHandler(_h)
+
+
+def _sanitize_jsonb_values(obj):
+    """Recursively replace NaN/Inf with None for PostgreSQL JSONB compatibility.
+
+    Mutates the object in place. Python's json.dumps outputs NaN and Infinity
+    as literals which are NOT valid JSON per RFC 7159. PostgreSQL JSONB rejects
+    them. Pydantic's model_dump(mode="json") should handle this, but we
+    double-check to be safe.
+    """
+    import math as _math
+
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, float) and (_math.isnan(v) or _math.isinf(v)):
+                obj[k] = None
+            elif isinstance(v, (dict, list)):
+                _sanitize_jsonb_values(v)
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            if isinstance(v, float) and (_math.isnan(v) or _math.isinf(v)):
+                obj[i] = None
+            elif isinstance(v, (dict, list)):
+                _sanitize_jsonb_values(v)
 
 
 class FeatureEngineeringService:
@@ -65,9 +102,12 @@ class FeatureEngineeringService:
         all_errors = []
 
         # --- 1. Build upstream context ---
+        _diag("[fe: %s] Step 1/11: Building upstream context for task '%s'", fe_id, task_id)
         try:
             context = build_feature_engineering_context(session, task_id)
+            _diag("[fe: %s] Step 1/11: Context built successfully", fe_id)
         except (FeatureEngineeringUpstreamNotReadyException, FeatureStrategyMissingException):
+            logger.error("[fe: %s] Step 1/11: Upstream not ready or strategy missing", fe_id)
             failed = FeatureEngineering(
                 id=fe_id,
                 task_id=task_id,
@@ -80,21 +120,31 @@ class FeatureEngineeringService:
             raise
 
         # --- 2. Load raw data ---
+        _diag("[fe: %s] Step 2/11: Loading raw data", fe_id)
         data_context = context.get("data_context") or {}
         raw_df, loading_summary = reload_raw_data(data_context)
+        _diag("[fe: %s] Step 2/11: Raw data loaded: %d rows, %d cols", fe_id,
+                     len(raw_df), len(raw_df.columns))
 
         input_modality = data_context.get("input_modality", "")
         target_column = data_context.get("target_column")
 
         # --- 3. Resolve feature strategy ---
+        _diag("[fe: %s] Step 3/11: Resolving feature strategy", fe_id)
         feature_context = context.get("feature_context") or {}
         resolved = resolve_feature_strategy(feature_context, input_modality)
         resolved_dict = resolved.model_dump()
+        _diag("[fe: %s] Step 3/11: Strategy resolved: %d featurizers selected",
+                    fe_id, len(resolved_dict.get("selected_featurizers", [])))
 
         # --- 4. Select and run featurizers ---
+        _diag("[fe: %s] Step 4/11: Running featurizers", fe_id)
         featurization_result = self._run_featurizers(
             raw_df, context, resolved_dict, input_modality
         )
+        _diag("[fe: %s] Step 4/11: Featurizers completed, status=%s, %d feature cols",
+                    fe_id, featurization_result.get("status"),
+                    len(featurization_result.get("feature_columns", [])))
         if featurization_result["status"] == "failed":
             all_errors.extend(featurization_result.get("errors", []))
             failed = FeatureEngineering(
@@ -136,13 +186,19 @@ class FeatureEngineeringService:
             raise FeatureGenerationException("Featurization produced no feature dataframe.")
 
         # --- 5. Build feature matrix ---
+        _diag("[fe: %s] Step 5/11: Building feature matrix", fe_id)
         feature_matrix = build_feature_matrix(raw_df, feature_df, target_column)
+        _diag("[fe: %s] Step 5/11: Feature matrix built: %d rows, %d cols",
+                    fe_id, len(feature_matrix), len(feature_matrix.columns))
 
         # --- 6. Check feature quality ---
+        _diag("[fe: %s] Step 6/11: Checking feature quality", fe_id)
         target_series = raw_df[target_column] if target_column and target_column in raw_df.columns else None
         quality_result = check_feature_quality(feature_df, target_series)
         all_warnings.extend(quality_result.get("warnings", []))
         all_errors.extend(quality_result.get("errors", []))
+        _diag("[fe: %s] Step 6/11: Quality check done, valid=%s",
+                    fe_id, quality_result.get("is_valid_feature_matrix"))
 
         if not quality_result.get("is_valid_feature_matrix"):
             failed = FeatureEngineering(
@@ -166,8 +222,10 @@ class FeatureEngineeringService:
             raise FeatureMatrixInvalidException("; ".join(all_errors))
 
         # --- 7. Save feature artifact ---
+        _diag("[fe: %s] Step 7/11: Saving feature artifact", fe_id)
         try:
             artifact_result = save_feature_artifact(fe_id, feature_matrix)
+            _diag("[fe: %s] Step 7/11: Artifact saved: %s", fe_id, artifact_result.get("file_path"))
         except FeatureArtifactSaveException:
             failed = FeatureEngineering(
                 id=fe_id,
@@ -189,6 +247,7 @@ class FeatureEngineeringService:
             raise
 
         # --- 8. Build feature schema ---
+        _diag("[fe: %s] Step 8/11: Building feature schema", fe_id)
         feature_groups_list = featurization_result.get("feature_groups", [])
         feature_schema = get_feature_schema(feature_df, quality_result, feature_groups_list)
 
@@ -201,6 +260,7 @@ class FeatureEngineeringService:
             status = FeatureEngineeringStatus.COMPLETED
 
         # --- 10. Build Feature Engineering Object ---
+        _diag("[fe: %s] Step 10/11: Building feature engineering response object", fe_id)
         fe_object = build_feature_engineering_object(
             feature_engineering_id=fe_id,
             task_id=task_id,
@@ -216,6 +276,55 @@ class FeatureEngineeringService:
         )
 
         # --- 11. Persist ---
+        _diag("[fe: %s] Step 10/11: Response object built, status=%s", fe_id, status)
+        _diag("[fe: %s] Step 10/11: Serializing to JSON (model_dump)", fe_id)
+        json_start = __import__("time").time()
+        feature_json_val = fe_object.model_dump(mode="json")
+        _diag("[fe: %s] Step 10/11: model_dump complete in %.1f s", fe_id,
+                     __import__("time").time() - json_start)
+
+        # Sanitize NaN/Inf values for PostgreSQL JSONB compatibility.
+        # Pydantic's model_dump(mode="json") should convert these to null,
+        # but double-check to avoid JSONB write failures.
+        _sanitize_jsonb_values(feature_json_val)
+
+        # Measure JSON sizes for diagnosis
+        import json as _json
+        _fj_size = len(_json.dumps(feature_json_val, default=str))
+        _diag("[fe: %s] feature_json size: %d bytes (%.1f MB)", fe_id, _fj_size, _fj_size / (1024 * 1024))
+
+        _diag("[fe: %s] Step 11/11: Persisting to database", fe_id)
+
+        # Build individual JSONB values with sanitization
+        preview_json_val = artifact_result.get("preview_json")
+        if preview_json_val is not None:
+            _sanitize_jsonb_values(preview_json_val)
+
+        feature_groups_json_val = None
+        if fe_object.feature_groups:
+            feature_groups_json_val = {"feature_groups": [g.model_dump(mode="json") for g in fe_object.feature_groups]}
+            _sanitize_jsonb_values(feature_groups_json_val)
+
+        quality_profile_json_val = None
+        if fe_object.feature_quality_profile:
+            quality_profile_json_val = fe_object.feature_quality_profile.model_dump(mode="json")
+            _sanitize_jsonb_values(quality_profile_json_val)
+
+        execution_report_json_val = None
+        if fe_object.execution_report:
+            execution_report_json_val = fe_object.execution_report.model_dump(mode="json")
+            _sanitize_jsonb_values(execution_report_json_val)
+
+        provenance_json_val = None
+        if fe_object.feature_provenance:
+            provenance_json_val = fe_object.feature_provenance.model_dump(mode="json")
+            _sanitize_jsonb_values(provenance_json_val)
+
+        preprocessing_decision_json_val = None
+        if fe_object.feature_preprocessing_decision_input:
+            preprocessing_decision_json_val = fe_object.feature_preprocessing_decision_input.model_dump(mode="json")
+            _sanitize_jsonb_values(preprocessing_decision_json_val)
+
         fe_model = FeatureEngineering(
             id=fe_id,
             task_id=context["task_id"],
@@ -231,19 +340,22 @@ class FeatureEngineeringService:
             artifact_id=artifact_result.get("artifact_id"),
             artifact_path=artifact_result.get("file_path"),
             is_ready_for_pipeline=fe_object.downstream_input.ready_for_pipeline_generation,
-            feature_json=fe_object.model_dump(mode="json"),
-            preview_json=artifact_result.get("preview_json"),
+            feature_json=feature_json_val,
+            preview_json=preview_json_val,
             executed_feature_strategy_id=fe_object.executed_feature_strategy_id,
-            feature_groups_json={"feature_groups": [g.model_dump(mode="json") for g in fe_object.feature_groups]} if fe_object.feature_groups else None,
-            quality_profile_json=fe_object.feature_quality_profile.model_dump(mode="json") if fe_object.feature_quality_profile else None,
-            execution_report_json=fe_object.execution_report.model_dump(mode="json") if fe_object.execution_report else None,
-            provenance_json=fe_object.feature_provenance.model_dump(mode="json") if fe_object.feature_provenance else None,
-            preprocessing_decision_input_json=fe_object.feature_preprocessing_decision_input.model_dump(mode="json") if fe_object.feature_preprocessing_decision_input else None,
+            feature_groups_json=feature_groups_json_val,
+            quality_profile_json=quality_profile_json_val,
+            execution_report_json=execution_report_json_val,
+            provenance_json=provenance_json_val,
+            preprocessing_decision_input_json=preprocessing_decision_json_val,
             error_message=None if all_errors == [] else "; ".join(all_errors),
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )
+        _diag("[fe: %s] Step 11/11: Writing to database...", fe_id)
         self.fe_repo.create(session, fe_model)
+        _diag("[fe: %s] Step 11/11: Persisted to database successfully", fe_id)
+        _diag("[fe: %s] All 11 steps complete, returning response", fe_id)
 
         return fe_object
 
@@ -332,6 +444,7 @@ class FeatureEngineeringService:
 
         for fid, instance in executable:
             try:
+                _diag("[fe] Running featurizer: '%s'", fid)
                 result = instance.featurize(raw_df, context, resolved_strategy)
             except Exception as exc:
                 logger.error("Featurizer '%s' raised exception: %s", fid, exc)

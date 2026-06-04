@@ -51,6 +51,23 @@ def build_pipeline_generation_context(session: Session, task_id: str) -> dict:
             "pipeline_generation_input is missing from model search context."
         )
 
+    # Diagnostic: log what was read from DB for search space
+    ss_from_db = pg_input.get("search_space_plan", {})
+    cm_from_db = pg_input.get("candidate_model_plan", {})
+    ss_model_ids = [s.get("model_id") for s in ss_from_db.get("spaces", [])]
+    cm_model_ids = [c.get("model_id") for c in cm_from_db.get("candidate_models", [])]
+    logger.info(
+        "PG context read from DB: search_space model_ids=%s | candidate model_ids=%s",
+        ss_model_ids, cm_model_ids,
+    )
+    if set(ss_model_ids) != set(cm_model_ids):
+        logger.warning(
+            "PG context DB MISMATCH: search_space=%s candidates=%s (diff: space_only=%s cand_only=%s)",
+            ss_model_ids, cm_model_ids,
+            set(ss_model_ids) - set(cm_model_ids),
+            set(cm_model_ids) - set(ss_model_ids),
+        )
+
     feature_preprocessing = None
     fpp_id = msc.feature_preprocessing_id
     if fpp_id:

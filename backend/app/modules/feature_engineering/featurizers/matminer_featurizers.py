@@ -10,10 +10,16 @@ Each featurizer wraps a matminer featurizer class and handles:
 When dependencies are missing, featurizers return 'unavailable' status.
 """
 import logging
+import sys
 import time
 import pandas as pd
 import numpy as np
+from tqdm.auto import tqdm
 from app.modules.feature_engineering.featurizers.base_featurizer import BaseFeaturizer
+
+def _diag(msg, *args):
+    formatted = msg % args if args else msg
+    print(f"DIAG     [feat] {formatted}", file=sys.stderr, flush=True)
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +62,15 @@ def _get_matminer_featurizer(key):
         elif key == "valence_orbital":
             from matminer.featurizers.composition import ValenceOrbital
             cls = ValenceOrbital
+        elif key == "oxidation_states":
+            from matminer.featurizers.composition.ion import OxidationStates
+            cls = OxidationStates
+        elif key == "ion_property":
+            from matminer.featurizers.composition.ion import IonProperty
+            cls = IonProperty
+        elif key == "band_center":
+            from matminer.featurizers.composition.element import BandCenter
+            cls = BandCenter
         else:
             return None
         _MATMINER_FEATURIZERS[key] = cls
@@ -196,7 +211,7 @@ def _run_matminer_featurizer(
     comp_series = pd.Series(compositions, index=raw_dataframe.index, name=composition_col)
     df_with_compositions = pd.DataFrame({composition_col: comp_series})
 
-    # Instantiate and run the matminer featurizer
+    # Instantiate featurizer (single-process to avoid matminer Pool cleanup hangs on Windows)
     kwargs = matminer_kwargs or {}
     preset = kwargs.pop("_preset", None)
     try:
@@ -204,11 +219,55 @@ def _run_matminer_featurizer(
             featurizer = FeaturizerClass.from_preset(preset)
         else:
             featurizer = FeaturizerClass(**kwargs)
-        feature_df = featurizer.featurize_dataframe(
-            df_with_compositions,
-            composition_col,
-            ignore_errors=True,
+        featurizer.set_n_jobs(1)
+
+        # Per-sample processing loop with progress logging.
+        # Avoids matminer's featurize_dataframe which uses multiprocessing.Pool
+        # internally and can hang on Windows. Also gives us per-sample diagnostics
+        # so we can identify which composition causes a hang.
+        labels = featurizer.feature_labels()
+        n_samples = len(df_with_compositions)
+        col_values = df_with_compositions[composition_col].values
+
+        fast_val = getattr(featurizer, "fast", None)
+        _diag(
+            "matminer featurizer '%s': starting %d samples, %d expected features, fast=%s",
+            featurizer_name, n_samples, len(labels), fast_val,
         )
+
+        features = []
+        n_item_failures = 0
+        last_log_idx = 0
+        t_start_loop = time.time()
+        pbar = tqdm(total=n_samples, desc=display_name, unit="samples")
+
+        for i, val in enumerate(col_values):
+            if i > 0 and i - last_log_idx >= 500:
+                elapsed = time.time() - t_start_loop
+                rate = i / max(elapsed, 0.001)
+                _diag(
+                    "matminer featurizer '%s': %d/%d (%.1f%%), %.1f samples/s, last_sample_index=%d",
+                    featurizer_name, i, n_samples, 100.0 * i / n_samples, rate, i,
+                )
+                last_log_idx = i
+            try:
+                item_result = featurizer.featurize_wrapper(
+                    (val,), ignore_errors=True, return_errors=False,
+                )
+                features.append(item_result)
+            except Exception:
+                features.append([float("nan")] * len(labels))
+                n_item_failures += 1
+            pbar.update(1)
+
+        pbar.close()
+        _diag(
+            "matminer featurizer '%s': completed %d samples, %d item failures, %.1f s",
+            featurizer_name, n_samples, n_item_failures, time.time() - t_start_loop,
+        )
+
+        # Build feature DataFrame (composition col is not included since we only put feature values)
+        feature_df = pd.DataFrame(features, index=df_with_compositions.index, columns=labels)
     except Exception as e:
         logger.error("matminer featurizer '%s' failed: %s", matminer_key, e)
         return {
@@ -347,4 +406,50 @@ class MatminerValenceOrbitalFeaturizer(BaseFeaturizer):
             raw_dataframe=raw_dataframe,
             context=context,
             matminer_key="valence_orbital",
+        )
+
+
+class MatminerOxidationStatesFeaturizer(BaseFeaturizer):
+
+    def featurizer_name(self) -> str:
+        return "matminer_oxidation_states"
+
+    def featurize(self, raw_dataframe, context, resolved_strategy) -> dict:
+        return _run_matminer_featurizer(
+            featurizer_name=self.featurizer_name(),
+            display_name="Matminer OxidationStates Features",
+            raw_dataframe=raw_dataframe,
+            context=context,
+            matminer_key="oxidation_states",
+        )
+
+
+class MatminerIonicCompoundFeaturizer(BaseFeaturizer):
+
+    def featurizer_name(self) -> str:
+        return "matminer_ion_property"
+
+    def featurize(self, raw_dataframe, context, resolved_strategy) -> dict:
+        return _run_matminer_featurizer(
+            featurizer_name=self.featurizer_name(),
+            display_name="Matminer IonProperty Features",
+            raw_dataframe=raw_dataframe,
+            context=context,
+            matminer_key="ion_property",
+            matminer_kwargs={"fast": True},
+        )
+
+
+class MatminerBandCenterFeaturizer(BaseFeaturizer):
+
+    def featurizer_name(self) -> str:
+        return "matminer_band_center"
+
+    def featurize(self, raw_dataframe, context, resolved_strategy) -> dict:
+        return _run_matminer_featurizer(
+            featurizer_name=self.featurizer_name(),
+            display_name="Matminer BandCenter Features",
+            raw_dataframe=raw_dataframe,
+            context=context,
+            matminer_key="band_center",
         )

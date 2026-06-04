@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   taskSpecificationSchema,
@@ -10,8 +10,11 @@ import {
   EVALUATION_METRIC_OPTIONS,
   USER_PRIORITY_OPTIONS,
 } from '../constants';
+import FormField from './FormField';
 import TaskFieldGroup from './TaskFieldGroup';
 import TaskHistoryList from './TaskHistoryList';
+import TaskResultDisplay from './TaskResultDisplay';
+import TaskPanelOrchestrator from './TaskPanelOrchestrator';
 import { createTask, getTask, TaskSpecificationResponse } from '../../../api/taskApi';
 import { getLatestInterpretation } from '../../../api/taskInterpretationApi';
 import { getLatestDatasetProfileByTaskId } from '../../../api/datasetProfileApi';
@@ -22,25 +25,9 @@ import { getLatestModelSearchContextByTaskId } from '../../../api/modelSearchCon
 import { getLatestPipelineGenerationByTaskId } from '../../../api/pipelineGenerationApi';
 import { getLatestPipelineExecutionByTaskId } from '../../../api/pipelineExecutionApi';
 import { getLatestMetricEvaluationByTaskId } from '../../../api/metricEvaluationApi';
-import { getLatestResultDiagnosisByTaskId } from '../../../api/resultDiagnosisApi';
-import { getLatestWorkflowRefinementByTaskId } from '../../../api/workflowRefinementApi';
-import { getLatestFinalPipelineSelection } from '../../../api/finalPipelineSelectionApi';
+import { getLatestIterationDecisionByTaskId } from '../../../api/iterationDecisionApi';
 import { getLatestInterpretabilityAnalysis } from '../../../api/interpretabilityAnalysisApi';
 import { getLatestFinalOutput } from '../../../api/finalOutputApi';
-import TaskInterpretationPanel from '../../taskInterpretation/components/TaskInterpretationPanel';
-import DatasetProfilePanel from '../../datasetProfile/components/DatasetProfilePanel';
-import WorkflowPlanPanel from '../../workflowPlanning/components/WorkflowPlanPanel';
-import FeatureEngineeringPanel from '../../featureEngineering/components/FeatureEngineeringPanel';
-import FeaturePreprocessingPanel from '../../featurePreprocessing/components/FeaturePreprocessingPanel';
-import ModelSearchContextPanel from '../../modelSearchContext/components/ModelSearchContextPanel';
-import PipelineGenerationPanel from '../../pipelineGeneration/components/PipelineGenerationPanel';
-import PipelineExecutionPanel from '../../pipelineExecution/components/PipelineExecutionPanel';
-import MetricEvaluationPanel from '../../metricEvaluation/components/MetricEvaluationPanel';
-import ResultDiagnosisPanel from '../../resultDiagnosis/components/ResultDiagnosisPanel';
-import WorkflowRefinementPanel from '../../workflowRefinement/components/WorkflowRefinementPanel';
-import FinalPipelineSelectionPanel from '../../finalPipelineSelection/components/FinalPipelineSelectionPanel';
-import InterpretabilityAnalysisPanel from '../../interpretabilityAnalysis/components/InterpretabilityAnalysisPanel';
-import FinalOutputPanel from '../../finalOutput/components/FinalOutputPanel';
 
 interface TaskSpecificationFormProps {
   onSubmitSuccess?: (result: TaskSpecificationResponse) => void;
@@ -56,7 +43,7 @@ const defaultValues = {
   input_type: '',
   target_column: '',
   evaluation_metric: '',
-  user_priority: [],
+  user_priority: [] as string[],
   constraints: '',
 };
 
@@ -72,14 +59,11 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { errors },
   } = useForm<TaskSpecificationFormData>({
     resolver: zodResolver(taskSpecificationSchema),
     defaultValues,
   });
-
-  const taskType = watch('task_type');
 
   const onSubmit = async (data: TaskSpecificationFormData) => {
     setLoading(true);
@@ -126,7 +110,7 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
           `Run: cd backend && uvicorn app.main:app --reload --port 8000`
         );
       } else if (err.code === 'ERR_CANCELED') {
-        setError('Request timeout (>15s): Backend took too long to respond. Check if the database is running.');
+        setError('Request timeout (>10min): Backend took too long to respond. Check if the database is running.');
       } else if (err.response) {
         const status = err.response.status;
         const detail = err.response.data?.detail;
@@ -141,6 +125,37 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAllPanels = async (taskId: string): Promise<Record<string, any>> => {
+    const results: Record<string, any> = {};
+
+    const fetchers: [string, () => Promise<any>][] = [
+      ['interpretation', () => getLatestInterpretation(taskId)],
+      ['datasetProfile', () => getLatestDatasetProfileByTaskId(taskId)],
+      ['workflowPlan', () => getLatestWorkflowPlanByTaskId(taskId)],
+      ['featureEngineering', () => getLatestFeatureEngineeringByTaskId(taskId)],
+      ['featurePreprocessing', () => getLatestFeaturePreprocessingByTaskId(taskId)],
+      ['modelSearchContext', () => getLatestModelSearchContextByTaskId(taskId)],
+      ['pipelineGeneration', () => getLatestPipelineGenerationByTaskId(taskId)],
+      ['pipelineExecution', () => getLatestPipelineExecutionByTaskId(taskId)],
+      ['metricEvaluation', () => getLatestMetricEvaluationByTaskId(taskId)],
+      ['iterationDecision', () => getLatestIterationDecisionByTaskId(taskId)],
+      ['interpretabilityAnalysis', () => getLatestInterpretabilityAnalysis(taskId)],
+      ['finalOutput', () => getLatestFinalOutput(taskId)],
+    ];
+
+    const settleResults = await Promise.allSettled(
+      fetchers.map(([, fn]) => fn())
+    );
+
+    settleResults.forEach((settled, index) => {
+      if (settled.status === 'fulfilled' && settled.value?.success) {
+        results[fetchers[index][0]] = settled.value.data;
+      }
+    });
+
+    return results;
   };
 
   const loadTask = async (taskId: string) => {
@@ -170,35 +185,7 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
         constraints: (taskData.constraints || []).join('\n'),
       });
 
-      const results: Record<string, any> = {};
-
-      const fetchers: [string, () => Promise<any>][] = [
-        ['interpretation', () => getLatestInterpretation(taskId)],
-        ['datasetProfile', () => getLatestDatasetProfileByTaskId(taskId)],
-        ['workflowPlan', () => getLatestWorkflowPlanByTaskId(taskId)],
-        ['featureEngineering', () => getLatestFeatureEngineeringByTaskId(taskId)],
-        ['featurePreprocessing', () => getLatestFeaturePreprocessingByTaskId(taskId)],
-        ['modelSearchContext', () => getLatestModelSearchContextByTaskId(taskId)],
-        ['pipelineGeneration', () => getLatestPipelineGenerationByTaskId(taskId)],
-        ['pipelineExecution', () => getLatestPipelineExecutionByTaskId(taskId)],
-        ['metricEvaluation', () => getLatestMetricEvaluationByTaskId(taskId)],
-        ['resultDiagnosis', () => getLatestResultDiagnosisByTaskId(taskId)],
-        ['workflowRefinement', () => getLatestWorkflowRefinementByTaskId(taskId)],
-        ['finalPipelineSelection', () => getLatestFinalPipelineSelection(taskId)],
-        ['interpretabilityAnalysis', () => getLatestInterpretabilityAnalysis(taskId)],
-        ['finalOutput', () => getLatestFinalOutput(taskId)],
-      ];
-
-      const settleResults = await Promise.allSettled(
-        fetchers.map(([, fn]) => fn())
-      );
-
-      settleResults.forEach((settled, index) => {
-        if (settled.status === 'fulfilled' && settled.value?.success) {
-          results[fetchers[index][0]] = settled.value.data;
-        }
-      });
-
+      const results = await fetchAllPanels(taskId);
       setPanelResults(results);
       setActiveTaskId(taskId);
       setResult(taskData);
@@ -209,27 +196,18 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
     }
   };
 
+  const handleRerunComplete = async () => {
+    if (!activeTaskId) return;
+    const results = await fetchAllPanels(activeTaskId);
+    setPanelResults(results);
+  };
+
   const handleNewTask = () => {
     reset(defaultValues);
     setResult(null);
     setActiveTaskId(null);
     setPanelResults({});
     setError(null);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'valid':
-        return '#4caf50';
-      case 'incomplete':
-        return '#ff9800';
-      case 'invalid':
-        return '#f44336';
-      case 'valid_with_warning':
-        return '#ff9800';
-      default:
-        return '#9e9e9e';
-    }
   };
 
   return (
@@ -243,512 +221,134 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <TaskFieldGroup title="Basic Task Information">
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>Task Name</label>
-            <Controller
-              name="task_name"
-              control={control}
-              render={({ field }) => (
-                <input
-                  {...field}
-                  style={styles.input}
-                  placeholder="e.g., Band gap prediction"
-                />
-              )}
-            />
-            {errors.task_name && <span style={styles.error}>{errors.task_name.message}</span>}
-          </div>
-
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>Task Description</label>
-            <Controller
-              name="task_description"
-              control={control}
-              render={({ field }) => (
-                <textarea
-                  {...field}
-                  style={styles.textarea}
-                  placeholder="e.g., Predict experimental band gaps from chemical compositions."
-                  rows={3}
-                />
-              )}
-            />
-            {errors.task_description && (
-              <span style={styles.error}>{errors.task_description.message}</span>
-            )}
-          </div>
-
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>Material System</label>
-            <Controller
-              name="material_system"
-              control={control}
-              render={({ field }) => (
-                <select {...field} style={styles.select} defaultValue="">
-                  <option value="" disabled>
-                    Select material system
-                  </option>
-                  {MATERIAL_SYSTEM_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            />
-            {errors.material_system && (
-              <span style={styles.error}>{errors.material_system.message}</span>
-            )}
-          </div>
+          <FormField
+            name="task_name" control={control} label="Task Name"
+            placeholder="e.g., Band gap prediction"
+            error={errors.task_name?.message}
+          />
+          <FormField
+            name="task_description" control={control} label="Task Description"
+            type="textarea" placeholder="e.g., Predict experimental band gaps from chemical compositions."
+            error={errors.task_description?.message}
+          />
+          <FormField
+            name="material_system" control={control} label="Material System"
+            type="select" placeholder="Select material system"
+            options={MATERIAL_SYSTEM_OPTIONS}
+            error={errors.material_system?.message}
+          />
         </TaskFieldGroup>
 
         <TaskFieldGroup title="Dataset Information">
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>Dataset Description *</label>
-            <Controller
-              name="dataset_description"
-              control={control}
-              render={({ field }) => (
-                <textarea
-                  {...field}
-                  style={styles.textarea}
-                  placeholder="Describe the dataset in detail, including its source, structure, and relevant characteristics."
-                  rows={3}
-                />
-              )}
-            />
-            {errors.dataset_description && (
-              <span style={styles.error}>{errors.dataset_description.message}</span>
-            )}
-          </div>
-
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>Input Type *</label>
-            <Controller
-              name="input_type"
-              control={control}
-              render={({ field }) => (
-                <select {...field} style={styles.select} defaultValue="">
-                  <option value="" disabled>
-                    Select input type
-                  </option>
-                  {INPUT_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            />
-            {errors.input_type && <span style={styles.error}>{errors.input_type.message}</span>}
-          </div>
-
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>Target Column *</label>
-            <Controller
-              name="target_column"
-              control={control}
-              render={({ field }) => (
-                <input
-                  {...field}
-                  style={styles.input}
-                  placeholder="e.g., band_gap"
-                />
-              )}
-            />
-            {errors.target_column && (
-              <span style={styles.error}>{errors.target_column.message}</span>
-            )}
-          </div>
+          <FormField
+            name="dataset_description" control={control} label="Dataset Description"
+            type="textarea" required
+            placeholder="Describe the dataset in detail, including its source, structure, and relevant characteristics."
+            error={errors.dataset_description?.message}
+          />
+          <FormField
+            name="input_type" control={control} label="Input Type"
+            type="select" required
+            placeholder="Select input type"
+            options={INPUT_TYPE_OPTIONS}
+            error={errors.input_type?.message}
+          />
+          <FormField
+            name="target_column" control={control} label="Target Column"
+            required placeholder="e.g., band_gap"
+            error={errors.target_column?.message}
+          />
         </TaskFieldGroup>
 
         <TaskFieldGroup title="Machine Learning Task Information">
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>Prediction Target *</label>
-            <Controller
-              name="prediction_target"
-              control={control}
-              render={({ field }) => (
-                <input
-                  {...field}
-                  style={styles.input}
-                  placeholder="e.g., experimental band gap"
-                />
-              )}
-            />
-            {errors.prediction_target && (
-              <span style={styles.error}>{errors.prediction_target.message}</span>
-            )}
-          </div>
-
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>Task Type *</label>
-            <Controller
-              name="task_type"
-              control={control}
-              render={({ field }) => (
-                <select {...field} style={styles.select} defaultValue="">
-                  <option value="" disabled>
-                    Select task type
-                  </option>
-                  {TASK_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            />
-            {errors.task_type && <span style={styles.error}>{errors.task_type.message}</span>}
-          </div>
+          <FormField
+            name="prediction_target" control={control} label="Prediction Target"
+            required placeholder="e.g., experimental band gap"
+            error={errors.prediction_target?.message}
+          />
+          <FormField
+            name="task_type" control={control} label="Task Type"
+            type="select" required
+            placeholder="Select task type"
+            options={TASK_TYPE_OPTIONS}
+            error={errors.task_type?.message}
+          />
         </TaskFieldGroup>
 
         <TaskFieldGroup title="Evaluation Metric Information">
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>Evaluation Metric</label>
-            <Controller
-              name="evaluation_metric"
-              control={control}
-              render={({ field }) => (
-                <select {...field} style={styles.select} defaultValue="">
-                  <option value="" disabled>
-                    Select evaluation metric
-                  </option>
-                  {EVALUATION_METRIC_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            />
-            {errors.evaluation_metric && (
-              <span style={styles.error}>{errors.evaluation_metric.message}</span>
-            )}
-          </div>
+          <FormField
+            name="evaluation_metric" control={control} label="Evaluation Metric"
+            type="select" placeholder="Select evaluation metric"
+            options={EVALUATION_METRIC_OPTIONS}
+            error={errors.evaluation_metric?.message}
+          />
         </TaskFieldGroup>
 
         <TaskFieldGroup title="User Preferences and Constraints">
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>User Priority</label>
-            <div style={styles.checkboxGroup}>
-              {USER_PRIORITY_OPTIONS.map((option) => (
-                <label key={option.value} style={styles.checkboxLabel}>
-                  <Controller
-                    name="user_priority"
-                    control={control}
-                    render={({ field }) => (
-                      <input
-                        type="checkbox"
-                        checked={field.value?.includes(option.value) || false}
-                        onChange={(e) => {
-                          const currentValue = field.value || [];
-                          if (e.target.checked) {
-                            field.onChange([...currentValue, option.value]);
-                          } else {
-                            field.onChange(
-                              currentValue.filter((v) => v !== option.value)
-                            );
-                          }
-                        }}
-                      />
-                    )}
-                  />
-                  <span style={styles.checkboxText}>{option.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div style={styles.fieldContainer}>
-            <label style={styles.label}>Constraints</label>
-            <Controller
-              name="constraints"
-              control={control}
-              render={({ field }) => (
-                <textarea
-                  {...field}
-                  style={styles.textarea}
-                  placeholder="e.g., Use interpretable models only (one per line)"
-                  rows={3}
-                />
-              )}
-            />
-            {errors.constraints && (
-              <span style={styles.error}>{errors.constraints.message}</span>
-            )}
-          </div>
+          <FormField
+            name="user_priority" control={control} label="User Priority"
+            type="checkbox-group"
+            options={USER_PRIORITY_OPTIONS}
+          />
+          <FormField
+            name="constraints" control={control} label="Constraints"
+            type="textarea"
+            placeholder="e.g., Use interpretable models only (one per line)"
+          />
         </TaskFieldGroup>
 
-        <button type="submit" style={styles.submitButton} disabled={loading}>
+        <button
+          type="submit"
+          style={{
+            ...submitButtonStyle,
+            opacity: loading || loadingTask ? 0.6 : 1,
+            cursor: loading || loadingTask ? 'not-allowed' : 'pointer',
+          }}
+          disabled={loading || loadingTask}
+        >
           {loading ? 'Submitting...' : 'Submit Task Specification'}
         </button>
       </form>
 
       {error && (
-        <div style={styles.errorBox}>
+        <div style={errorBoxStyle}>
           <strong>Error:</strong>{' '}
           <span style={{ whiteSpace: 'pre-wrap' }}>{error}</span>
         </div>
       )}
 
-      {result && (
-        <div style={styles.resultBox}>
-          <h3 style={styles.resultTitle}>Task Specification Result</h3>
-          <div style={styles.resultField}>
-            <strong>Task ID:</strong> {result.task_id}
-          </div>
-          <div style={styles.resultField}>
-            <strong>Status:</strong>{' '}
-            <span style={{ color: getStatusColor(result.status) }}>
-              {result.status}
-            </span>
-          </div>
-          {result.missing_fields && result.missing_fields.length > 0 && (
-            <div style={styles.resultField}>
-              <strong>Missing Fields:</strong>{' '}
-              {result.missing_fields.join(', ')}
-            </div>
-          )}
-          {result.validation_messages && result.validation_messages.length > 0 && (
-            <div style={styles.resultField}>
-              <strong>Validation Messages:</strong>
-              <ul style={styles.messageList}>
-                {result.validation_messages.map((msg, index) => (
-                  <li key={index}>{msg}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div style={styles.resultJson}>
-            <strong>Full Result:</strong>
-            <pre style={styles.pre}>{JSON.stringify(result, null, 2)}</pre>
-          </div>
-        </div>
-      )}
+      {result && <TaskResultDisplay result={result} />}
 
       {activeTaskId && (
-        <TaskInterpretationPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.interpretation}
-          key={`interp-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <DatasetProfilePanel
-          taskId={activeTaskId}
-          initialResult={panelResults.datasetProfile}
-          key={`dsprofile-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <WorkflowPlanPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.workflowPlan}
-          key={`wfplan-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <FeatureEngineeringPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.featureEngineering}
-          key={`fe-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <FeaturePreprocessingPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.featurePreprocessing}
-          key={`fp-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <ModelSearchContextPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.modelSearchContext}
-          key={`msctx-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <PipelineGenerationPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.pipelineGeneration}
-          key={`pg-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <PipelineExecutionPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.pipelineExecution}
-          key={`pe-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <MetricEvaluationPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.metricEvaluation}
-          key={`me-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <ResultDiagnosisPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.resultDiagnosis}
-          key={`rd-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <WorkflowRefinementPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.workflowRefinement}
-          key={`wr-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <FinalPipelineSelectionPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.finalPipelineSelection}
-          key={`fps-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <InterpretabilityAnalysisPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.interpretabilityAnalysis}
-          key={`ia-${activeTaskId}`}
-        />
-      )}
-
-      {activeTaskId && (
-        <FinalOutputPanel
-          taskId={activeTaskId}
-          initialResult={panelResults.finalOutput}
-          key={`fo-${activeTaskId}`}
+        <TaskPanelOrchestrator
+          activeTaskId={activeTaskId}
+          panelResults={panelResults}
+          onRerunComplete={handleRerunComplete}
         />
       )}
     </div>
   );
 };
 
-const styles = {
-  fieldContainer: {
-    marginBottom: '16px',
-  },
-  label: {
-    display: 'block',
-    marginBottom: '4px',
-    fontWeight: 500,
-    color: '#555',
-  },
-  input: {
-    width: '100%',
-    padding: '8px 12px',
-    border: '1px solid #ccc',
-    borderRadius: '4px',
-    fontSize: '14px',
-    boxSizing: 'border-box' as const,
-  },
-  textarea: {
-    width: '100%',
-    padding: '8px 12px',
-    border: '1px solid #ccc',
-    borderRadius: '4px',
-    fontSize: '14px',
-    boxSizing: 'border-box' as const,
-    resize: 'vertical' as const,
-  },
-  select: {
-    width: '100%',
-    padding: '8px 12px',
-    border: '1px solid #ccc',
-    borderRadius: '4px',
-    fontSize: '14px',
-    boxSizing: 'border-box' as const,
-    backgroundColor: '#fff',
-  },
-  checkboxGroup: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '8px',
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    cursor: 'pointer',
-  },
-  checkboxText: {
-    fontSize: '14px',
-  },
-  error: {
-    color: '#f44336',
-    fontSize: '12px',
-    marginTop: '4px',
-    display: 'block',
-  },
-  submitButton: {
-    padding: '12px 24px',
-    backgroundColor: '#1976d2',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '16px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    width: '100%',
-    marginTop: '16px',
-  },
-  errorBox: {
-    marginTop: '16px',
-    padding: '12px',
-    backgroundColor: '#ffebee',
-    border: '1px solid #f44336',
-    borderRadius: '4px',
-    color: '#c62828',
-  },
-  resultBox: {
-    marginTop: '24px',
-    padding: '16px',
-    backgroundColor: '#e8f5e9',
-    border: '1px solid #4caf50',
-    borderRadius: '4px',
-  },
-  resultTitle: {
-    margin: '0 0 12px 0',
-    fontSize: '18px',
-    fontWeight: 600,
-  },
-  resultField: {
-    marginBottom: '8px',
-    fontSize: '14px',
-  },
-  messageList: {
-    margin: '4px 0',
-    paddingLeft: '20px',
-  },
-  resultJson: {
-    marginTop: '16px',
-  },
-  pre: {
-    backgroundColor: '#fff',
-    padding: '12px',
-    borderRadius: '4px',
-    overflow: 'auto',
-    fontSize: '12px',
-    marginTop: '8px',
-  },
+const submitButtonStyle: React.CSSProperties = {
+  padding: '12px 24px',
+  backgroundColor: '#1976d2',
+  color: '#fff',
+  border: 'none',
+  borderRadius: '4px',
+  fontSize: '16px',
+  fontWeight: 600,
+  width: '100%',
+  marginTop: '16px',
+};
+
+const errorBoxStyle: React.CSSProperties = {
+  marginTop: '16px',
+  padding: '12px',
+  backgroundColor: '#ffebee',
+  border: '1px solid #f44336',
+  borderRadius: '4px',
+  color: '#c62828',
 };
 
 export default TaskSpecificationForm;

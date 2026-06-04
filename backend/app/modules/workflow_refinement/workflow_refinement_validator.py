@@ -81,11 +81,6 @@ def validate_workflow_refinement_decision(
             issues.append(
                 "revised_workflow_plan must be null when decision is proceed_next_stage"
             )
-        fpsi = parsed.get("final_pipeline_selection_input")
-        if not fpsi:
-            issues.append(
-                "final_pipeline_selection_input is required when decision is proceed_next_stage"
-            )
 
     if decision == "iterate_refinement":
         rwp = parsed.get("revised_workflow_plan")

@@ -70,11 +70,11 @@ def select_candidate_models(
         if not spec or task_type not in spec.get("supported_task_types", []):
             continue
         role = "strong_baseline" if spec.get("complexity_level") != "baseline" else "baseline"
-        hpo_enabled = role == "strong_baseline"
+        # Baseline models never use HPO — search spaces are only built for candidates
         baseline_plans.append(BaselineModelPlan(
             model_id=model_id,
             role=role,
-            hpo_enabled=hpo_enabled,
+            hpo_enabled=False,
         ))
 
     # Ensure exactly one system baseline if none selected or the selected one is invalid

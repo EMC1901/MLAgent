@@ -10,7 +10,7 @@ class FinalOutput(SQLModel, table=True):
     id: Optional[str] = Field(default=None, primary_key=True)
     task_id: Optional[str] = Field(default=None, index=True, max_length=255)
     interpretability_analysis_id: Optional[str] = Field(default=None, index=True, max_length=255)
-    final_pipeline_selection_id: Optional[str] = Field(default=None, index=True, max_length=255)
+
     status: Optional[str] = Field(default=None, index=True, max_length=50)
     report_profile: Optional[str] = Field(default=None, index=True, max_length=50)
     final_model_id: Optional[str] = Field(default=None, index=True, max_length=255)

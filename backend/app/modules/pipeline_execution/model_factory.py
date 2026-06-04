@@ -4,12 +4,15 @@ Maps registry model_ids to concrete sklearn (or compatible) classes.
 No dynamic imports, no eval, no user-supplied class names.
 """
 
+import logging
 from app.shared.registry.model_registry import (
     is_valid_model_family,
     get_model_spec,
     get_baseline_models,
 )
 from app.modules.pipeline_execution.exceptions import ModelInstantiationException
+
+logger = logging.getLogger(__name__)
 
 # ---- Safe, explicit model mapping (no dynamic imports) ----
 
@@ -50,25 +53,33 @@ except ImportError:
 
 try:
     from sklearn.ensemble import RandomForestRegressor
-    _REGRESSION_MODELS["random_forest"] = lambda **kw: RandomForestRegressor(**kw)
+    _REGRESSION_MODELS["random_forest"] = lambda **kw: RandomForestRegressor(
+        n_jobs=-1, random_state=kw.pop("random_state", 42), **kw
+    )
 except ImportError:
     pass
 
 try:
     from sklearn.ensemble import RandomForestClassifier
-    _CLASSIFICATION_MODELS["random_forest"] = lambda **kw: RandomForestClassifier(**kw)
+    _CLASSIFICATION_MODELS["random_forest"] = lambda **kw: RandomForestClassifier(
+        n_jobs=-1, random_state=kw.pop("random_state", 42), **kw
+    )
 except ImportError:
     pass
 
 try:
     from sklearn.ensemble import GradientBoostingRegressor
-    _REGRESSION_MODELS["gradient_boosting"] = lambda **kw: GradientBoostingRegressor(**kw)
+    _REGRESSION_MODELS["gradient_boosting"] = lambda **kw: GradientBoostingRegressor(
+        n_iter_no_change=10, validation_fraction=0.1, random_state=kw.pop("random_state", 42), **kw
+    )
 except ImportError:
     pass
 
 try:
     from sklearn.ensemble import GradientBoostingClassifier
-    _CLASSIFICATION_MODELS["gradient_boosting"] = lambda **kw: GradientBoostingClassifier(**kw)
+    _CLASSIFICATION_MODELS["gradient_boosting"] = lambda **kw: GradientBoostingClassifier(
+        n_iter_no_change=10, validation_fraction=0.1, random_state=kw.pop("random_state", 42), **kw
+    )
 except ImportError:
     pass
 
@@ -81,14 +92,20 @@ except ImportError:
 
 try:
     from sklearn.linear_model import LogisticRegression
-    _CLASSIFICATION_MODELS["logistic_regression"] = lambda **kw: LogisticRegression(max_iter=1000, **kw)
+    _CLASSIFICATION_MODELS["logistic_regression"] = lambda **kw: LogisticRegression(
+        max_iter=1000, n_jobs=-1, **kw
+    )
 except ImportError:
     pass
 
 try:
     from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
-    _REGRESSION_MODELS["knn"] = lambda **kw: KNeighborsRegressor(**kw)
-    _CLASSIFICATION_MODELS["knn"] = lambda **kw: KNeighborsClassifier(**kw)
+    _REGRESSION_MODELS["knn"] = lambda **kw: KNeighborsRegressor(
+        n_jobs=-1, **kw
+    )
+    _CLASSIFICATION_MODELS["knn"] = lambda **kw: KNeighborsClassifier(
+        n_jobs=-1, **kw
+    )
 except ImportError:
     pass
 
@@ -126,24 +143,38 @@ except ImportError:
 
 try:
     from sklearn.ensemble import ExtraTreesRegressor, ExtraTreesClassifier
-    _REGRESSION_MODELS["extra_trees"] = lambda **kw: ExtraTreesRegressor(**kw)
-    _CLASSIFICATION_MODELS["extra_trees"] = lambda **kw: ExtraTreesClassifier(**kw)
+    _REGRESSION_MODELS["extra_trees"] = lambda **kw: ExtraTreesRegressor(
+        n_jobs=-1, random_state=kw.pop("random_state", 42), **kw
+    )
+    _CLASSIFICATION_MODELS["extra_trees"] = lambda **kw: ExtraTreesClassifier(
+        n_jobs=-1, random_state=kw.pop("random_state", 42), **kw
+    )
 except ImportError:
     pass
 
 # XGBoost is optional
 try:
     from xgboost import XGBRegressor, XGBClassifier
-    _REGRESSION_MODELS["xgboost"] = lambda **kw: XGBRegressor(**kw)
-    _CLASSIFICATION_MODELS["xgboost"] = lambda **kw: XGBClassifier(**kw)
+    _REGRESSION_MODELS["xgboost"] = lambda **kw: XGBRegressor(
+        n_jobs=-1, random_state=kw.pop("random_state", 42),
+        verbosity=kw.pop("verbosity", 0), **kw
+    )
+    _CLASSIFICATION_MODELS["xgboost"] = lambda **kw: XGBClassifier(
+        n_jobs=-1, random_state=kw.pop("random_state", 42),
+        verbosity=kw.pop("verbosity", 0), **kw
+    )
 except ImportError:
     pass
 
 # LightGBM is optional
 try:
     from lightgbm import LGBMRegressor, LGBMClassifier
-    _REGRESSION_MODELS["lightgbm"] = lambda **kw: LGBMRegressor(verbose=-1, **kw)
-    _CLASSIFICATION_MODELS["lightgbm"] = lambda **kw: LGBMClassifier(verbose=-1, **kw)
+    _REGRESSION_MODELS["lightgbm"] = lambda **kw: LGBMRegressor(
+        n_jobs=-1, verbose=-1, random_state=kw.pop("random_state", 42), **kw
+    )
+    _CLASSIFICATION_MODELS["lightgbm"] = lambda **kw: LGBMClassifier(
+        n_jobs=-1, verbose=-1, random_state=kw.pop("random_state", 42), **kw
+    )
 except ImportError:
     pass
 
@@ -209,7 +240,11 @@ def create_model(model_id: str, task_type: str, params: dict = None):
         )
 
     try:
-        return factory(**(params or {}))
+        logger.debug("creating model: model_id=%s task_type=%s params=%s",
+              model_id, task_type, params or {})
+        instance = factory(**(params or {}))
+        logger.debug("model created: %s", type(instance).__name__)
+        return instance
     except TypeError as e:
         raise ModelInstantiationException(
             f"Invalid parameters for model '{model_id}': {e}"

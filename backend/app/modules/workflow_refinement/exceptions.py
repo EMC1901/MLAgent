@@ -56,11 +56,6 @@ class IterationRerunPlanBuildException(WorkflowRefinementException):
         super().__init__(message, "ITERATION_RERUN_PLAN_BUILD_FAILED")
 
 
-class FinalSelectionInputBuildException(WorkflowRefinementException):
-    def __init__(self, message: str):
-        super().__init__(message, "FINAL_SELECTION_INPUT_BUILD_FAILED")
-
-
 class WorkflowRefinementArtifactSaveException(WorkflowRefinementException):
     def __init__(self, message: str):
         super().__init__(message, "WORKFLOW_REFINEMENT_ARTIFACT_SAVE_FAILED")

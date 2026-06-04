@@ -17,6 +17,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import pandas as pd
 import numpy as np
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,25 +36,51 @@ class PreprocessingPlanExecutor:
         plan: Dict[str, Any],
         feature_groups: List[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """
-        Execute the preprocessing plan.
+        """Execute all operations (no scope filtering)."""
+        return self._execute_ops(
+            df=df,
+            target_column=target_column,
+            feature_columns=feature_columns,
+            plan=plan,
+            feature_groups=feature_groups,
+            defer_fold_only=False,
+        )
 
-        Returns: {
-            "dataframe": pd.DataFrame (model-ready),
-            "feature_columns": List[str],
-            "removed_features": List[Dict],
-            "operation_results": List[Dict],
-            "fitted_statistics": Dict,
-            "lineage_map": Dict,
-            "warnings": List[str],
-            "errors": List[str],
-        }
-        """
-        all_warnings = []
-        all_errors = []
-        operation_results = []
-        removed_features = []
-        fitted_statistics = {}
+    def execute_global_phase(
+        self,
+        df: pd.DataFrame,
+        target_column: str,
+        feature_columns: List[str],
+        plan: Dict[str, Any],
+        feature_groups: List[Dict[str, Any]] = None,
+        task_type: str = "regression",
+    ) -> Dict[str, Any]:
+        """Execute only dataset_profile_only ops; defer fold_only ops."""
+        return self._execute_ops(
+            df=df,
+            target_column=target_column,
+            feature_columns=feature_columns,
+            plan=plan,
+            feature_groups=feature_groups,
+            defer_fold_only=True,
+        )
+
+    def _execute_ops(
+        self,
+        df: pd.DataFrame,
+        target_column: str,
+        feature_columns: List[str],
+        plan: Dict[str, Any],
+        feature_groups: List[Dict[str, Any]] = None,
+        defer_fold_only: bool = False,
+    ) -> Dict[str, Any]:
+        """Shared execution engine. If defer_fold_only, fold-scoped ops are collected for later CV execution."""
+        all_warnings: List[str] = []
+        all_errors: List[str] = []
+        operation_results: List[Dict] = []
+        removed_features: List[Dict] = []
+        fitted_statistics: Dict = {}
+        deferred_operations: List[Dict] = []
         lineage_map = self._init_lineage(df, feature_columns)
 
         current_df = df.copy()
@@ -62,55 +89,86 @@ class PreprocessingPlanExecutor:
         operation_sequence = plan.get("operation_sequence", [])
         sorted_ops = sorted(operation_sequence, key=lambda o: o.get("step_order", 0))
 
-        for op in sorted_ops:
+        label = "global_phase" if defer_fold_only else "full"
+        logger.debug("_execute_ops(%s): %d ops on %d features, %d samples",
+              label, len(sorted_ops), len(current_features), len(current_df))
+
+        for i, op in enumerate(sorted_ops):
             capability_id = op.get("capability_id", "unknown")
             operation_id = op.get("operation_id", f"op_{uuid.uuid4().hex[:6]}")
             params = op.get("parameters", {})
-            scope = op.get("execution_scope", "train_only")
+            plan_scope = op.get("execution_scope", "train_only")
 
+            # Resolve effective scope from capability registry
+            cap = None
+            effective_scope = plan_scope
             try:
                 cap = self._get_capability_spec(capability_id)
-                cap_group = cap.capability_group if cap else "unknown"
+                if cap and cap.fit_scope:
+                    effective_scope = cap.fit_scope
+            except Exception:
+                pass
+            cap_group = cap.capability_group if cap else "unknown"
 
+            # Fold-only deferral (only in global phase mode)
+            if defer_fold_only and effective_scope == "fold_only":
+                logger.debug("phase=global step=%d/%d op=%s scope=%s -> deferred",
+                      i + 1, len(sorted_ops), capability_id, effective_scope)
+                deferred_operations.append({
+                    "step_order": op.get("step_order", i),
+                    "operation_id": operation_id,
+                    "capability_id": capability_id,
+                    "capability_group": cap_group,
+                    "target_columns": op.get("target_columns", []),
+                    "target_feature_groups": op.get("target_feature_groups", []),
+                    "parameters": params,
+                })
+                operation_results.append({
+                    "operation_id": operation_id,
+                    "capability_id": capability_id,
+                    "capability_group": cap_group,
+                    "status": "deferred_to_fold",
+                    "affected_features": [],
+                    "removed_features": [],
+                    "warnings": [],
+                    "error_message": None,
+                })
+                continue
+
+            logger.debug("phase=%s step=%d/%d op=%s scope=%s -> execute",
+                  label, i + 1, len(sorted_ops), capability_id, effective_scope)
+
+            try:
+                # --- Dispatch ---
                 if capability_id in self._ANALYSIS_OPS:
                     result = self._ANALYSIS_OPS[capability_id](self, current_df, current_features, target_column, params)
-                    operation_results.append({
-                        "operation_id": operation_id,
-                        "capability_id": capability_id,
-                        "capability_group": cap_group,
-                        "status": "success",
-                        "affected_features": result.get("affected", []),
-                        "removed_features": [],
-                        "warnings": result.get("warnings", []),
-                        "error_message": None,
-                    })
+                    operation_results.append(self._op_result(operation_id, capability_id, cap_group, "success",
+                                                             affected=result.get("affected", [])))
                     fitted_statistics[operation_id] = result.get("statistics", {})
 
                 elif capability_id in self._FILTER_OPS:
                     result = self._FILTER_OPS[capability_id](self, current_df, current_features, target_column, params)
                     removed = result.get("removed", [])
+                    removal_details = result.get("removal_details", {})
                     for rf in removed:
+                        detail = removal_details.get(rf, {})
+                        detail_reason = detail.get("reason", "")
+                        if detail_reason:
+                            reason = detail_reason
+                        else:
+                            reason = f"Filtered by {capability_id}"
                         removed_features.append({
-                            "feature_name": rf,
-                            "reason": f"Filtered by {capability_id}",
-                            "evidence": f"capability={capability_id}",
-                            "source_feature_group": "",
+                            "feature_name": rf, "reason": reason,
+                            "evidence": f"capability={capability_id}", "source_feature_group": "",
                         })
                         if rf in lineage_map:
                             lineage_map[rf]["removed"] = True
                             lineage_map[rf]["removal_reason"] = f"Filtered by {capability_id}"
                     current_features = [c for c in current_features if c not in removed]
                     current_df = current_df[current_features + ([target_column] if target_column in current_df.columns else [])]
-                    operation_results.append({
-                        "operation_id": operation_id,
-                        "capability_id": capability_id,
-                        "capability_group": cap_group,
-                        "status": "success",
-                        "affected_features": current_features,
-                        "removed_features": removed,
-                        "warnings": result.get("warnings", []),
-                        "error_message": None,
-                    })
+                    operation_results.append(self._op_result(operation_id, capability_id, cap_group, "success",
+                                                             affected=current_features, removed=removed,
+                                                             warnings=result.get("warnings", [])))
 
                 elif capability_id in self._TRANSFORM_OPS:
                     result = self._TRANSFORM_OPS[capability_id](self, current_df, current_features, target_column, params)
@@ -119,23 +177,16 @@ class PreprocessingPlanExecutor:
                     for tf in transformed:
                         if tf in lineage_map:
                             lineage_map[tf]["transformations_applied"].append(capability_id)
-                            if capability_id in ("standard_scaler", "robust_scaler", "minmax_scaler"):
+                            if capability_id in ("standard_scaler", "robust_scaler", "minmax_scaler", "maxabs_scaler"):
                                 lineage_map[tf]["scaled"] = True
                             elif "transform" in capability_id:
                                 lineage_map[tf]["transformed"] = True
                             elif "pca" in capability_id or "svd" in capability_id:
                                 lineage_map[tf]["reduced"] = True
                                 lineage_map[tf]["is_interpretable"] = False
-                    operation_results.append({
-                        "operation_id": operation_id,
-                        "capability_id": capability_id,
-                        "capability_group": cap_group,
-                        "status": "success",
-                        "affected_features": transformed,
-                        "removed_features": [],
-                        "warnings": result.get("warnings", []),
-                        "error_message": None,
-                    })
+                    operation_results.append(self._op_result(operation_id, capability_id, cap_group, "success",
+                                                             affected=transformed,
+                                                             warnings=result.get("warnings", [])))
                     fitted_statistics[operation_id] = result.get("statistics", {})
 
                 elif capability_id in self._IMPUTE_OPS:
@@ -146,97 +197,68 @@ class PreprocessingPlanExecutor:
                         if imf in lineage_map:
                             lineage_map[imf]["imputed"] = True
                             lineage_map[imf]["transformations_applied"].append(capability_id)
-                    operation_results.append({
-                        "operation_id": operation_id,
-                        "capability_id": capability_id,
-                        "capability_group": cap_group,
-                        "status": "success",
-                        "affected_features": imputed,
-                        "removed_features": [],
-                        "warnings": result.get("warnings", []),
-                        "error_message": None,
-                    })
+                    operation_results.append(self._op_result(operation_id, capability_id, cap_group, "success",
+                                                             affected=imputed,
+                                                             warnings=result.get("warnings", [])))
                     fitted_statistics[operation_id] = result.get("statistics", {})
 
                 elif capability_id in self._LEAKAGE_OPS:
                     result = self._LEAKAGE_OPS[capability_id](self, current_df, current_features, target_column, params)
+                    removal_details = result.get("removal_details", {})
                     for rf in result.get("removed", []):
+                        detail = removal_details.get(rf, {})
+                        detail_reason = detail.get("reason", "")
+                        if detail_reason:
+                            reason = detail_reason
+                            evidence_parts = [f"capability={capability_id}"]
+                            if detail.get("matched_pattern"):
+                                evidence_parts.append(f"matched_pattern={detail['matched_pattern']}")
+                            evidence = "; ".join(evidence_parts)
+                        else:
+                            reason = f"Leakage detected by {capability_id}"
+                            evidence = f"capability={capability_id}"
                         removed_features.append({
-                            "feature_name": rf,
-                            "reason": f"Leakage detected by {capability_id}",
-                            "evidence": f"capability={capability_id}",
-                            "source_feature_group": "",
+                            "feature_name": rf, "reason": reason,
+                            "evidence": evidence, "source_feature_group": "",
                         })
                         if rf in lineage_map:
                             lineage_map[rf]["removed"] = True
                             lineage_map[rf]["removal_reason"] = f"Leakage: {capability_id}"
                     current_features = [c for c in current_features if c not in result.get("removed", [])]
-                    operation_results.append({
-                        "operation_id": operation_id,
-                        "capability_id": capability_id,
-                        "capability_group": cap_group,
-                        "status": "success",
-                        "affected_features": result.get("affected", []),
-                        "removed_features": result.get("removed", []),
-                        "warnings": result.get("warnings", []),
-                        "error_message": None,
-                    })
+                    operation_results.append(self._op_result(operation_id, capability_id, cap_group, "success",
+                                                             affected=result.get("affected", []),
+                                                             removed=result.get("removed", []),
+                                                             warnings=result.get("warnings", [])))
 
                 elif capability_id in self._GROUP_OPS:
                     result = self._GROUP_OPS[capability_id](self, current_df, current_features, params, feature_groups or [])
                     current_features = result.get("feature_columns", current_features)
-                    operation_results.append({
-                        "operation_id": operation_id,
-                        "capability_id": capability_id,
-                        "capability_group": cap_group,
-                        "status": "success",
-                        "affected_features": current_features,
-                        "removed_features": result.get("removed", []),
-                        "warnings": result.get("warnings", []),
-                        "error_message": None,
-                    })
+                    operation_results.append(self._op_result(operation_id, capability_id, cap_group, "success",
+                                                             affected=current_features,
+                                                             removed=result.get("removed", []),
+                                                             warnings=result.get("warnings", [])))
 
                 elif capability_id in self._ARTIFACT_OPS:
                     result = self._ARTIFACT_OPS[capability_id](self, current_df, current_features, params)
-                    operation_results.append({
-                        "operation_id": operation_id,
-                        "capability_id": capability_id,
-                        "capability_group": cap_group,
-                        "status": "success",
-                        "affected_features": [],
-                        "removed_features": [],
-                        "warnings": [],
-                        "error_message": None,
-                    })
+                    operation_results.append(self._op_result(operation_id, capability_id, cap_group, "success"))
                     fitted_statistics[operation_id] = result.get("statistics", {})
 
                 else:
-                    operation_results.append({
-                        "operation_id": operation_id,
-                        "capability_id": capability_id,
-                        "capability_group": cap_group,
-                        "status": "skipped",
-                        "affected_features": [],
-                        "removed_features": [],
-                        "warnings": [f"No executor for capability '{capability_id}'"],
-                        "error_message": None,
-                    })
+                    operation_results.append(self._op_result(operation_id, capability_id, cap_group, "skipped",
+                                                             warnings=[f"No executor for capability '{capability_id}'"]))
 
             except Exception as exc:
-                logger.error("Operation %s (%s) failed: %s", operation_id, capability_id, exc)
-                operation_results.append({
-                    "operation_id": operation_id,
-                    "capability_id": capability_id,
-                    "capability_group": "unknown",
-                    "status": "failed",
-                    "affected_features": [],
-                    "removed_features": [],
-                    "warnings": [],
-                    "error_message": str(exc),
-                })
+                logger.debug("operation '%s' (%s) FAILED: %s", operation_id, capability_id, exc)
+                operation_results.append(self._op_result(operation_id, capability_id, cap_group, "failed",
+                                                         error_message=str(exc)))
                 all_errors.append(f"Operation '{capability_id}' failed: {exc}")
 
-        return {
+        n_deferred = len(deferred_operations)
+        n_executed = sum(1 for r in operation_results if r["status"] not in ("deferred_to_fold", "skipped"))
+        logger.debug("_execute_ops(%s): DONE — %d executed, %d deferred, %d removed, %d errors",
+              label, n_executed, n_deferred, len(removed_features), len(all_errors))
+
+        result = {
             "dataframe": current_df,
             "feature_columns": current_features,
             "removed_features": removed_features,
@@ -245,6 +267,23 @@ class PreprocessingPlanExecutor:
             "lineage_map": lineage_map,
             "warnings": all_warnings,
             "errors": all_errors,
+        }
+        if defer_fold_only:
+            result["deferred_operations"] = deferred_operations
+        return result
+
+    @staticmethod
+    def _op_result(operation_id, capability_id, capability_group, status,
+                   affected=None, removed=None, warnings=None, error_message=None):
+        return {
+            "operation_id": operation_id,
+            "capability_id": capability_id,
+            "capability_group": capability_group,
+            "status": status,
+            "affected_features": affected or [],
+            "removed_features": removed or [],
+            "warnings": warnings or [],
+            "error_message": error_message,
         }
 
     def _init_lineage(self, df, feature_columns) -> Dict:
@@ -587,10 +626,110 @@ class PreprocessingPlanExecutor:
         return self._pearson_correlation_filter(df, features, target, params)
 
     def _variance_inflation_factor_filter(self, df, features, target, params):
-        return {"removed": [], "warnings": ["VIF filter: simplified execution"]}
+        threshold = params.get("threshold", 10.0)
+        max_iter = params.get("max_iterations", 3)
+        removed = []
+        numeric_cols = [c for c in features if c in df.columns and df[c].dtype in ('int64', 'float64')]
+        if len(numeric_cols) < 2:
+            return {"removed": [], "warnings": ["VIF filter: need at least 2 numeric features"]}
+        try:
+            working = [c for c in numeric_cols if df[c].var() > 1e-12]
+            X = df[working].fillna(df[working].median()).values.astype(np.float64)
+            n_samples, n_feats = X.shape
+            if n_feats < 2:
+                return {"removed": [], "warnings": ["VIF filter: insufficient features after variance filter"]}
+            kept = list(range(n_feats))
+            for _ in range(max_iter):
+                if len(kept) <= 1:
+                    break
+                X_sub = X[:, kept]
+                vif_scores = np.ones(len(kept)) * np.inf
+                for j in range(len(kept)):
+                    y_j = X_sub[:, j]
+                    X_others = np.delete(X_sub, j, axis=1)
+                    if X_others.shape[1] == 0:
+                        vif_scores[j] = 1.0
+                        continue
+                    try:
+                        coeffs, residuals, rank, singular = np.linalg.lstsq(
+                            np.column_stack([np.ones(n_samples), X_others]),
+                            y_j, rcond=None
+                        )
+                        ss_res = float(np.sum((y_j - np.column_stack([np.ones(n_samples), X_others]) @ coeffs) ** 2))
+                        ss_tot = float(np.sum((y_j - y_j.mean()) ** 2))
+                        r_sq = 1.0 - ss_res / ss_tot if ss_tot > 1e-12 else 0.0
+                        vif_scores[j] = 1.0 / (1.0 - r_sq) if r_sq < 0.999 else np.inf
+                    except Exception:
+                        vif_scores[j] = np.inf
+                max_vif_idx = int(np.argmax(vif_scores))
+                if vif_scores[max_vif_idx] > threshold:
+                    removed.append(working[kept[max_vif_idx]])
+                    kept.pop(max_vif_idx)
+                else:
+                    break
+            return {
+                "removed": removed,
+                "warnings": [f"VIF filter: removed {len(removed)} features with VIF > {threshold}"] if removed else [],
+                "statistics": {"vif_removed_count": len(removed), "threshold": threshold},
+            }
+        except Exception as e:
+            logger.warning("VIF filter failed: %s", e)
+            return {"removed": [], "warnings": [f"VIF filter failed: {e}"]}
 
     def _hierarchical_correlation_clustering(self, df, features, target, params):
-        return {"removed": [], "warnings": ["Hierarchical clustering: simplified execution"]}
+        threshold = params.get("correlation_threshold", 0.9)
+        criterion = params.get("selection_criterion", "highest_variance")
+        removed = []
+        numeric_cols = [c for c in features if c in df.columns and df[c].dtype in ('int64', 'float64')]
+        if len(numeric_cols) < 2:
+            return {"removed": [], "warnings": ["Hierarchical clustering: need at least 2 numeric features"]}
+        try:
+            from scipy.cluster.hierarchy import linkage, fcluster
+            from scipy.spatial.distance import squareform
+            corr = df[numeric_cols].corr().abs().values
+            np.fill_diagonal(corr, 1.0)
+            dist = 1.0 - corr
+            condensed = squareform(dist, checks=False)
+            Z = linkage(condensed, method='average')
+            cluster_labels = fcluster(Z, t=1.0 - threshold, criterion='distance')
+            n_clusters = len(set(cluster_labels))
+            if n_clusters >= len(numeric_cols):
+                return {"removed": [], "warnings": [], "statistics": {"n_clusters": n_clusters}}
+            kept = set()
+            for cid in range(1, n_clusters + 1):
+                members = [numeric_cols[i] for i, lbl in enumerate(cluster_labels) if lbl == cid]
+                if len(members) == 1:
+                    kept.add(members[0])
+                elif criterion == "highest_variance":
+                    variances = {m: df[m].var() for m in members if df[m].var() > 0}
+                    if variances:
+                        kept.add(max(variances, key=variances.get))
+                    else:
+                        kept.add(members[0])
+                elif criterion == "highest_target_correlation":
+                    best = members[0]
+                    best_corr = -1
+                    if target and target in df.columns:
+                        for m in members:
+                            c = abs(df[m].corr(df[target])) if not df[m].isnull().all() else 0
+                            if c > best_corr:
+                                best_corr = c
+                                best = m
+                    kept.add(best)
+                else:
+                    kept.add(members[0])
+            removed = [c for c in numeric_cols if c not in kept]
+            return {
+                "removed": removed,
+                "warnings": [f"Hierarchical clustering: removed {len(removed)} features across {n_clusters} clusters"] if removed else [],
+                "statistics": {"n_clusters": n_clusters, "removed_count": len(removed)},
+            }
+        except ImportError:
+            logger.warning("scipy not available for hierarchical clustering")
+            return {"removed": [], "warnings": ["Hierarchical clustering: scipy not available"]}
+        except Exception as e:
+            logger.warning("Hierarchical clustering failed: %s", e)
+            return {"removed": [], "warnings": [f"Hierarchical clustering failed: {e}"]}
 
     def _representative_feature_selector(self, df, features, target, params):
         criterion = params.get("selection_criterion", "highest_variance")
@@ -607,28 +746,60 @@ class PreprocessingPlanExecutor:
 
     def _target_column_excluder(self, df, features, target, params):
         removed = []
+        removal_details = {}
         if target and target in features:
             removed = [target]
+            removal_details[target] = {
+                "reason": f"Column '{target}' is the target variable — including it as a feature would cause direct target leakage"
+            }
         elif params.get("target_column") and params["target_column"] in features:
             removed = [params["target_column"]]
-        return {"removed": removed, "affected": features, "warnings": []}
+            removal_details[params["target_column"]] = {
+                "reason": f"Column '{params['target_column']}' is the target variable — including it as a feature would cause direct target leakage"
+            }
+        return {"removed": removed, "affected": features, "warnings": [], "removal_details": removal_details}
 
     def _id_column_dropper(self, df, features, target, params):
+        import re
         id_patterns = params.get("id_patterns", ["id", "ID", "_id", "uuid", "sample_name", "filename", "db_id"])
         removed = []
+        removal_details = {}
         for c in features:
             c_lower = c.lower()
+            matched_pattern = None
             for pat in id_patterns:
-                if pat.lower() in c_lower or c_lower == pat.lower():
-                    removed.append(c)
+                pat_lower = pat.lower()
+                # Short generic patterns "id"/"ID" use word-boundary matching to avoid
+                # false positives like "oxidation", "acidic", "candid", etc.
+                if pat_lower in ("id",):
+                    if re.search(r'(?:^|[_\- ])id(?:$|[_\- ])', c_lower) or c_lower == 'id':
+                        matched_pattern = pat
+                        break
+                elif pat_lower in c_lower or c_lower == pat_lower:
+                    matched_pattern = pat
                     break
-        return {"removed": removed, "affected": features, "warnings": [f"Dropped ID columns: {removed}"] if removed else []}
+            if matched_pattern:
+                removed.append(c)
+                removal_details[c] = {
+                    "matched_pattern": matched_pattern,
+                    "reason": (
+                        f"Feature name '{c}' matched ID pattern '{matched_pattern}' "
+                        f"— likely an identifier column that would cause data leakage"
+                    ),
+                }
+        return {
+            "removed": removed,
+            "affected": features,
+            "warnings": [f"Dropped ID columns: {removed}"] if removed else [],
+            "removal_details": removal_details,
+        }
 
     def _metadata_column_detector(self, df, features, target, params):
         return {"removed": [], "affected": features, "warnings": []}
 
     def _duplicate_target_column_detector(self, df, features, target, params):
         removed = []
+        removal_details = {}
         if target and target in df.columns:
             numeric_cols = [c for c in features if c in df.columns and c != target and df[c].dtype in ('int64', 'float64')]
             for c in numeric_cols:
@@ -636,7 +807,13 @@ class PreprocessingPlanExecutor:
                     corr = df[c].corr(df[target])
                     if abs(corr) > 0.99:
                         removed.append(c)
-        return {"removed": removed, "affected": features, "warnings": []}
+                        removal_details[c] = {
+                            "reason": (
+                                f"Feature '{c}' has correlation {corr:.4f} with target '{target}' "
+                                f"— likely a duplicate or derived copy of the target column"
+                            )
+                        }
+        return {"removed": removed, "affected": features, "warnings": [], "removal_details": removal_details}
 
     def _target_name_similarity_checker(self, df, features, target, params):
         return {"removed": [], "affected": features, "warnings": []}
@@ -644,6 +821,7 @@ class PreprocessingPlanExecutor:
     def _target_correlation_leakage_checker(self, df, features, target, params):
         threshold = params.get("correlation_threshold", 0.95)
         removed = []
+        removal_details = {}
         if target and target in df.columns:
             numeric_cols = [c for c in features if c in df.columns and df[c].dtype in ('int64', 'float64')]
             for c in numeric_cols:
@@ -651,7 +829,13 @@ class PreprocessingPlanExecutor:
                     corr = df[c].corr(df[target])
                     if abs(corr) > threshold:
                         removed.append(c)
-        return {"removed": removed, "affected": features, "warnings": []}
+                        removal_details[c] = {
+                            "reason": (
+                                f"Feature '{c}' has correlation {corr:.4f} with target '{target}' "
+                                f"(threshold={threshold}) — high target correlation may indicate data leakage"
+                            )
+                        }
+        return {"removed": removed, "affected": features, "warnings": [], "removal_details": removal_details}
 
     def _basic_leakage_checker(self, df, features, target, params):
         return {"removed": [], "affected": features, "warnings": []}
@@ -715,22 +899,180 @@ class PreprocessingPlanExecutor:
         return {"removed": [], "warnings": ["F-regression selector: simplified execution"]}
 
     def _f_classif_selector(self, df, features, target, params):
-        return {"removed": [], "warnings": ["F-classif selector: not applicable for regression"]}
+        try:
+            from sklearn.feature_selection import f_classif
+            k = params.get("k", 50)
+            numeric_cols = [c for c in features if c in df.columns and df[c].dtype in ('int64', 'float64')]
+            if target and target in df.columns and numeric_cols:
+                X = df[numeric_cols].fillna(0)
+                y_raw = df[target].dropna()
+                n_unique = y_raw.nunique()
+                if n_unique <= 1:
+                    return {"removed": [], "warnings": ["F-classif: target has only 1 unique value"]}
+                is_classification = n_unique <= 15 and np.issubdtype(y_raw.dtype, np.integer)
+                if not is_classification:
+                    logger.info("f_classif_selector: target has %d unique values, falling back to f_regression", n_unique)
+                    return self._f_regression_selector(df, features, target, params)
+                y = df[target].fillna(df[target].median())
+                f_scores, _ = f_classif(X, y.astype(int))
+                top_k_idx = np.argsort(f_scores)[-k:] if len(f_scores) > k else np.arange(len(f_scores))
+                selected = [numeric_cols[i] for i in top_k_idx]
+                removed = [c for c in numeric_cols if c not in selected]
+                return {"removed": removed, "warnings": []}
+        except Exception as e:
+            logger.warning("f_classif_selector failed: %s", e)
+        return {"removed": [], "warnings": [f"F-classif selector failed, falling back"]}
 
     def _lasso_selector(self, df, features, target, params):
-        return {"removed": [], "warnings": ["Lasso selector: simplified execution"]}
+        try:
+            from sklearn.linear_model import LassoCV
+            k = params.get("k", 50)
+            numeric_cols = [c for c in features if c in df.columns and df[c].dtype in ('int64', 'float64')]
+            if not target or target not in df.columns or not numeric_cols:
+                return {"removed": [], "warnings": []}
+            X = df[numeric_cols].fillna(0).values.astype(np.float64)
+            y = df[target].fillna(df[target].median()).values.astype(np.float64)
+            if X.shape[1] < 2:
+                return {"removed": [], "warnings": []}
+            model = LassoCV(cv=min(5, len(df)), random_state=self.random_seed, max_iter=5000, n_jobs=-1)
+            model.fit(X, y)
+            coef_abs = np.abs(model.coef_)
+            if np.all(coef_abs < 1e-12):
+                return {"removed": [], "warnings": ["Lasso: all coefficients near zero — try different alpha"]}
+            if len(coef_abs) > k:
+                threshold = np.sort(coef_abs)[-k]
+                selected = [numeric_cols[idx] for idx, c in enumerate(coef_abs) if c >= threshold]
+            else:
+                selected = list(numeric_cols)
+            removed = [c for c in numeric_cols if c not in selected]
+            return {
+                "removed": removed,
+                "warnings": [f"Lasso: removed {len(removed)} features (kept top {k})"] if removed else [],
+            }
+        except Exception as e:
+            logger.warning("lasso_selector failed: %s", e)
+            return {"removed": [], "warnings": [f"Lasso selector failed: {e}"]}
 
     def _elastic_net_selector(self, df, features, target, params):
-        return {"removed": [], "warnings": ["ElasticNet selector: simplified execution"]}
+        try:
+            from sklearn.linear_model import ElasticNetCV
+            k = params.get("k", 50)
+            l1_ratio = params.get("l1_ratio", 0.5)
+            numeric_cols = [c for c in features if c in df.columns and df[c].dtype in ('int64', 'float64')]
+            if not target or target not in df.columns or not numeric_cols:
+                return {"removed": [], "warnings": []}
+            X = df[numeric_cols].fillna(0).values.astype(np.float64)
+            y = df[target].fillna(df[target].median()).values.astype(np.float64)
+            if X.shape[1] < 2:
+                return {"removed": [], "warnings": []}
+            model = ElasticNetCV(l1_ratio=[l1_ratio], cv=min(5, len(df)),
+                                 random_state=self.random_seed, max_iter=5000, n_jobs=-1)
+            model.fit(X, y)
+            coef_abs = np.abs(model.coef_)
+            if np.all(coef_abs < 1e-12):
+                return {"removed": [], "warnings": ["ElasticNet: all coefficients near zero"]}
+            if len(coef_abs) > k:
+                threshold = np.sort(coef_abs)[-k]
+                selected = [numeric_cols[idx] for idx, c in enumerate(coef_abs) if c >= threshold]
+            else:
+                selected = list(numeric_cols)
+            removed = [c for c in numeric_cols if c not in selected]
+            return {
+                "removed": removed,
+                "warnings": [f"ElasticNet: removed {len(removed)} features (kept top {k})"] if removed else [],
+            }
+        except Exception as e:
+            logger.warning("elastic_net_selector failed: %s", e)
+            return {"removed": [], "warnings": [f"ElasticNet selector failed: {e}"]}
 
     def _tree_importance_selector(self, df, features, target, params):
-        return {"removed": [], "warnings": ["Tree importance selector: simplified execution"]}
+        try:
+            k = params.get("k", 50)
+            numeric_cols = [c for c in features if c in df.columns and df[c].dtype in ('int64', 'float64')]
+            if not target or target not in df.columns or not numeric_cols:
+                return {"removed": [], "warnings": []}
+            X = df[numeric_cols].fillna(0).values.astype(np.float64)
+            y_raw = df[target].dropna()
+            n_unique = y_raw.nunique()
+            is_classification = n_unique <= 15 and np.issubdtype(y_raw.dtype, np.integer)
+            y = df[target].fillna(df[target].median())
+            if is_classification:
+                from sklearn.ensemble import RandomForestClassifier
+                model = RandomForestClassifier(n_estimators=100, random_state=self.random_seed, n_jobs=-1)
+                model.fit(X, y.values.astype(int))
+            else:
+                from sklearn.ensemble import RandomForestRegressor
+                model = RandomForestRegressor(n_estimators=100, random_state=self.random_seed, n_jobs=-1)
+                model.fit(X, y.values.astype(np.float64))
+            importances = model.feature_importances_
+            if len(importances) > k:
+                top_indices = np.argsort(importances)[-k:]
+                selected = [numeric_cols[i] for i in top_indices]
+            else:
+                selected = list(numeric_cols)
+            removed = [c for c in numeric_cols if c not in selected]
+            return {
+                "removed": removed,
+                "warnings": [f"Tree importance: removed {len(removed)} features (kept top {k})"] if removed else [],
+            }
+        except Exception as e:
+            logger.warning("tree_importance_selector failed: %s", e)
+            return {"removed": [], "warnings": [f"Tree importance selector failed: {e}"]}
 
     def _recursive_feature_elimination(self, df, features, target, params):
-        return {"removed": [], "warnings": ["RFE: simplified execution"]}
+        try:
+            from sklearn.feature_selection import RFE
+            from sklearn.ensemble import RandomForestRegressor
+            k = params.get("n_features_to_select", 50)
+            step = params.get("step", 1)
+            numeric_cols = [c for c in features if c in df.columns and df[c].dtype in ('int64', 'float64')]
+            if not target or target not in df.columns or not numeric_cols:
+                return {"removed": [], "warnings": []}
+            if len(numeric_cols) <= k:
+                return {"removed": [], "warnings": []}
+            X = df[numeric_cols].fillna(0).values.astype(np.float64)
+            y = df[target].fillna(df[target].median()).values.astype(np.float64)
+            estimator = RandomForestRegressor(n_estimators=50, random_state=self.random_seed, n_jobs=-1)
+            selector = RFE(estimator=estimator, n_features_to_select=min(k, X.shape[1]), step=step)
+            selector.fit(X, y)
+            selected = [numeric_cols[i] for i, s in enumerate(selector.support_) if s]
+            removed = [c for c in numeric_cols if c not in selected]
+            return {
+                "removed": removed,
+                "warnings": [f"RFE: removed {len(removed)} features, retained {len(selected)}"] if removed else [],
+            }
+        except Exception as e:
+            logger.warning("recursive_feature_elimination failed: %s", e)
+            return {"removed": [], "warnings": [f"RFE failed: {e}"]}
 
     def _sequential_feature_selector(self, df, features, target, params):
-        return {"removed": [], "warnings": ["SFS: simplified execution"]}
+        try:
+            from sklearn.feature_selection import SequentialFeatureSelector
+            from sklearn.ensemble import RandomForestRegressor
+            k = params.get("n_features_to_select", min(30, len(features) // 2))
+            direction = params.get("direction", "forward")
+            numeric_cols = [c for c in features if c in df.columns and df[c].dtype in ('int64', 'float64')]
+            if not target or target not in df.columns or not numeric_cols:
+                return {"removed": [], "warnings": []}
+            if len(numeric_cols) <= k:
+                return {"removed": [], "warnings": []}
+            X = df[numeric_cols].fillna(0).values.astype(np.float64)
+            y = df[target].fillna(df[target].median()).values.astype(np.float64)
+            estimator = RandomForestRegressor(n_estimators=30, random_state=self.random_seed, n_jobs=-1)
+            sfs = SequentialFeatureSelector(
+                estimator=estimator, n_features_to_select=min(k, X.shape[1]),
+                direction=direction, cv=min(3, len(df)), n_jobs=-1,
+            )
+            sfs.fit(X, y)
+            selected = [numeric_cols[i] for i, s in enumerate(sfs.support_) if s]
+            removed = [c for c in numeric_cols if c not in selected]
+            return {
+                "removed": removed,
+                "warnings": [f"SFS ({direction}): removed {len(removed)} features, retained {len(selected)}"] if removed else [],
+            }
+        except Exception as e:
+            logger.warning("sequential_feature_selector failed: %s", e)
+            return {"removed": [], "warnings": [f"SFS failed: {e}"]}
 
     def _max_feature_count_limiter(self, df, features, target, params):
         max_feat = params.get("max_features", 500)

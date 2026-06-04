@@ -89,19 +89,6 @@ def _resolve_upstream_artifacts(
     manifest: FinalArtifactManifest,
     warnings_list: List[str],
 ):
-    # Resolve preprocessor and matrix from PipelineExecution / PipelineGeneration
-    try:
-        fps_id = fo_input.final_pipeline_selection_id
-        if fps_id:
-            from app.modules.final_pipeline_selection.model import FinalPipelineSelection
-            fps = session.get(FinalPipelineSelection, fps_id)
-            if fps and fps.pipeline_execution_id:
-                from app.modules.pipeline_execution.model import PipelineExecution
-                pe = session.get(PipelineExecution, fps.pipeline_execution_id)
-                if pe and pe.training_artifact_dir:
-                    manifest.model_artifact_path = manifest.model_artifact_path or os.path.join(
-                        pe.training_artifact_dir, "model.pkl"
-                    )
-    except Exception as e:
-        logger.warning("Failed to resolve upstream pipeline execution artifacts: %s", str(e))
-        warnings_list.append(f"Upstream artifact resolution: {str(e)}")
+    # Upstream artifact resolution: FPS module has been removed.
+    # Pipeline execution artifacts are no longer resolved through this path.
+    pass

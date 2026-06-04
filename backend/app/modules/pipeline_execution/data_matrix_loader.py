@@ -1,9 +1,12 @@
 """Data Matrix Loader — loads model-ready features and constructs X/y."""
 
+import logging
 import os
 import pandas as pd
-from typing import Tuple
+from typing import Optional, Tuple
 from app.modules.pipeline_execution.exceptions import TrainingDataLoadException
+
+logger = logging.getLogger(__name__)
 
 
 def load_model_ready_matrix(
@@ -43,10 +46,12 @@ def load_model_ready_matrix(
             f"Unsupported file format. Expected .parquet, got: {matrix_path}"
         )
 
+    logger.debug("loading parquet from %s ...", matrix_path)
     try:
         df = pd.read_parquet(matrix_path)
     except Exception as e:
         raise TrainingDataLoadException(f"Failed to read parquet: {e}")
+    logger.debug("parquet loaded: shape=(%d, %d)", df.shape[0], df.shape[1])
 
     if df.empty:
         raise TrainingDataLoadException("Model-ready matrix is empty.")
@@ -84,3 +89,33 @@ def load_model_ready_matrix(
         raise TrainingDataLoadException("Data matrix has zero samples after feature/target extraction.")
 
     return X, y
+
+
+def load_intermediate_matrix(
+    matrix_path: str,
+    feature_columns: list,
+    target_column: str,
+) -> tuple:
+    """Load intermediate (post-global-phase) feature matrix.
+
+    Same as load_model_ready_matrix but with clearer naming for the
+    two-phase fold-safe flow. The matrix at this path has only been
+    through dataset_profile_only operations — fold_only operations
+    are applied later inside each CV fold.
+    """
+    return load_model_ready_matrix(matrix_path, feature_columns, target_column)
+
+
+def resolve_fold_pipeline_spec_path(matrix_path: str) -> Optional[str]:
+    """Given the model-ready matrix path, derive the fold_pipeline_spec.json path.
+
+    Returns the path if it exists, None otherwise.
+    """
+    import os
+    if not matrix_path:
+        return None
+    artifact_dir = os.path.dirname(matrix_path)
+    spec_path = os.path.join(artifact_dir, "fold_pipeline_spec.json")
+    if os.path.exists(spec_path):
+        return spec_path
+    return None

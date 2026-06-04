@@ -23,16 +23,14 @@ import app.modules.model_search_context.model        # noqa: F401
 import app.modules.pipeline_generation.model         # noqa: F401
 import app.modules.pipeline_execution.model          # noqa: F401
 import app.modules.metric_evaluation.model           # noqa: F401
-import app.modules.result_diagnosis.model            # noqa: F401
-import app.modules.workflow_refinement.model         # noqa: F401
-import app.modules.final_pipeline_selection.model    # noqa: F401
+import app.modules.iteration_decision.model          # noqa: F401
 import app.modules.interpretability_analysis.model   # noqa: F401
 import app.modules.final_output.model                # noqa: F401
 
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = SQLModel.metadata
 

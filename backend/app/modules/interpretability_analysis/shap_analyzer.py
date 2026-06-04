@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
@@ -30,12 +30,26 @@ def compute_shap(
         logger.warning(msg)
         return _fallback_shap_summary(), None, [msg]
 
+    logger.info("SHAP: X_shape=%s n_features=%d max_samples=%d explainer=%s",
+                X.shape, len(feature_columns), max_samples, explainer_type)
     n_samples = min(len(X), max_samples)
     X_sample = X.head(n_samples) if len(X) > n_samples else X
 
+    # Ensure all columns are numeric before passing to SHAP
+    non_numeric_cols = X.select_dtypes(exclude=["number"]).columns.tolist()
+    if non_numeric_cols:
+        logger.warning("Dropping non-numeric columns before SHAP: %s", non_numeric_cols)
+        X = X.drop(columns=non_numeric_cols)
+        X_sample = X_sample.drop(columns=non_numeric_cols)
+    X = X.astype(float)
+    X_sample = X_sample.astype(float)
+
     try:
         explainer = _create_explainer(model, X, explainer_type, background_sample_size)
-        shap_values = explainer(X_sample)
+        try:
+            shap_values = explainer(X_sample, check_additivity=False)
+        except (TypeError, KeyError):
+            shap_values = explainer(X_sample)
 
         if isinstance(shap_values, list):
             shap_values = shap_values[1] if len(shap_values) > 1 else shap_values[0]
@@ -102,7 +116,10 @@ def _create_explainer(model, X, explainer_type, background_size):
     bg = X.sample(n=n_bg, random_state=42) if len(X) > n_bg else X
 
     if explainer_type in ("tree", "tree_explainer"):
-        return shap.TreeExplainer(model, bg)
+        try:
+            return shap.TreeExplainer(model, bg, check_additivity=False)
+        except TypeError:
+            return shap.TreeExplainer(model, bg)
     elif explainer_type in ("linear", "linear_explainer"):
         return shap.LinearExplainer(model, bg)
     else:
@@ -120,3 +137,98 @@ def _fallback_shap_summary() -> ShapSummary:
         shap_artifact_paths=None,
         warnings=["SHAP unavailable; fallback to permutation importance."],
     )
+
+
+def compute_shap_interactions(
+    shap_values: np.ndarray,
+    feature_columns: List[str],
+    top_n: int = 10,
+) -> List[Dict[str, Any]]:
+    """
+    Compute SHAP interaction values for top feature pairs.
+
+    SHAP interaction values are approximated via covariance of SHAP values
+    across samples: interaction(f_i, f_j) ≈ cov(SHAP_i, SHAP_j) across samples.
+
+    Returns list of top interaction pairs with interaction_strength.
+    """
+    if shap_values is None or len(feature_columns) < 2:
+        return []
+
+    n_features = min(shap_values.shape[1], len(feature_columns))
+    names = feature_columns[:n_features]
+
+    interactions = []
+    for i in range(n_features):
+        for j in range(i + 1, n_features):
+            cov = np.cov(shap_values[:, i], shap_values[:, j])[0, 1]
+            interaction_strength = float(abs(cov))
+            if interaction_strength > 0:
+                interactions.append({
+                    "feature_1": names[i],
+                    "feature_2": names[j],
+                    "interaction_strength": round(interaction_strength, 8),
+                    "direction": "positive" if cov > 0 else "negative",
+                })
+
+    interactions.sort(key=lambda x: x["interaction_strength"], reverse=True)
+    logger.info("SHAP interactions computed: %d pairs, returning top %d.", len(interactions), min(top_n, len(interactions)))
+    return interactions[:top_n]
+
+
+def compute_shap_dependence(
+    shap_values: np.ndarray,
+    X: "pd.DataFrame",
+    feature_columns: List[str],
+    top_n: int = 10,
+) -> List[Dict[str, Any]]:
+    """
+    Compute SHAP dependence data for top features.
+
+    For each top feature, returns the feature values and corresponding SHAP values,
+    plus the most-interacting feature's values for coloring.
+
+    Returns list of {feature_name, feature_values, shap_values, interaction_feature,
+    interaction_values}.
+    """
+    if shap_values is None or X is None or not feature_columns:
+        return []
+
+    n_features = min(shap_values.shape[1], len(feature_columns))
+    # Select top features by mean abs SHAP
+    mean_abs = np.abs(shap_values).mean(axis=0)
+    top_indices = np.argsort(mean_abs)[::-1][:min(top_n, n_features)]
+
+    dependence_data = []
+    for idx in top_indices:
+        name = feature_columns[idx] if idx < len(feature_columns) else f"feature_{idx}"
+        feature_vals = X.iloc[:, idx].values if idx < X.shape[1] else np.zeros(shap_values.shape[0])
+        shap_vals = shap_values[:, idx]
+
+        # Find most interacting feature
+        interaction_scores = []
+        for j in range(n_features):
+            if j == idx:
+                continue
+            cov = abs(np.cov(shap_values[:, idx], shap_values[:, j])[0, 1])
+            interaction_scores.append((j, cov))
+        interaction_scores.sort(key=lambda x: x[1], reverse=True)
+
+        interaction_feature = None
+        interaction_values = None
+        if interaction_scores:
+            j_idx = interaction_scores[0][0]
+            if j_idx < X.shape[1]:
+                interaction_feature = feature_columns[j_idx] if j_idx < len(feature_columns) else f"feature_{j_idx}"
+                interaction_values = X.iloc[:, j_idx].values.tolist()
+
+        dependence_data.append({
+            "feature_name": name,
+            "feature_values": feature_vals.tolist(),
+            "shap_values": shap_vals.tolist(),
+            "interaction_feature": interaction_feature,
+            "interaction_values": interaction_values,
+        })
+
+    logger.info("SHAP dependence data computed for %d features.", len(dependence_data))
+    return dependence_data

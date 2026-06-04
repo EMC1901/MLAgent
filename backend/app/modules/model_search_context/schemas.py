@@ -39,6 +39,12 @@ class PreprocessingSummary(BaseModel):
     feature_selection_executed: bool = False
     categorical_encoding_executed: bool = False
     preprocessing_pipeline_artifact_id: Optional[str] = None
+    # Fold-safe execution mode — "global" | "fold_safe" | "none"
+    imputation_execution_mode: str = "none"
+    scaling_execution_mode: str = "none"
+    feature_selection_execution_mode: str = "none"
+    # Deferred fold operations summary
+    fold_safe_deferred: Optional[dict] = None
 
 
 class StrategyChangeRationale(BaseModel):

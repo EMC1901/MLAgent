@@ -27,6 +27,7 @@ class FECapabilitySpec(BaseModel):
     estimated_cost: str = "low"  # low | medium | high
     known_limitations: List[str] = []
     fallback_capability_ids: List[str] = []
+    featurizer_ids: List[str] = []
     version: str = "1.0.0"
 
 
@@ -49,6 +50,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="medium",
         known_limitations=["Requires valid chemical formulas", "Limited for multi-element compounds > 5 elements"],
         fallback_capability_ids=["descriptor_numeric_basic"],
+        featurizer_ids=["basic_composition", "matminer_element_property"],
         version="1.0.0",
     ),
     FECapabilitySpec(
@@ -66,6 +68,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="low",
         known_limitations=["Redundant for single-element systems"],
         fallback_capability_ids=["descriptor_numeric_basic"],
+        featurizer_ids=["basic_composition", "matminer_stoichiometry"],
         version="1.0.0",
     ),
     FECapabilitySpec(
@@ -83,6 +86,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="medium",
         known_limitations=["Assumes common oxidation states", "May miss exotic valence states"],
         fallback_capability_ids=["composition_elemental_statistics"],
+        featurizer_ids=["matminer_oxidation_states"],
         version="1.0.0",
     ),
     FECapabilitySpec(
@@ -100,6 +104,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="medium",
         known_limitations=["Assumes ionic bonding character", "Less relevant for metallic systems"],
         fallback_capability_ids=["composition_elemental_statistics"],
+        featurizer_ids=["matminer_ion_property"],
         version="1.0.0",
     ),
     FECapabilitySpec(
@@ -117,6 +122,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="medium",
         known_limitations=["Requires orbital energy data", "Less accurate for heavy elements"],
         fallback_capability_ids=["composition_elemental_statistics"],
+        featurizer_ids=["matminer_band_center"],
         version="1.0.0",
     ),
 
@@ -136,6 +142,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="medium",
         known_limitations=["Requires CIF or POSCAR structure input", "Cannot handle disordered structures well"],
         fallback_capability_ids=["descriptor_numeric_basic"],
+        featurizer_ids=["pymatgen_structure_parser", "matminer_structure_basic"],
         version="1.0.0",
     ),
     FECapabilitySpec(
@@ -153,6 +160,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="high",
         known_limitations=["Computationally heavy for large supercells", "Requires site-specific information"],
         fallback_capability_ids=["structure_basic_features"],
+        featurizer_ids=["matminer_site_stats"],
         version="1.0.0",
     ),
     FECapabilitySpec(
@@ -170,6 +178,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="low",
         known_limitations=["Only meaningful for periodic structures"],
         fallback_capability_ids=["descriptor_numeric_basic"],
+        featurizer_ids=["matminer_structure_basic"],
         version="1.0.0",
     ),
 
@@ -189,6 +198,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="low",
         known_limitations=["No new feature generation", "Relies on pre-existing descriptor columns"],
         fallback_capability_ids=[],
+        featurizer_ids=["descriptor_passthrough", "descriptor_cleaner"],
         version="1.0.0",
     ),
     FECapabilitySpec(
@@ -204,8 +214,9 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         material_use_cases=["formation_energy", "thermal_conductivity", "elasticity"],
         dependencies=["pandas"],
         estimated_cost="low",
-        known_limitations=["May generate correlated features", "Requires at least 3 numeric columns"],
+        known_limitations=["May generate correlated features", "Requires at least 2 numeric columns"],
         fallback_capability_ids=["descriptor_numeric_basic"],
+        featurizer_ids=["descriptor_statistical"],
         version="1.0.0",
     ),
 
@@ -213,7 +224,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
     FECapabilitySpec(
         capability_id="hybrid_composition_descriptor_fusion",
         display_name="Composition-Descriptor Fusion Features",
-        status="available",
+        status="planned",
         feature_family="hybrid",
         input_modalities=["composition", "descriptor_table"],
         supported_task_types=["regression", "classification"],
@@ -225,6 +236,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="high",
         known_limitations=["High feature count", "May introduce redundancy with separate composition + descriptor runs"],
         fallback_capability_ids=["composition_elemental_statistics", "descriptor_numeric_basic"],
+        featurizer_ids=[],
         version="1.0.0",
     ),
     FECapabilitySpec(
@@ -242,6 +254,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="low",
         known_limitations=["Only extracts existing metadata columns", "No synthesis of new metadata features"],
         fallback_capability_ids=[],
+        featurizer_ids=["metadata_feature_extractor"],
         version="1.0.0",
     ),
 
@@ -249,7 +262,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
     FECapabilitySpec(
         capability_id="composition_magpie_features",
         display_name="Magpie Composition Features (matminer-based)",
-        status="planned",
+        status="available",
         feature_family="composition",
         input_modalities=["composition"],
         supported_task_types=["regression", "classification"],
@@ -261,6 +274,25 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="medium",
         known_limitations=["Requires matminer >= 0.7.0"],
         fallback_capability_ids=["composition_elemental_statistics"],
+        featurizer_ids=["matminer_magpie"],
+        version="1.0.0",
+    ),
+    FECapabilitySpec(
+        capability_id="composition_valence_orbital",
+        display_name="Valence Orbital Composition Features",
+        status="available",
+        feature_family="composition",
+        input_modalities=["composition"],
+        supported_task_types=["regression", "classification"],
+        required_input_columns=["formula"],
+        optional_input_columns=[],
+        output_feature_groups=["composition_valence_orbital"],
+        material_use_cases=["formation_energy", "band_gap", "elasticity"],
+        dependencies=["matminer"],
+        estimated_cost="medium",
+        known_limitations=["Requires matminer >= 0.7.0"],
+        fallback_capability_ids=["composition_elemental_statistics"],
+        featurizer_ids=["matminer_valence_orbital"],
         version="1.0.0",
     ),
     FECapabilitySpec(
@@ -278,6 +310,7 @@ FEATURE_ENGINEERING_CAPABILITIES: List[FECapabilitySpec] = [
         estimated_cost="high",
         known_limitations=["Requires GPU for practical use", "Large model dependency footprint"],
         fallback_capability_ids=[],
+        featurizer_ids=[],
         version="1.0.0",
     ),
 ]
@@ -323,6 +356,62 @@ def get_all_fe_capabilities(
 def get_fe_capability_by_id(capability_id: str) -> Optional[FECapabilitySpec]:
     """Look up a single FE capability by its ID."""
     return CAPABILITY_BY_ID.get(capability_id)
+
+
+def resolve_capability_to_featurizers(capability_id: str) -> List[str]:
+    """Return the list of featurizer_ids that implement a given capability.
+
+    Returns an empty list if the capability is not found or has no mapped featurizers.
+    """
+    cap = CAPABILITY_BY_ID.get(capability_id)
+    if cap is None:
+        return []
+    return cap.featurizer_ids
+
+
+def get_executable_fe_capabilities(
+    input_modality: Optional[str] = None,
+    task_type: Optional[str] = None,
+    feature_family: Optional[str] = None,
+) -> List[FECapabilitySpec]:
+    """Return FE capabilities that have at least one available featurizer mapped.
+
+    Stricter than get_available_fe_capabilities -- filters out capabilities
+    marked 'available' that have no executable featurizer implementations.
+    """
+    from app.shared.registry.featurizer_registry import (
+        get_featurizer_by_id,
+        get_featurizer_effective_status,
+    )
+
+    result = []
+    for c in FEATURE_ENGINEERING_CAPABILITIES:
+        if c.status != "available":
+            continue
+        if not c.featurizer_ids:
+            continue
+        any_available = False
+        for fid in c.featurizer_ids:
+            spec = get_featurizer_by_id(fid)
+            if spec and get_featurizer_effective_status(spec) == "available":
+                if input_modality and input_modality not in spec.input_modalities:
+                    continue
+                if task_type and task_type not in c.supported_task_types:
+                    continue
+                if feature_family and c.feature_family != feature_family:
+                    continue
+                any_available = True
+                break
+        if not any_available:
+            continue
+        if input_modality and input_modality not in c.input_modalities:
+            continue
+        if task_type and task_type not in c.supported_task_types:
+            continue
+        if feature_family and c.feature_family != feature_family:
+            continue
+        result.append(c)
+    return result
 
 
 def get_registry_snapshot() -> Dict[str, Any]:

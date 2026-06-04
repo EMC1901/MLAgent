@@ -1,3 +1,4 @@
+import logging
 from sqlmodel import Session
 from app.modules.task_specification.repository import TaskSpecificationRepository
 from app.modules.task_interpretation.repository import TaskInterpretationRepository
@@ -8,6 +9,8 @@ from app.modules.feature_preprocessing.exceptions import (
     FeaturePreprocessingUpstreamNotReadyException,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def build_preprocessing_context(session: Session, task_id: str) -> dict:
     task_repo = TaskSpecificationRepository()
@@ -16,7 +19,10 @@ def build_preprocessing_context(session: Session, task_id: str) -> dict:
     plan_repo = WorkflowPlanRepository()
     fe_repo = FeatureEngineeringRepository()
 
+    logger.debug("building context for task_id=%s", task_id)
+
     # 1. Task Specification
+    logger.debug("checking task specification ...")
     task_spec = task_repo.get_by_id(session, task_id)
     if not task_spec:
         raise FeaturePreprocessingUpstreamNotReadyException(
@@ -29,8 +35,10 @@ def build_preprocessing_context(session: Session, task_id: str) -> dict:
             "Only 'valid' or 'valid_with_warning' tasks can proceed.",
             "TASK_NOT_READY",
         )
+    logger.debug("task spec OK — status=%s task_type=%s", task_spec.status, task_spec.task_type)
 
     # 2. Task Interpretation
+    logger.debug("checking task interpretation ...")
     interp = interp_repo.get_latest_by_task_id(session, task_id)
     if not interp:
         raise FeaturePreprocessingUpstreamNotReadyException(
@@ -42,8 +50,10 @@ def build_preprocessing_context(session: Session, task_id: str) -> dict:
             f"Interpretation for task {task_id} status is '{interp.status}'.",
             "INTERPRETATION_NOT_READY",
         )
+    logger.debug("interpretation OK — status=%s modality=%s", interp.status, interp.interpreted_input_modality)
 
     # 3. Dataset Profile
+    logger.debug("checking dataset profile ...")
     profile = profile_repo.get_latest_by_task_id(session, task_id)
     if not profile:
         raise FeaturePreprocessingUpstreamNotReadyException(
@@ -55,8 +65,10 @@ def build_preprocessing_context(session: Session, task_id: str) -> dict:
             f"Dataset profile for task {task_id} status is '{profile.status}'.",
             "DATASET_PROFILE_NOT_READY",
         )
+    logger.debug("dataset profile OK — status=%s", profile.status)
 
     # 4. Workflow Plan
+    logger.debug("checking workflow plan ...")
     plan = plan_repo.get_latest_by_task_id(session, task_id)
     if not plan:
         raise FeaturePreprocessingUpstreamNotReadyException(
@@ -68,8 +80,10 @@ def build_preprocessing_context(session: Session, task_id: str) -> dict:
             f"Workflow plan for task {task_id} status is '{plan.status}'.",
             "WORKFLOW_PLAN_NOT_READY",
         )
+    logger.debug("workflow plan OK — status=%s", plan.status)
 
     # 5. Feature Engineering
+    logger.debug("checking feature engineering ...")
     fe = fe_repo.get_latest_by_task_id(session, task_id)
     if not fe:
         raise FeaturePreprocessingUpstreamNotReadyException(
@@ -86,6 +100,8 @@ def build_preprocessing_context(session: Session, task_id: str) -> dict:
             f"Feature engineering for task {task_id} has no artifact path.",
             "FEATURE_ARTIFACT_MISSING",
         )
+    logger.debug("feature engineering OK — status=%s artifact_path=%s n_features=%s",
+          fe.status, fe.artifact_path, fe.n_features)
 
     fe_json = fe.feature_json or {}
     plan_json = plan.plan_json or {}
@@ -137,5 +153,11 @@ def build_preprocessing_context(session: Session, task_id: str) -> dict:
             "n_features": fe.n_features,
         },
     }
+
+    logger.debug("context built successfully — task_type=%s target=%s n_samples=%s n_features=%s",
+          context["task_context"]["task_type"],
+          context["task_context"]["target_column"],
+          context["feature_engineering_context"]["n_samples"],
+          context["feature_engineering_context"]["n_features"])
 
     return context

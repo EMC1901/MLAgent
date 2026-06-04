@@ -3,6 +3,24 @@ import uuid
 from datetime import datetime
 from sqlmodel import Session
 
+
+def _sanitize_jsonb_values(obj):
+    """Recursively replace NaN/Inf with None for PostgreSQL JSONB compatibility."""
+    import math as _math
+
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, float) and (_math.isnan(v) or _math.isinf(v)):
+                obj[k] = None
+            elif isinstance(v, (dict, list)):
+                _sanitize_jsonb_values(v)
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            if isinstance(v, float) and (_math.isnan(v) or _math.isinf(v)):
+                obj[i] = None
+            elif isinstance(v, (dict, list)):
+                _sanitize_jsonb_values(v)
+
 from app.modules.task_specification.repository import TaskSpecificationRepository
 from app.modules.feature_preprocessing.model import FeaturePreprocessing
 from app.modules.feature_preprocessing.repository import FeaturePreprocessingRepository
@@ -41,6 +59,7 @@ from app.modules.feature_preprocessing.preprocessing_pipeline_builder import bui
 from app.modules.feature_preprocessing.artifact_manager import (
     save_model_ready_artifact,
     read_preview_from_model_ready,
+    save_fold_pipeline_spec,
 )
 from app.modules.feature_preprocessing.builder import build_preprocessing_object
 from app.modules.feature_preprocessing.enums import FeaturePreprocessingStatus
@@ -65,6 +84,8 @@ from app.modules.feature_preprocessing.llm_planner import (
 )
 from app.modules.feature_preprocessing.plan_validator import validate_preprocessing_plan
 from app.modules.feature_preprocessing.plan_executor import PreprocessingPlanExecutor
+from app.modules.feature_preprocessing.fold_pipeline_builder import build_fold_pipeline_spec
+from app.modules.feature_preprocessing.schemas import FoldPipelineSpec
 from app.shared.registry.fp_capability_registry import (
     get_available_fp_capabilities,
     get_registry_snapshot_fp,
@@ -72,6 +93,7 @@ from app.shared.registry.fp_capability_registry import (
 )
 from app.modules.task_interpretation.llm_client import LLMClient
 
+import asyncio
 import hashlib
 import json
 import re
@@ -90,13 +112,16 @@ class FeaturePreprocessingService:
     #  Create (LLM-guided flow)
     # ============================================================
 
-    def create_feature_preprocessing(
+    async def create_feature_preprocessing(
         self, session: Session, task_id: str, request: FeaturePreprocessingCreateRequest,
     ) -> FeaturePreprocessingResponse:
         fmp_id = f"fmp_{uuid.uuid4().hex[:8]}"
+        logger.debug("=== create_feature_preprocessing === task_id=%s fmp_id=%s mode=%s",
+              task_id, fmp_id, request.planning_mode)
 
         if request.planning_mode == "llm_guided":
-            return self._create_with_llm(session, task_id, fmp_id, request)
+            logger.debug("[fmp] dispatching to _create_with_llm")
+            return await self._create_with_llm(session, task_id, fmp_id, request)
         else:
             return self._create_legacy(session, task_id, fmp_id, request)
 
@@ -104,14 +129,14 @@ class FeaturePreprocessingService:
     #  Plan-only (no execution)
     # ============================================================
 
-    def plan_only(
+    async def plan_only(
         self, session: Session, task_id: str, request: PlanRequest,
     ) -> PlanResponse:
         fmp_id = f"fmp_{uuid.uuid4().hex[:8]}"
-        logger.info("=== FP Plan: starting (fmp_id=%s, task_id=%s, force_regenerate=%s) ===", fmp_id, task_id, request.force_regenerate)
+        logger.debug("[fmp:plan] starting (fmp_id=%s, task_id=%s, force=%s)", fmp_id, task_id, request.force_regenerate)
 
         # Build context
-        logger.info("FP Plan: building preprocessing context...")
+        logger.debug("[fmp:plan] building preprocessing context ...")
         context = build_preprocessing_context(session, task_id)
         task_ctx = context.get("task_context") or {}
         fe_ctx = context.get("feature_engineering_context") or {}
@@ -160,19 +185,16 @@ class FeaturePreprocessingService:
         )
 
         # Call LLM
-        logger.info(
-            "FP Plan: calling LLM — provider=%s model=%s timeout=%ds retries=%d",
-            self.llm_client.provider, self.llm_client.model,
-            self.llm_client.timeout, self.llm_client.max_retries,
-        )
+        logger.debug("[fmp:plan] calling LLM — provider=%s model=%s timeout=%ds retries=%d",
+              self.llm_client.provider, self.llm_client.model,
+              self.llm_client.timeout, self.llm_client.max_retries)
         try:
-            raw_response = self.llm_client.generate(system_prompt, user_message)
-            logger.info("FP Plan: LLM response received — chars=%d", len(raw_response) if raw_response else 0)
-        except Exception as e:
-            logger.error(
-                "FP Plan: LLM call FAILED — provider=%s model=%s error_type=%s: %s",
-                self.llm_client.provider, self.llm_client.model, type(e).__name__, str(e),
+            raw_response = await asyncio.to_thread(
+                self.llm_client.generate, system_prompt, user_message
             )
+            logger.debug("[fmp:plan] LLM response received — chars=%d", len(raw_response) if raw_response else 0)
+        except Exception as e:
+            logger.debug("[fmp:plan] LLM call FAILED — error_type=%s: %s", type(e).__name__, str(e))
             raise ImputationFailedException(f"LLM plan generation failed: {str(e)}")
 
         # Parse
@@ -197,6 +219,7 @@ class FeaturePreprocessingService:
         logger.info("FP Plan: validation PASSED — warnings=%d", len(validation.get("warnings", [])))
 
         # Persist plan record
+        logger.debug("[fmp:plan] persisting plan to DB ...")
         plan_obj = PreprocessingPlan(**plan_dict)
         plan_obj.plan_id = fmp_id
 
@@ -214,6 +237,7 @@ class FeaturePreprocessingService:
             updated_at=datetime.now(),
         )
         self.fmp_repo.create(session, fmp_model)
+        logger.debug("[fmp:plan] plan persisted, returning PlanResponse")
 
         return PlanResponse(
             preprocessing_id=fmp_id,
@@ -231,10 +255,11 @@ class FeaturePreprocessingService:
         all_warnings = []
         all_errors = []
 
-        logger.info("=== FP Execute: starting (task_id=%s, plan_id=%s, has_plan=%s) ===", task_id, request.plan_id, request.plan is not None)
+        logger.debug("=== execute_plan === task_id=%s plan_id=%s has_inline_plan=%s",
+              task_id, request.plan_id, request.plan is not None)
 
         # Build context
-        logger.info("FP Execute: building preprocessing context...")
+        logger.debug("[fmp:exec] building preprocessing context ...")
         context = build_preprocessing_context(session, task_id)
 
         fe_context = context.get("feature_engineering_context") or {}
@@ -311,15 +336,17 @@ class FeaturePreprocessingService:
             raise ImputationFailedException(f"Plan validation failed: {'; '.join(errors)}")
         logger.info("FP Execute: plan validation PASSED — warnings=%d", len(validation.get("warnings", [])))
 
-        # Execute plan
-        logger.info("FP Execute: running PreprocessingPlanExecutor...")
+        # Execute plan — global phase only (fold_only ops are deferred)
+        logger.info("FP Execute: running PreprocessingPlanExecutor (global phase)...")
         executor = PreprocessingPlanExecutor(random_seed=42)
-        execution_result = executor.execute(
+        task_type = context.get("task_context", {}).get("task_type", "regression")
+        execution_result = executor.execute_global_phase(
             df=raw_df,
             target_column=target_column,
             feature_columns=candidate_features,
             plan=plan_dict,
             feature_groups=feature_groups,
+            task_type=task_type,
         )
 
         exec_errors = execution_result.get("errors", [])
@@ -372,6 +399,24 @@ class FeaturePreprocessingService:
                 target_column=target_column,
             )
             raise
+
+        # Build and save FoldPipelineSpec (deferred fold_only operations)
+        fold_spec_path = None
+        deferred_ops = execution_result.get("deferred_operations", [])
+        if deferred_ops:
+            logger.info("FP Execute: building FoldPipelineSpec from %d deferred ops...", len(deferred_ops))
+            fold_pipeline_spec = build_fold_pipeline_spec(
+                deferred_operations=deferred_ops,
+                feature_columns=final_features,
+                target_column=target_column,
+                task_type=task_type,
+                random_seed=42,
+            )
+            fold_spec_path = save_fold_pipeline_spec(fmp_id, fold_pipeline_spec)
+            logger.info("FP Execute: FoldPipelineSpec saved — path=%s ops=%d",
+                         fold_spec_path, len(fold_pipeline_spec.operations))
+        else:
+            logger.info("FP Execute: no deferred fold_only ops, skipping FoldPipelineSpec")
 
         # Build execution report
         op_results = []
@@ -495,6 +540,7 @@ class FeaturePreprocessingService:
             feature_summary={
                 "n_final_features": len(final_features),
                 "n_removed_features": len(removed_features),
+                "n_deferred_fold_ops": len(deferred_ops),
                 "feature_lineage_summary": {
                     "imputed_count": sum(1 for l in lineage_map.values() if l.get("imputed")),
                     "scaled_count": sum(1 for l in lineage_map.values() if l.get("scaled")),
@@ -503,7 +549,8 @@ class FeaturePreprocessingService:
             },
             default_variant_id=artifact_result.get("model_ready_artifact_id"),
             available_variants=[
-                {"variant_name": "default", "artifact_id": artifact_result.get("model_ready_artifact_id")}
+                {"variant_name": "default", "artifact_id": artifact_result.get("model_ready_artifact_id"),
+                 "fold_pipeline_spec_path": fold_spec_path}
             ],
             recommended_variant_by_model_family={},
         )
@@ -522,6 +569,7 @@ class FeaturePreprocessingService:
         n_dropped = n_removed  # from plan execution
 
         # Derive preprocessing_execution from operation_results
+        # — accounts for both global (success) and fold-safe (deferred_to_fold) execution
         imputation_executed = False
         scaling_executed = False
         feature_selection_executed = False
@@ -530,10 +578,26 @@ class FeaturePreprocessingService:
         scaling_strategy = "none"
         feature_selection_strategy = "none"
         selection_dropped = []
+        imputation_mode = "none"
+        scaling_mode = "none"
+        feature_selection_mode = "none"
+
+        # Track deferred fold ops for summary
+        deferred_summary = {
+            "imputation": [],
+            "scaling": [],
+            "feature_selection": [],
+            "categorical_encoding": [],
+            "dimensionality_reduction": [],
+        }
 
         for op_result in execution_result.get("operation_results", []):
-            if op_result.get("status") != "success":
+            status = op_result.get("status", "")
+            if status not in ("success", "deferred_to_fold"):
                 continue
+
+            is_deferred = status == "deferred_to_fold"
+            execution_mode = "fold_safe" if is_deferred else "global"
             cap_id = op_result.get("capability_id", "")
             cap_group = op_result.get("capability_group", "")
 
@@ -543,6 +607,11 @@ class FeaturePreprocessingService:
             ):
                 imputation_executed = True
                 imputation_strategy = cap_id.replace("_imputer", "").replace("_indicator", "")
+                if not is_deferred and imputation_mode != "global":
+                    imputation_mode = "global"
+                if is_deferred:
+                    imputation_mode = "fold_safe"
+                    deferred_summary["imputation"].append(cap_id)
 
             if cap_group == "scaling_normalization" and cap_id in (
                 "standard_scaler", "minmax_scaler", "robust_scaler", "maxabs_scaler",
@@ -550,38 +619,62 @@ class FeaturePreprocessingService:
             ):
                 scaling_executed = True
                 scaling_strategy = cap_id
+                if not is_deferred and scaling_mode != "global":
+                    scaling_mode = "global"
+                if is_deferred:
+                    scaling_mode = "fold_safe"
+                    deferred_summary["scaling"].append(cap_id)
 
             if cap_group in ("feature_selection", "low_information_filtering", "correlation_collinearity"):
                 if op_result.get("removed_features"):
                     feature_selection_executed = True
                     feature_selection_strategy = cap_id
-                    selection_dropped.extend(op_result.get("removed_features", []))
+                    if status == "success":
+                        selection_dropped.extend(op_result.get("removed_features", []))
+                    if not is_deferred and feature_selection_mode != "global":
+                        feature_selection_mode = "global"
+                    if is_deferred:
+                        feature_selection_mode = "fold_safe"
+                        deferred_summary["feature_selection"].append(cap_id)
 
             if cap_group == "categorical_encoding":
                 categorical_encoding_executed = True
+
+            if is_deferred and cap_group == "dimensionality_reduction":
+                deferred_summary["dimensionality_reduction"].append(cap_id)
 
         preprocessing_execution = {
             "imputation": {
                 "executed": imputation_executed,
                 "strategy": imputation_strategy,
+                "execution_mode": imputation_mode,
                 "columns": [],
                 "artifact_component": "numeric_imputer" if imputation_executed else "",
             },
             "scaling": {
                 "executed": scaling_executed,
                 "strategy": scaling_strategy,
+                "execution_mode": scaling_mode,
                 "columns": [],
                 "artifact_component": "numeric_scaler" if scaling_executed else "",
             },
             "categorical_encoding": {
                 "executed": categorical_encoding_executed,
                 "strategy": "onehot" if categorical_encoding_executed else "none",
+                "execution_mode": "global" if categorical_encoding_executed else "none",
                 "columns": [],
             },
             "feature_selection": {
                 "executed": feature_selection_executed,
                 "strategy": feature_selection_strategy if feature_selection_executed else "none",
+                "execution_mode": feature_selection_mode,
                 "columns_dropped": list(set(selection_dropped)),
+            },
+            "fold_safe_deferred": {
+                "has_deferred": len(deferred_ops) > 0,
+                "n_deferred_operations": len(deferred_ops),
+                "operations_by_group": {k: v for k, v in deferred_summary.items() if v},
+                "fold_spec_path": fold_spec_path,
             },
         }
 
@@ -622,11 +715,28 @@ class FeaturePreprocessingService:
         }
 
         # Persist
-        logger.info(
-            "FP Execute: persisting — id=%s status=%s samples=%d features=%d→%d removed=%d warnings=%d errors=%d",
-            fmp_id, status, len(raw_df), n_raw_features, len(final_features), n_removed,
-            len(all_warnings), len(all_errors),
-        )
+        logger.debug("[fmp:exec] persisting — id=%s status=%s samples=%d features=%d->%d removed=%d",
+              fmp_id, status, len(raw_df), n_raw_features, len(final_features), n_removed)
+
+        # Sanitize all JSONB values
+        _sanitize_jsonb_values(preprocessing_json)
+        preview_json_val = artifact_result.get("preview_json")
+        if preview_json_val:
+            _sanitize_jsonb_values(preview_json_val)
+        exec_report_json_val = execution_report.model_dump(mode="json")
+        _sanitize_jsonb_values(exec_report_json_val)
+        removed_features_json_val = {"removed_features": [rf.model_dump(mode="json") for rf in removed_features]}
+        _sanitize_jsonb_values(removed_features_json_val)
+        lineage_json_val = {
+            "feature_lineage_map": {k: v.model_dump(mode="json") for k, v in feature_lineage_map.items()},
+            "feature_group_lineage_map": {k: v.model_dump(mode="json") for k, v in feature_group_lineage_map.items()},
+        }
+        _sanitize_jsonb_values(lineage_json_val)
+        explain_json_val = explainability_report.model_dump(mode="json")
+        _sanitize_jsonb_values(explain_json_val)
+        provenance_json_val = provenance.model_dump(mode="json")
+        _sanitize_jsonb_values(provenance_json_val)
+
         fmp_model = FeaturePreprocessing(
             id=fmp_id,
             task_id=context["task_id"],
@@ -648,25 +758,24 @@ class FeaturePreprocessingService:
             is_ready_for_model_search=status in (
                 FeaturePreprocessingStatus.PREPROCESSED,
                 FeaturePreprocessingStatus.PREPROCESSED_WITH_WARNING,
+                "success",
             ),
             preprocessing_json=preprocessing_json,
-            preview_json=artifact_result.get("preview_json"),
+            preview_json=preview_json_val,
             preprocessing_plan_json=plan_dict,
-            execution_report_json=execution_report.model_dump(mode="json"),
-            removed_features_json={"removed_features": [rf.model_dump(mode="json") for rf in removed_features]},
-            feature_lineage_json={
-                "feature_lineage_map": {k: v.model_dump(mode="json") for k, v in feature_lineage_map.items()},
-                "feature_group_lineage_map": {k: v.model_dump(mode="json") for k, v in feature_group_lineage_map.items()},
-            },
-            explainability_report_json=explainability_report.model_dump(mode="json"),
-            provenance_json=provenance.model_dump(mode="json"),
+            execution_report_json=exec_report_json_val,
+            removed_features_json=removed_features_json_val,
+            feature_lineage_json=lineage_json_val,
+            explainability_report_json=explain_json_val,
+            provenance_json=provenance_json_val,
             registry_snapshot_version=get_registry_snapshot_fp()["snapshot_version"],
             error_message=None if all_errors == [] else "; ".join(all_errors),
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )
+        logger.debug("[fmp:exec] writing to database ...")
         self.fmp_repo.save(session, fmp_model)
-        logger.info("=== FP Execute: DONE (fmp_id=%s) ===", fmp_id)
+        logger.debug("[fmp:exec] DONE — persisted successfully")
 
         return FeaturePreprocessingResponse(
             preprocessing_id=fmp_id,
@@ -860,10 +969,10 @@ class FeaturePreprocessingService:
             )
         return self._to_response(fmp)
 
-    def rerun_feature_preprocessing(
+    async def rerun_feature_preprocessing(
         self, session: Session, task_id: str, request: FeaturePreprocessingCreateRequest,
     ) -> FeaturePreprocessingResponse:
-        return self.create_feature_preprocessing(session, task_id, request)
+        return await self.create_feature_preprocessing(session, task_id, request)
 
     def get_preview(self, session: Session, fmp_id: str) -> PreviewResponse:
         fmp = self.fmp_repo.get_by_id(session, fmp_id)
@@ -892,31 +1001,31 @@ class FeaturePreprocessingService:
     #  Private helpers
     # ============================================================
 
-    def _create_with_llm(
+    async def _create_with_llm(
         self, session: Session, task_id: str, fmp_id: str, request: FeaturePreprocessingCreateRequest,
     ) -> FeaturePreprocessingResponse:
         """Full LLM-guided flow: plan -> validate -> execute."""
-        logger.info("=== FP LLM-Guided: starting full flow (task_id=%s, fmp_id=%s) ===", task_id, fmp_id)
+        logger.debug("[fmp:llm] === starting full flow (task_id=%s, fmp_id=%s) ===", task_id, fmp_id)
 
         # Generate plan
-        logger.info("FP LLM-Guided: phase 1 — generating plan...")
+        logger.debug("[fmp:llm] phase 1 — generating plan ...")
         plan_req = PlanRequest(force_regenerate=request.force_rerun)
         try:
-            plan_response = self.plan_only(session, task_id, plan_req)
-            logger.info("FP LLM-Guided: phase 1 DONE — plan_id=%s", plan_response.preprocessing_id)
-        except Exception:
-            logger.error("FP LLM-Guided: phase 1 FAILED")
+            plan_response = await self.plan_only(session, task_id, plan_req)
+            logger.debug("[fmp:llm] phase 1 DONE — plan_id=%s", plan_response.preprocessing_id)
+        except Exception as e:
+            logger.debug("[fmp:llm] phase 1 FAILED — %s: %s", type(e).__name__, str(e))
             raise
 
         # Execute plan
-        logger.info("FP LLM-Guided: phase 2 — executing plan %s...", plan_response.preprocessing_id)
+        logger.debug("[fmp:llm] phase 2 — executing plan %s ...", plan_response.preprocessing_id)
         exec_req = ExecuteRequest(plan_id=plan_response.preprocessing_id)
         try:
             result = self.execute_plan(session, task_id, exec_req)
-            logger.info("=== FP LLM-Guided: DONE (preprocessing_id=%s) ===", result.preprocessing_id if hasattr(result, 'preprocessing_id') else '?')
+            logger.debug("[fmp:llm] phase 2 DONE — status=%s", result.status if hasattr(result, 'status') else '?')
             return result
-        except Exception:
-            logger.error("FP LLM-Guided: phase 2 FAILED")
+        except Exception as e:
+            logger.debug("[fmp:llm] phase 2 FAILED — %s: %s", type(e).__name__, str(e))
             raise
 
     def _create_legacy(
@@ -1185,35 +1294,26 @@ class FeaturePreprocessingService:
 
     def _parse_llm_response(self, raw_text: str) -> dict:
         if not raw_text or not raw_text.strip():
-            logger.error("FP Parse: LLM returned empty response (raw_text is None or whitespace)")
+            logger.debug("[fmp:parse] LLM returned EMPTY response (None or whitespace)")
             raise ImputationFailedException("LLM returned empty response for plan generation.")
         cleaned = raw_text.strip()
-        logger.info("FP Parse: raw response length=%d chars", len(cleaned))
+        logger.debug("[fmp:parse] raw response length=%d chars", len(cleaned))
         code_fence_pattern = r"^```(?:json)?\s*\n(.*?)\n```\s*$"
         match = re.search(code_fence_pattern, cleaned, re.DOTALL)
         if match:
             inner = match.group(1).strip()
-            logger.info("FP Parse: detected code fence — inner content=%d chars", len(inner))
+            logger.debug("[fmp:parse] detected code fence — inner content=%d chars", len(inner))
             cleaned = inner
         else:
-            logger.info("FP Parse: no code fence detected, treating raw text as JSON")
+            logger.debug("[fmp:parse] no code fence detected, treating raw text as JSON")
         try:
             parsed = json.loads(cleaned)
-            logger.info("FP Parse: JSON parsed successfully — top-level keys=%s", list(parsed.keys()))
+            logger.debug("[fmp:parse] JSON parsed successfully — top-level keys=%s", list(parsed.keys()))
             return parsed
         except json.JSONDecodeError as e:
-            logger.error(
-                "FP Parse: JSON parse FAILED — error=%s pos=%d line=%d col=%d",
-                str(e), e.pos, e.lineno, e.colno,
-            )
-            logger.error(
-                "FP Parse: first 300 chars: %s",
-                raw_text[:300],
-            )
-            logger.error(
-                "FP Parse: last 300 chars: %s",
-                raw_text[-300:] if len(raw_text) > 300 else raw_text,
-            )
+            logger.debug("[fmp:parse] JSON parse FAILED — error=%s pos=%d", str(e), e.pos)
+            logger.debug("[fmp:parse] first 300 chars: %s", raw_text[:300])
+            logger.debug("[fmp:parse] last 300 chars: %s", raw_text[-300:] if len(raw_text) > 300 else raw_text)
             raise ImputationFailedException(
                 f"Failed to parse LLM output as JSON: {str(e)}. "
                 f"Raw text (first 500 chars): {raw_text[:500]}"
@@ -1264,7 +1364,23 @@ class FeaturePreprocessingService:
         if not path:
             return ""
         try:
-            return hashlib.sha256(path.encode()).hexdigest()[:16]
+            import os as _os
+            if not _os.path.exists(path):
+                logger.warning("_compute_hash: file not found — %s", path)
+                return "hash_file_missing"
+            file_size = _os.path.getsize(path)
+            hasher = hashlib.sha256()
+            hasher.update(str(file_size).encode())
+            with open(path, "rb") as f:
+                chunk = f.read(65536)
+                hasher.update(chunk)
+                if file_size > 131072:
+                    f.seek(file_size // 2)
+                    hasher.update(f.read(65536))
+                if file_size > 65536:
+                    f.seek(-65536, _os.SEEK_END)
+                    hasher.update(f.read(65536))
+            return hasher.hexdigest()[:16]
         except Exception:
             return "hash_unavailable"
 
@@ -1273,6 +1389,8 @@ class FeaturePreprocessingService:
         if not task_spec:
             from app.shared.common.exceptions import NotFoundException
             raise NotFoundException(f"Task specification with id {task_id} not found.")
+
+
 
     def _to_response(self, fmp: FeaturePreprocessing) -> FeaturePreprocessingResponse:
         resp = None

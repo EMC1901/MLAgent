@@ -8,7 +8,8 @@ from datetime import datetime
 class PipelineExecutionCreateRequest(BaseModel):
     force_rerun: bool = False
     pipeline_generation_id: Optional[str] = None
-    execution_mode: str = "sequential"
+    execution_mode: str = "sequential"  # sequential | limited_parallel
+    max_parallel_trials: int = 2  # used when execution_mode="limited_parallel"
     max_trials_override: Optional[int] = None
     max_runtime_seconds: Optional[int] = None
     fail_fast: bool = False

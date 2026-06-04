@@ -39,7 +39,18 @@ def evaluate_fold_metrics(
                 status = "failed"
                 error_message = str(e)
 
-            primary_value = metrics.get(primary_metric) if primary_metric else None
+            # Case-insensitive fallback: metric_calculator produces Title Case keys
+            # ("Accuracy", "F1") but primary_metric may arrive as lowercase from user
+            # input or _METRIC_DIRECTIONS (model_search_context/builder.py).
+            primary_value = None
+            if primary_metric:
+                primary_value = metrics.get(primary_metric)
+                if primary_value is None:
+                    pm_lower = primary_metric.lower()
+                    for k, v in metrics.items():
+                        if k.lower() == pm_lower:
+                            primary_value = v
+                            break
 
             results.append(FoldMetricResult(
                 fold_metric_id=fold_metric_id,

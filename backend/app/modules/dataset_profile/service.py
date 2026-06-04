@@ -40,6 +40,36 @@ from app.modules.dataset_profile.exceptions import (
 logger = logging.getLogger(__name__)
 
 
+def _resolve_input_columns(df, expected_input_columns):
+    """Map expected input columns to columns that actually exist in the dataframe.
+
+    LLM-interpreted expected_input_columns may name columns (e.g. "formula")
+    that don't exist in the actual uploaded file.  This helper returns the
+    subset of expected columns that exist, falling back to all actual columns
+    when none match.
+    """
+    if not expected_input_columns:
+        return list(df.columns)
+
+    actual_cols = list(df.columns)
+    found = []
+    for col in expected_input_columns:
+        if col in actual_cols:
+            found.append(col)
+        else:
+            # Case-insensitive fallback
+            col_lower = col.lower()
+            for ac in actual_cols:
+                if ac.lower() == col_lower and ac not in found:
+                    found.append(ac)
+                    break
+
+    if found:
+        return found
+    # No expected columns exist — use all actual columns
+    return actual_cols
+
+
 class DatasetProfileService:
 
     def __init__(self):
@@ -91,27 +121,35 @@ class DatasetProfileService:
             )
             return self._to_response(failed_profile)
 
+        expected_input_columns = context["dataset_context"]["expected_input_columns"]
+        expected_target_column = context["expected_target_column"]
+
         schema_result = check_schema(
             df,
-            expected_input_columns=context["dataset_context"]["expected_input_columns"],
-            expected_target_column=context["expected_target_column"],
+            expected_input_columns=expected_input_columns,
+            expected_target_column=expected_target_column,
         )
+
+        # Resolve input columns for modality check — LLM-interpreted expected
+        # columns may not match the actual file columns.  Use schema result
+        # to derive the best available subset.
+        actual_input_columns = _resolve_input_columns(df, expected_input_columns)
 
         modality_result = check_modality(
             df,
             expected_input_modality=context["expected_input_modality"],
-            input_columns=context["dataset_context"]["expected_input_columns"],
+            input_columns=actual_input_columns,
         )
 
         quality_result = check_quality(
             df,
-            input_columns=context["dataset_context"]["expected_input_columns"],
-            target_column=context["expected_target_column"],
+            input_columns=actual_input_columns,
+            target_column=expected_target_column,
         )
 
         target_result = check_target(
             df,
-            target_column=context["expected_target_column"],
+            target_column=expected_target_column,
             task_type=context["expected_task_type"] or "regression",
         )
 

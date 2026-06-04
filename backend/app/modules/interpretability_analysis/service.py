@@ -1,9 +1,13 @@
 import os
 import uuid
+import time
 import logging
+import numpy as np
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from sqlmodel import Session
+
+logger = logging.getLogger(__name__)
 
 from app.modules.interpretability_analysis.model import InterpretabilityAnalysis
 from app.modules.interpretability_analysis.repository import InterpretabilityAnalysisRepository
@@ -40,6 +44,8 @@ from app.modules.interpretability_analysis.permutation_importance_analyzer impor
 from app.modules.interpretability_analysis.shap_analyzer import (
     compute_shap,
     build_global_importance_from_shap,
+    compute_shap_interactions,
+    compute_shap_dependence,
 )
 from app.modules.interpretability_analysis.local_explanation_builder import (
     build_local_explanations,
@@ -50,6 +56,25 @@ from app.modules.interpretability_analysis.high_error_sample_analyzer import (
 from app.modules.interpretability_analysis.feature_group_analyzer import (
     build_feature_group_summary,
     classify_feature_group,
+    _build_lineage_group_map,
+)
+from app.modules.interpretability_analysis.cross_method_consensus import (
+    compute_cross_method_consensus,
+)
+from app.modules.interpretability_analysis.correlation_analyzer import (
+    compute_correlation_analysis,
+)
+from app.modules.interpretability_analysis.partial_dependence_analyzer import (
+    compute_partial_dependence,
+)
+from app.modules.interpretability_analysis.residual_analyzer import (
+    analyze_residuals,
+)
+from app.modules.interpretability_analysis.systematic_error_detector import (
+    detect_systematic_errors,
+)
+from app.modules.interpretability_analysis.physics_constraint_checker import (
+    check_physics_constraints,
 )
 from app.modules.interpretability_analysis.llm_interpretability_prompt_builder import (
     build_llm_interpretability_context,
@@ -77,8 +102,7 @@ from app.modules.interpretability_analysis.builder import build_response
 from app.modules.interpretability_analysis.exceptions import (
     InterpretabilityAnalysisNotFoundException,
 )
-
-logger = logging.getLogger(__name__)
+from app.shared.common.exceptions import BusinessException
 
 
 class InterpretabilityAnalysisService:
@@ -95,42 +119,61 @@ class InterpretabilityAnalysisService:
     ) -> InterpretabilityAnalysisResponse:
         warnings_list: list = []
 
-        # Step 1: Build context - validate upstream FinalPipelineSelection
-        fps = build_interpretability_context(
-            session, task_id, request.final_pipeline_selection_id
-        )
+        # Step 1: Build context - gather upstream data
+        context = build_interpretability_context(session, task_id)
+        warnings_list.extend(context.warnings)
 
-        # Early return if not force_rerun and existing analysis is available
+        # ---- [0/25] Pre-check: early return if cached ----
         if not request.force_rerun:
             existing = self.repo.get_latest_by_task_id(session, task_id)
-            if existing and existing.final_pipeline_selection_id == fps.id and existing.status in (
+            if existing and existing.metric_evaluation_id == context.metric_evaluation.id and existing.status in (
                 InterpretabilityAnalysisStatus.ANALYZED,
                 InterpretabilityAnalysisStatus.ANALYZED_WITH_WARNING,
             ):
+                logger.info("[0/25] Returning cached analysis — ia_id=%s", existing.id)
                 return self.get_interpretability_analysis(session, existing.id)
 
-        # Step 2: Load interpretability analysis input
-        ia_input = load_interpretability_analysis_input(fps)
+        started_at = time.time()
+        logger.info("=== Interpretability Analysis — task=%s ===", task_id)
 
-        # Step 3: Validate paths
+        # ---- [1/25] Build context ----
+        logger.info("[1/25] Context built — me=%s pe=%s pg=%s",
+                     context.metric_evaluation.id, context.pipeline_execution.id,
+                     context.pipeline_generation.id)
+
+        # ---- [2/25] Load interpretability analysis input ----
+        ia_input = load_interpretability_analysis_input(context)
+        logger.info("[2/25] Input loaded — model=%s predictions=%d",
+                     ia_input.model_artifact_path, len(ia_input.prediction_artifact_paths))
+
+        # ---- [3/25] Release DB transaction ----
+        logger.info("[3/25] Releasing read transaction ...")
+        session.commit()
+        logger.info("[3/25] Transaction released")
+
+        # ---- [4/25] Validate paths ----
         _validate_artifact_paths(ia_input.model_artifact_path, ia_input.model_ready_matrix_path)
 
-        # Step 4: Load model artifact
+        # ---- [5/25] Load model artifact ----
+        logger.info("[5/25] Loading model artifact ...")
+        t0 = time.time()
         try:
             model = load_model_artifact(ia_input.model_artifact_path)
+            logger.info("[5/25] Done — type=%s (%.1fs)", type(model).__name__, time.time() - t0)
         except Exception as e:
-            logger.error("Failed to load model artifact: %s", str(e))
+            logger.error("[5/25] FAILED — %s", str(e))
             return _build_failed_response(
-                session, task_id, fps.id, request, str(e), warnings_list
+                session, task_id, request, str(e), warnings_list
             )
 
-        # Step 5: Load feature matrix
+        # ---- [6/25] Load feature matrix ----
+        logger.info("[6/25] Loading feature matrix ...")
+        t0 = time.time()
         try:
             max_samples = request.max_shap_samples if request.interpretability_profile != "full" else None
 
-            # If upstream didn't set feature_columns, derive them from the matrix
             fc_input = list(ia_input.feature_columns) if ia_input.feature_columns else None
-            X, y = load_feature_matrix(
+            X, y, sampled_indices = load_feature_matrix(
                 matrix_path=ia_input.model_ready_matrix_path,
                 feature_columns=fc_input or [],
                 target_column=ia_input.target_column,
@@ -139,35 +182,56 @@ class InterpretabilityAnalysisService:
             if fc_input:
                 feature_columns = [c for c in fc_input if c in X.columns]
             else:
-                # Derive features from matrix: all numeric columns except target
                 feature_columns = [
                     c for c in X.select_dtypes(include=["number"]).columns
                     if c != ia_input.target_column
                 ]
-                logger.info("Derived %d feature columns from matrix.", len(feature_columns))
+            logger.info("[6/25] Done — shape=%s features=%d (%.1fs)",
+                         X.shape, len(feature_columns), time.time() - t0)
         except Exception as e:
-            logger.error("Failed to load feature matrix: %s", str(e))
+            logger.error("[6/25] FAILED — %s", str(e))
             return _build_failed_response(
-                session, task_id, fps.id, request, str(e), warnings_list
+                session, task_id, request, str(e), warnings_list
             )
 
-        # Step 6: Load prediction artifacts
+        # ---- [7/25] Load prediction artifacts ----
+        logger.info("[7/25] Loading prediction artifacts ...")
         y_pred = None
+        y_true_aligned = None  # y_true from prediction files, row-aligned with y_pred
         try:
             if ia_input.prediction_artifact_paths:
                 pred_df = load_all_prediction_artifacts(ia_input.prediction_artifact_paths)
                 pred_cols = ["y_pred", "prediction", "pred", "predicted"]
                 for col in pred_cols:
                     if col in pred_df.columns:
-                        y_pred = pred_df[col].values
+                        y_pred = pred_df[col]
                         break
                 if y_pred is None and len(pred_df.columns) > 0:
-                    y_pred = pred_df.iloc[:, 0].values
+                    y_pred = pred_df.iloc[:, 0]
+                # Extract y_true from prediction files for aligned residual analysis.
+                # Do NOT use `y` from the feature matrix — the rows are in a
+                # different order (original vs fold-grouped), which produces
+                # garbage R² / RMSE / MAE.
+                if "y_true" in pred_df.columns:
+                    y_true_aligned = pred_df["y_true"]
+            logger.info("[7/25] Done — %d prediction artifacts loaded",
+                         len(ia_input.prediction_artifact_paths))
+
+            # Align predictions with sampled X to prevent cross-index errors
+            if sampled_indices is not None and y_pred is not None:
+                common = sampled_indices.intersection(y_pred.index)
+                y_pred = y_pred.loc[common]
+                if y_true_aligned is not None:
+                    y_true_aligned = y_true_aligned.loc[common]
+                logger.info("[7/25] Aligned predictions to sampled X: %d rows", len(common))
+
         except Exception as e:
-            logger.warning("Failed to load prediction artifacts: %s", str(e))
+            logger.warning("[7/25] Warning — %s", str(e))
             warnings_list.append(f"Prediction artifact load warning: {str(e)}")
 
-        # Step 7: Select interpretability methods
+        # ---- [8/25] Select interpretability methods ----
+        logger.info("[8/25] Selecting methods (family=%s profile=%s) ...",
+              ia_input.final_model_family, request.interpretability_profile)
         method_plan = select_interpretability_methods(
             model_family=ia_input.final_model_family,
             include_shap=request.include_shap,
@@ -175,16 +239,21 @@ class InterpretabilityAnalysisService:
             profile=request.interpretability_profile,
         )
         warnings_list.extend(method_plan.notes)
+        logger.info("[8/25] Done — methods=%s", method_plan.methods_selected)
 
-        # Step 8: Compute coefficient / native / permutation importance
+        # ---- [9/25] Compute importance (coefficient / native / permutation) ----
+        logger.info("[9/25] Computing importance (%s) ...", method_plan.methods_selected)
+        t0 = time.time()
         all_importance: List[GlobalFeatureImportanceItem] = []
         permutation_results = None
         method_statuses: Dict[str, str] = {}
+        per_method_importance: Dict[str, List[Dict[str, Any]]] = {}
 
         if "coefficient" in method_plan.methods_selected:
             try:
                 coef_importance = compute_coefficient_importance(model, feature_columns)
                 all_importance.extend(coef_importance)
+                per_method_importance["coefficient"] = [fi.model_dump() for fi in coef_importance]
                 method_statuses["coefficient"] = InterpretabilityMethodStatus.COMPUTED
             except Exception as e:
                 logger.warning("Coefficient importance failed: %s", str(e))
@@ -195,6 +264,7 @@ class InterpretabilityAnalysisService:
             try:
                 native_importance = compute_native_importance(model, feature_columns)
                 all_importance.extend(native_importance)
+                per_method_importance["native_importance"] = [fi.model_dump() for fi in native_importance]
                 method_statuses["native_importance"] = InterpretabilityMethodStatus.COMPUTED
             except Exception as e:
                 logger.warning("Native importance failed: %s", str(e))
@@ -208,6 +278,7 @@ class InterpretabilityAnalysisService:
                 )
                 perm_importance = build_global_importance_from_permutation(permutation_results)
                 all_importance.extend(perm_importance)
+                per_method_importance["permutation_importance"] = [fi.model_dump() for fi in perm_importance]
                 method_statuses["permutation_importance"] = InterpretabilityMethodStatus.COMPUTED
             except Exception as e:
                 logger.warning("Permutation importance failed: %s", str(e))
@@ -216,20 +287,24 @@ class InterpretabilityAnalysisService:
 
         if not all_importance and method_plan.methods_selected:
             try:
-                logger.info("No importance results; computing permutation importance as fallback.")
+                logger.info("[9/25] No importance results — using permutation fallback ...")
                 permutation_results = compute_permutation_importance(
                     model, X, y, feature_columns, n_repeats=5
                 )
                 perm_importance = build_global_importance_from_permutation(permutation_results)
                 all_importance.extend(perm_importance)
+                per_method_importance["permutation_importance"] = [fi.model_dump() for fi in perm_importance]
                 method_statuses["permutation_importance"] = InterpretabilityMethodStatus.FALLBACK_USED
             except Exception as e:
-                logger.error("Fallback permutation importance also failed: %s", str(e))
+                logger.error("[9/25] Fallback permutation also failed: %s", str(e))
+        logger.info("[9/25] Done — %d items (%.1fs)", len(all_importance), time.time() - t0)
 
-        # Step 9: Compute SHAP
+        # ---- [10/25] Compute SHAP ----
         shap_summary = None
         shap_values = None
         if "shap" in method_plan.methods_selected:
+            logger.info("[10/25] Computing SHAP (explainer=%s) ...",
+                        method_plan.shap_explainer_type)
             try:
                 shap_summary, shap_values, shap_warnings = compute_shap(
                     model=model,
@@ -242,28 +317,134 @@ class InterpretabilityAnalysisService:
                 method_statuses["shap"] = InterpretabilityMethodStatus.COMPUTED if shap_summary.shap_available else InterpretabilityMethodStatus.FAILED
                 if shap_summary.shap_available:
                     shap_importance = build_global_importance_from_shap(shap_summary)
+                    per_method_importance["shap"] = [fi.model_dump() for fi in shap_importance]
                     existing_names = {fi.feature_name for fi in all_importance}
                     all_importance.extend([si for si in shap_importance if si.feature_name not in existing_names])
             except Exception as e:
-                logger.warning("SHAP computation failed: %s", str(e))
+                logger.warning("[10/25] SHAP failed: %s", str(e))
                 method_statuses["shap"] = InterpretabilityMethodStatus.FAILED
                 warnings_list.append(f"SHAP: {str(e)}")
+            logger.info("[10/25] Done — available=%s",
+                         shap_summary.shap_available if shap_summary else False)
 
-        # Sort and re-rank
+        # ---- Sort and re-rank ----
+        logger.info("[11/25] Sorting and ranking features ...")
+        lineage_group_map = _build_lineage_group_map(ia_input.feature_lineage) if ia_input.feature_lineage else {}
         all_importance.sort(key=lambda x: x.importance_value, reverse=True)
         for i, fi in enumerate(all_importance, start=1):
             fi.importance_rank = i
-            fi.feature_group = classify_feature_group(fi.feature_name)
+            fi.feature_group = classify_feature_group(fi.feature_name, lineage_group_map)
 
         top_importance = all_importance[:30]
 
-        # Step 10: Local explanations
+        # ---- [12/25] Correlation analysis ----
+        correlation_analysis = None
+        if request.include_correlation:
+            logger.info("[12/25] Computing correlation analysis ...")
+            t0 = time.time()
+            try:
+                correlation_analysis = compute_correlation_analysis(
+                    X=X, y=y, feature_columns=feature_columns,
+                    top_n_features=request.correlation_top_n_features,
+                )
+            except Exception as e:
+                logger.warning("Correlation analysis failed: %s", str(e))
+                warnings_list.append(f"Correlation analysis: {str(e)}")
+
+        # Step 11: Cross-method consensus
+        cross_method_consensus = None
+        if request.include_cross_method_consensus and len(per_method_importance) >= 2:
+            try:
+                cross_method_consensus = compute_cross_method_consensus(per_method_importance)
+            except Exception as e:
+                logger.warning("Cross-method consensus failed: %s", str(e))
+                warnings_list.append(f"Cross-method consensus: {str(e)}")
+
+        # Step 12: Partial dependence
+        partial_dependence = None
+        if request.include_pdp:
+            try:
+                partial_dependence = compute_partial_dependence(
+                    model=model, X=X, feature_columns=feature_columns,
+                    top_n_features=request.pdp_top_n_features,
+                )
+            except Exception as e:
+                logger.warning("Partial dependence failed: %s", str(e))
+                warnings_list.append(f"Partial dependence: {str(e)}")
+
+        # Step 13: Residual analysis
+        # Use y_true_aligned from prediction artifacts (row-aligned with y_pred),
+        # NOT `y` from the feature matrix which has a different row order.
+        residual_analysis = None
+        if request.include_residual_analysis and y_true_aligned is not None and y_pred is not None:
+            try:
+                residual_analysis = analyze_residuals(
+                    y_true=y_true_aligned, y_pred=y_pred, X=X, feature_columns=feature_columns,
+                )
+            except Exception as e:
+                logger.warning("Residual analysis failed: %s", str(e))
+                warnings_list.append(f"Residual analysis: {str(e)}")
+
+        # Step 14: Systematic error detection
+        systematic_errors = None
+        if request.include_residual_analysis and y_true_aligned is not None and y_pred is not None:
+            try:
+                systematic_errors = detect_systematic_errors(
+                    X=X, y_true=y_true_aligned, y_pred=y_pred, feature_columns=feature_columns,
+                )
+            except Exception as e:
+                logger.warning("Systematic error detection failed: %s", str(e))
+                warnings_list.append(f"Systematic error detection: {str(e)}")
+
+        # Step 15: Physics constraint check
+        physics_constraints = None
+        if request.include_physics_constraints and y_pred is not None:
+            try:
+                physics_constraints = check_physics_constraints(
+                    y_pred=y_pred,
+                    target_property=ia_input.target_column,
+                    prediction_target_name=ia_input.prediction_target_name,
+                )
+            except Exception as e:
+                logger.warning("Physics constraint check failed: %s", str(e))
+                warnings_list.append(f"Physics constraint check: {str(e)}")
+
+        # Step 16: SHAP interaction values
+        shap_interactions = None
+        if "shap" in method_plan.methods_selected and shap_values is not None:
+            try:
+                shap_interactions = compute_shap_interactions(
+                    shap_values=shap_values,
+                    feature_columns=feature_columns,
+                    top_n=10,
+                )
+            except Exception as e:
+                logger.warning("SHAP interaction computation failed: %s", str(e))
+                warnings_list.append(f"SHAP interactions: {str(e)}")
+
+        # Step 17: SHAP dependence data
+        shap_dependence = None
+        if "shap" in method_plan.methods_selected and shap_values is not None:
+            try:
+                shap_dependence = compute_shap_dependence(
+                    shap_values=shap_values,
+                    X=X,
+                    feature_columns=feature_columns,
+                    top_n=10,
+                )
+            except Exception as e:
+                logger.warning("SHAP dependence computation failed: %s", str(e))
+                warnings_list.append(f"SHAP dependence: {str(e)}")
+
+        # Step 18: Local explanations
+        _y_true = y_true_aligned if y_true_aligned is not None else y
+        _y_pred_arr = np.asarray(y_pred) if y_pred is not None else None
         local_explanations = []
         try:
             local_explanations = build_local_explanations(
                 X=X,
-                y_true=y,
-                y_pred=y_pred,
+                y_true=_y_true,
+                y_pred=_y_pred_arr,
                 feature_columns=feature_columns,
                 shap_values=shap_values,
                 max_explanations=request.max_local_explanations,
@@ -272,13 +453,13 @@ class InterpretabilityAnalysisService:
             logger.warning("Local explanations failed: %s", str(e))
             warnings_list.append(f"Local explanations: {str(e)}")
 
-        # Step 11: High-error sample analysis
+        # Step 19: High-error sample analysis
         high_error_analysis = []
         if request.include_high_error_samples:
             try:
                 high_error_analysis = analyze_high_error_samples(
                     X=X,
-                    y_true=y,
+                    y_true=y_true_aligned if y_true_aligned is not None else y,
                     y_pred=y_pred,
                     feature_columns=feature_columns,
                     shap_values=shap_values,
@@ -288,10 +469,18 @@ class InterpretabilityAnalysisService:
                 logger.warning("High-error analysis failed: %s", str(e))
                 warnings_list.append(f"High-error analysis: {str(e)}")
 
-        # Step 12: Feature group summary
-        feature_group_summary = build_feature_group_summary(top_importance)
+        # Step 20: Feature group summary
+        try:
+            feature_group_summary = build_feature_group_summary(
+                top_importance,
+                feature_lineage=ia_input.feature_lineage,
+            )
+        except Exception as e:
+            logger.warning("Feature group summary failed: %s", str(e))
+            warnings_list.append(f"Feature group summary: {str(e)}")
+            feature_group_summary = FeatureGroupSummary()
 
-        # Step 13-16: LLM interpretability summarizer
+        # Step 21-24: LLM interpretability summarizer
         llm_summary = None
         material_insight = None
         llm_raw_request = None
@@ -300,6 +489,7 @@ class InterpretabilityAnalysisService:
         llm_confidence = None
 
         if request.use_llm_summarizer:
+            logger.info("[23/25] Calling LLM summarizer ...")
             try:
                 llm_context = build_llm_interpretability_context(
                     task_summary={
@@ -319,6 +509,14 @@ class InterpretabilityAnalysisService:
                     shap_summary=shap_summary,
                     feature_group_summary=feature_group_summary,
                     high_error_samples=high_error_analysis if high_error_analysis else None,
+                    cross_method_consensus=cross_method_consensus,
+                    partial_dependence=partial_dependence,
+                    correlation_analysis=correlation_analysis,
+                    residual_analysis=residual_analysis,
+                    physics_constraints=physics_constraints,
+                    material_domain=ia_input.material_domain,
+                    dataset_description=ia_input.dataset_description,
+                    stop_rationale=ia_input.stop_rationale,
                 )
                 llm_raw_request = llm_context
 
@@ -353,14 +551,15 @@ class InterpretabilityAnalysisService:
             except Exception as e:
                 logger.error("LLM interpretability summarizer failed: %s", str(e))
                 warnings_list.append(f"LLM interpretability summary: {str(e)}")
+            logger.info("[23/25] LLM done — used=%s confidence=%s", llm_used, llm_confidence)
 
-        # Step 17: Build Final Output Input
+        # ---- [24/25] Build Final Output Input ----
+        logger.info("[24/25] Building final output input ...")
         final_output_input = None
         ready_for_fo = False
         try:
             final_output_input = build_final_output_input(
                 interpretability_analysis_id="",  # Will be replaced after persist
-                final_pipeline_selection_id=fps.id,
                 task_id=task_id,
                 final_model_id=ia_input.final_model_id or "",
                 final_trial_id=ia_input.final_trial_id or "",
@@ -372,7 +571,7 @@ class InterpretabilityAnalysisService:
                 },
                 selection_summary={
                     "selection_reason": ia_input.selection_reason_summary,
-                    "final_pipeline_selection_id": fps.id,
+                    "metric_evaluation_id": ia_input.metric_evaluation_id,
                 },
                 global_feature_importance=[
                     fi.model_dump() for fi in top_importance
@@ -392,16 +591,16 @@ class InterpretabilityAnalysisService:
         if warnings_list:
             status = InterpretabilityAnalysisStatus.ANALYZED_WITH_WARNING
 
-        # Persist
+        # ---- [25/25] Persist and build response ----
+        logger.info("[25/25] Persisting record ...")
         ia_id = f"ia_{uuid.uuid4().hex[:8]}"
         now = datetime.now(timezone.utc)
 
         record = InterpretabilityAnalysis(
             id=ia_id,
             task_id=task_id,
-            final_pipeline_selection_id=fps.id,
-            metric_evaluation_id=fps.metric_evaluation_id,
-            pipeline_execution_id=fps.pipeline_execution_id,
+            metric_evaluation_id=ia_input.metric_evaluation_id,
+            pipeline_execution_id=ia_input.pipeline_execution_id,
             status=status,
             analysis_profile=request.interpretability_profile,
             final_model_id=ia_input.final_model_id,
@@ -418,6 +617,11 @@ class InterpretabilityAnalysisService:
             shap_summary_json=shap_summary.model_dump() if shap_summary else None,
             local_explanations_json={"items": [le.model_dump() for le in local_explanations]},
             high_error_sample_analysis_json={"items": [he.model_dump() for he in high_error_analysis]},
+            cross_method_consensus_json=cross_method_consensus,
+            partial_dependence_json=partial_dependence,
+            residual_analysis_json=residual_analysis,
+            correlation_analysis_json=correlation_analysis,
+            physics_constraint_check_json=physics_constraints,
             material_insight_summary_json=material_insight,
             llm_summary_json=llm_summary.model_dump() if llm_summary else None,
             final_output_input_json=final_output_input.model_dump() if final_output_input else None,
@@ -432,13 +636,24 @@ class InterpretabilityAnalysisService:
             updated_at=now,
         )
 
-        record = self.repo.create(session, record)
+        try:
+            record = self.repo.create(session, record)
+        except Exception as e:
+            logger.error("Failed to persist interpretability analysis: %s", str(e))
+            session.rollback()
+            raise BusinessException(
+                f"Failed to save analysis result to database: {str(e)}",
+                "INTERPRETABILITY_PERSIST_FAILED",
+            )
 
         # Update final output input with real ID
         if final_output_input:
             final_output_input.interpretability_analysis_id = ia_id
             record.final_output_input_json = final_output_input.model_dump()
-            record = self.repo.update(session, record)
+            try:
+                record = self.repo.update(session, record)
+            except Exception as e:
+                logger.warning("Failed to update final output input ID: %s", str(e))
 
         # Save artifacts
         try:
@@ -450,6 +665,13 @@ class InterpretabilityAnalysisService:
                 shap_summary=shap_summary.model_dump() if shap_summary else None,
                 local_explanations={"items": [le.model_dump() for le in local_explanations]},
                 high_error_sample_analysis={"items": [he.model_dump() for he in high_error_analysis]},
+                cross_method_consensus=cross_method_consensus,
+                partial_dependence=partial_dependence,
+                residual_analysis=residual_analysis,
+                correlation_analysis=correlation_analysis,
+                physics_constraints=physics_constraints,
+                shap_interactions=shap_interactions,
+                shap_dependence=shap_dependence,
                 feature_group_summary=feature_group_summary.model_dump(),
                 material_insight_summary=material_insight,
                 llm_interpretability_summary=llm_summary.model_dump() if llm_summary else None,
@@ -461,6 +683,10 @@ class InterpretabilityAnalysisService:
             logger.warning("Artifact save failed: %s", str(e))
             warnings_list.append(f"Artifact save: {str(e)}")
 
+        total_dur = time.time() - started_at
+        logger.info("[25/25] Done — ia_id=%s status=%s features=%d methods=%s | TOTAL %.1fs",
+                     ia_id, status, len(top_importance),
+                     list(method_statuses.keys()), total_dur)
         return build_response(record=record, warnings=warnings_list)
 
     def get_interpretability_analysis(
@@ -551,7 +777,6 @@ def _validate_artifact_paths(model_path, matrix_path):
 def _build_failed_response(
     session: Session,
     task_id: str,
-    fps_id: str,
     request: InterpretabilityAnalysisCreateRequest,
     error_message: str,
     warnings_list: list,
@@ -562,7 +787,6 @@ def _build_failed_response(
     record = InterpretabilityAnalysis(
         id=ia_id,
         task_id=task_id,
-        final_pipeline_selection_id=fps_id,
         status=InterpretabilityAnalysisStatus.FAILED,
         analysis_profile=request.interpretability_profile,
         error_message=error_message,
@@ -575,7 +799,6 @@ def _build_failed_response(
     return InterpretabilityAnalysisResponse(
         interpretability_analysis_id=record.id,
         task_id=task_id,
-        final_pipeline_selection_id=fps_id,
         status=InterpretabilityAnalysisStatus.FAILED,
         analysis_profile=request.interpretability_profile,
         warnings=warnings_list,

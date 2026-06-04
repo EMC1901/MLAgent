@@ -1,13 +1,55 @@
+import logging
+import concurrent.futures
 from sqlmodel import Session, select
+from sqlalchemy.exc import OperationalError
 from app.modules.pipeline_execution.model import PipelineExecution
 from typing import Optional, List
+
+logger = logging.getLogger(__name__)
+
+_COMMIT_TIMEOUT_SECONDS = 120
+
+
+def _is_connection_error(exc: OperationalError) -> bool:
+    msg = str(exc).lower()
+    return any(kw in msg for kw in (
+        "connection abort", "server closed", "receive data",
+        "connection was closed", "terminating connection",
+    ))
+
+
+def _commit_with_timeout(session: Session, label: str, retry_add=None):
+    logger.debug("%s: committing (%ds timeout) ...", label, _COMMIT_TIMEOUT_SECONDS)
+    for attempt in range(2):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(session.commit)
+            try:
+                future.result(timeout=_COMMIT_TIMEOUT_SECONDS)
+                logger.debug("%s: commit done (attempt %d)", label, attempt + 1)
+                return
+            except concurrent.futures.TimeoutError:
+                logger.debug("%s: commit TIMED OUT after %ds!", label, _COMMIT_TIMEOUT_SECONDS)
+                raise TimeoutError(
+                    f"Database commit timed out after {_COMMIT_TIMEOUT_SECONDS}s."
+                )
+            except OperationalError as exc:
+                if attempt == 0 and _is_connection_error(exc):
+                    logger.debug("%s: connection broken — %s", label, str(exc).strip()[:200])
+                    logger.debug("%s: closing session and retrying ...", label)
+                    session.close()
+                    if retry_add is not None:
+                        session.add(retry_add)
+                    continue
+                raise
+            except Exception:
+                raise
 
 
 class PipelineExecutionRepository:
 
     def create(self, session: Session, record: PipelineExecution) -> PipelineExecution:
         session.add(record)
-        session.commit()
+        _commit_with_timeout(session, "create", retry_add=record)
         session.refresh(record)
         return record
 
@@ -33,6 +75,6 @@ class PipelineExecutionRepository:
 
     def update(self, session: Session, record: PipelineExecution) -> PipelineExecution:
         session.add(record)
-        session.commit()
+        _commit_with_timeout(session, "update", retry_add=record)
         session.refresh(record)
         return record

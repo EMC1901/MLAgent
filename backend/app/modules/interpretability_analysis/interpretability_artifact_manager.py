@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 from app.modules.interpretability_analysis.schemas import ArtifactManifest
 from app.modules.interpretability_analysis.exceptions import InterpretabilityArtifactSaveException
@@ -24,6 +24,13 @@ def save_interpretability_artifacts(
     material_insight_summary: Optional[Dict[str, Any]] = None,
     llm_interpretability_summary: Optional[Dict[str, Any]] = None,
     final_output_input: Optional[Dict[str, Any]] = None,
+    cross_method_consensus: Optional[Dict[str, Any]] = None,
+    partial_dependence: Optional[Dict[str, Any]] = None,
+    residual_analysis: Optional[Dict[str, Any]] = None,
+    correlation_analysis: Optional[Dict[str, Any]] = None,
+    physics_constraints: Optional[Dict[str, Any]] = None,
+    shap_interactions: Optional[List[Dict[str, Any]]] = None,
+    shap_dependence: Optional[List[Dict[str, Any]]] = None,
 ) -> ArtifactManifest:
     ia_dir = os.path.join(ARTIFACT_BASE_DIR, interpretability_analysis_id)
     shap_dir = os.path.join(ia_dir, "shap")
@@ -74,6 +81,34 @@ def save_interpretability_artifacts(
         if final_output_input:
             manifest.final_output_input_path = _write_json(
                 ia_dir, "final_output_input.json", final_output_input
+            )
+        if cross_method_consensus:
+            manifest.cross_method_consensus_path = _write_json(
+                ia_dir, "cross_method_consensus.json", cross_method_consensus
+            )
+        if partial_dependence:
+            manifest.partial_dependence_path = _write_json(
+                ia_dir, "partial_dependence.json", partial_dependence
+            )
+        if residual_analysis:
+            manifest.residual_analysis_path = _write_json(
+                ia_dir, "residual_analysis.json", residual_analysis
+            )
+        if correlation_analysis:
+            manifest.correlation_analysis_path = _write_json(
+                ia_dir, "correlation_analysis.json", correlation_analysis
+            )
+        if physics_constraints:
+            manifest.physics_constraint_check_path = _write_json(
+                ia_dir, "physics_constraint_check.json", physics_constraints
+            )
+        if shap_interactions:
+            manifest.shap_values_path = _write_json(
+                shap_dir, "shap_interactions.json", shap_interactions
+            )
+        if shap_dependence:
+            _write_json(
+                shap_dir, "shap_dependence.json", shap_dependence
             )
 
         _write_json(ia_dir, "manifest.json", manifest.model_dump())

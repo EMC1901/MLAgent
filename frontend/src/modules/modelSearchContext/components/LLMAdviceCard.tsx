@@ -10,7 +10,7 @@ const LLMAdviceCard: React.FC<Props> = ({ advice }) => {
   const confidencePct = Math.round((advice.confidence_score || 0) * 100);
 
   return (
-    <Card title="LLM Strategy Advice" size="small" style={{ marginBottom: 16 }}>
+    <Card title="AI Strategy Advice" size="small" style={{ marginBottom: 16 }}>
       <Descriptions bordered size="small" column={2}>
         <Descriptions.Item label="Confidence" span={2}>
           <Progress percent={confidencePct} size="small" status={confidencePct >= 70 ? 'success' : 'normal'} />

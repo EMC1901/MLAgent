@@ -33,9 +33,16 @@ def _init_router():
         MatminerElementPropertyFeaturizer,
         MatminerMagpieFeaturizer,
         MatminerValenceOrbitalFeaturizer,
+        MatminerOxidationStatesFeaturizer,
+        MatminerIonicCompoundFeaturizer,
+        MatminerBandCenterFeaturizer,
     )
     from app.modules.feature_engineering.featurizers.descriptor_cleaner import DescriptorCleanerFeaturizer
     from app.modules.feature_engineering.featurizers.matminer_structure_basic import MatminerStructureBasicFeaturizer
+    from app.modules.feature_engineering.featurizers.pymatgen_structure_parser import PymatgenStructureParserFeaturizer
+    from app.modules.feature_engineering.featurizers.matminer_structure_featurizers import MatminerSiteStatsFeaturizer
+    from app.modules.feature_engineering.featurizers.descriptor_statistical_featurizer import DescriptorStatisticalFeaturizer
+    from app.modules.feature_engineering.featurizers.metadata_featurizer import MetadataFeaturizer
 
     _ROUTER.update({
         "basic_composition": CompositionFeaturizer,
@@ -47,8 +54,14 @@ def _init_router():
         "matminer_magpie": MatminerMagpieFeaturizer,
         "matminer_valence_orbital": MatminerValenceOrbitalFeaturizer,
         "descriptor_cleaner": DescriptorCleanerFeaturizer,
-        "pymatgen_structure_parser": None,
+        "pymatgen_structure_parser": PymatgenStructureParserFeaturizer,
         "matminer_structure_basic": MatminerStructureBasicFeaturizer,
+        "matminer_oxidation_states": MatminerOxidationStatesFeaturizer,
+        "matminer_ion_property": MatminerIonicCompoundFeaturizer,
+        "matminer_band_center": MatminerBandCenterFeaturizer,
+        "matminer_site_stats": MatminerSiteStatsFeaturizer,
+        "descriptor_statistical": DescriptorStatisticalFeaturizer,
+        "metadata_feature_extractor": MetadataFeaturizer,
     })
 
 

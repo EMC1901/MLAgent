@@ -3,7 +3,6 @@ from datetime import datetime
 
 
 def build_task_specification(
-    raw_data: Dict[str, Any],
     normalized_data: Dict[str, Any],
     validation_result: Dict[str, Any],
     task_id: str,

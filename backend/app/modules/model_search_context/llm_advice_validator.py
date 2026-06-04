@@ -72,6 +72,12 @@ def validate_llm_advice(parsed_advice: dict, task_type: str) -> dict:
             change_errors.append(f"{change_key}: invalid strategy_area '{strategy_area}'")
             fallback_applied = True
 
+        # Normalize LLM's dotted prefix (e.g. "model_strategy.baseline_models" → "baseline_models")
+        prefix = f"{strategy_area}_strategy."
+        if field_path.startswith(prefix):
+            field_path = field_path[len(prefix):]
+            change["field_path"] = field_path
+
         # Validate field_path
         valid_fields = _VALID_FIELD_PATHS.get(strategy_area, set())
         if field_path not in valid_fields:

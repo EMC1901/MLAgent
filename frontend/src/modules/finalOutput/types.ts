@@ -32,16 +32,6 @@ export interface FinalMetricSummary {
   stability_summary: Record<string, unknown>;
 }
 
-export interface FinalSelectionSummary {
-  final_pipeline_selection_id: string;
-  selection_profile: string;
-  selection_score?: number;
-  system_selection_reason: Record<string, unknown>;
-  llm_selection_explanation: Record<string, unknown>;
-  candidate_difference_summary: Record<string, unknown>[];
-  risk_notes: string[];
-}
-
 export interface InterpretabilitySummary {
   interpretability_analysis_id: string;
   methods_used: string[];
@@ -63,9 +53,7 @@ export interface WorkflowTraceSummary {
   pipeline_generation_id?: string;
   pipeline_execution_id?: string;
   metric_evaluation_id?: string;
-  result_diagnosis_id?: string;
-  workflow_refinement_id?: string;
-  final_pipeline_selection_id?: string;
+  iteration_decision_id?: string;
   interpretability_analysis_id?: string;
   iteration_count: number;
   workflow_trace_artifacts: Record<string, unknown>;
@@ -135,12 +123,10 @@ export interface FinalOutputResponse {
   final_output_id?: string;
   task_id?: string;
   interpretability_analysis_id?: string;
-  final_pipeline_selection_id?: string;
   status: string;
   report_profile: string;
   final_model_summary?: Record<string, unknown>;
   final_metric_summary?: Record<string, unknown>;
-  final_selection_summary?: Record<string, unknown>;
   interpretability_summary?: Record<string, unknown>;
   workflow_trace_summary?: Record<string, unknown>;
   reproducibility_summary?: Record<string, unknown>;
@@ -149,6 +135,7 @@ export interface FinalOutputResponse {
   llm_report_summary?: Record<string, unknown>;
   output_package_manifest?: Record<string, unknown>;
   download_links?: Record<string, unknown>;
+  topic_files?: { file: string; topic: string }[];
   ready_for_delivery: boolean;
   warnings: string[];
   error_message?: string;

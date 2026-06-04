@@ -6,16 +6,6 @@ class InterpretabilityAnalysisNotFoundException(BusinessException):
         super().__init__(message, "INTERPRETABILITY_ANALYSIS_NOT_FOUND")
 
 
-class FinalPipelineSelectionRequiredException(BusinessException):
-    def __init__(self, message: str = "Final pipeline selection is required before interpretability analysis."):
-        super().__init__(message, "FINAL_PIPELINE_SELECTION_REQUIRED")
-
-
-class FinalPipelineSelectionNotReadyException(BusinessException):
-    def __init__(self, message: str = "Final pipeline selection is not ready for interpretability analysis."):
-        super().__init__(message, "FINAL_SELECTION_NOT_READY_FOR_INTERPRETABILITY")
-
-
 class InterpretabilityInputInvalidException(BusinessException):
     def __init__(self, message: str = "Interpretability analysis input is invalid."):
         super().__init__(message, "INTERPRETABILITY_INPUT_INVALID")

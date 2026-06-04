@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 from app.shared.database.session import get_session
 from app.modules.task_specification.schemas import (
@@ -7,16 +8,17 @@ from app.modules.task_specification.schemas import (
     TaskSpecificationResponse,
     TaskSummaryResponse,
     ValidationResultResponse,
+    APIResponse,
 )
 from app.modules.task_specification.service import TaskSpecificationService
-from app.shared.common.response import success_response
+from app.shared.common.response import success_response, success_list_response
 from app.shared.common.exceptions import BusinessException
 
 router = APIRouter(prefix="/api/tasks", tags=["task-specification"])
 service = TaskSpecificationService()
 
 
-@router.post("", response_model=dict)
+@router.post("", response_model=APIResponse[TaskSpecificationResponse])
 def create_task(request: TaskSpecificationCreateRequest, session: Session = Depends(get_session)):
     try:
         result = service.create_task(session, request)
@@ -25,19 +27,24 @@ def create_task(request: TaskSpecificationCreateRequest, session: Session = Depe
         raise HTTPException(status_code=400, detail={"message": e.message, "error_code": e.error_code})
 
 
-@router.get("", response_model=dict)
-def list_tasks(session: Session = Depends(get_session)):
+@router.get("", response_model=APIResponse[List[TaskSummaryResponse]])
+def list_tasks(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
     try:
-        results = service.list_tasks(session)
-        return success_response(
+        results, total = service.list_tasks(session, offset=offset, limit=limit)
+        return success_list_response(
             "Tasks retrieved successfully.",
             data=[r.model_dump() for r in results],
+            total=total,
         )
     except BusinessException as e:
         raise HTTPException(status_code=400, detail={"message": e.message, "error_code": e.error_code})
 
 
-@router.get("/{task_id}", response_model=dict)
+@router.get("/{task_id}", response_model=APIResponse[TaskSpecificationResponse])
 def get_task(task_id: str, session: Session = Depends(get_session)):
     try:
         result = service.get_task(session, task_id)
@@ -47,7 +54,7 @@ def get_task(task_id: str, session: Session = Depends(get_session)):
         raise HTTPException(status_code=status_code, detail={"message": e.message, "error_code": e.error_code})
 
 
-@router.put("/{task_id}", response_model=dict)
+@router.put("/{task_id}", response_model=APIResponse[TaskSpecificationResponse])
 def update_task(task_id: str, request: TaskSpecificationUpdateRequest, session: Session = Depends(get_session)):
     try:
         result = service.update_task(session, task_id, request)
@@ -57,7 +64,7 @@ def update_task(task_id: str, request: TaskSpecificationUpdateRequest, session: 
         raise HTTPException(status_code=status_code, detail={"message": e.message, "error_code": e.error_code})
 
 
-@router.post("/{task_id}/validate", response_model=dict)
+@router.post("/{task_id}/validate", response_model=APIResponse[ValidationResultResponse])
 def validate_task(task_id: str, session: Session = Depends(get_session)):
     try:
         result = service.validate_task(session, task_id)

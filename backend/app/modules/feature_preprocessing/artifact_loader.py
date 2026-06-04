@@ -6,6 +6,7 @@ from app.modules.feature_preprocessing.exceptions import (
     FeatureArtifactMissingException,
 )
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,6 +15,7 @@ def load_raw_feature_matrix(file_path: str) -> dict:
 
     Returns a dict with dataframe, n_samples, n_columns, candidate_feature_columns.
     """
+    logger.debug("loading feature matrix from: %s", file_path)
     if not file_path:
         raise FeatureArtifactMissingException("Feature artifact file path is empty.")
 
@@ -32,6 +34,7 @@ def load_raw_feature_matrix(file_path: str) -> dict:
                 f"Unsupported artifact format: {file_path}"
             )
     except Exception as e:
+        logger.debug("FAILED to load feature artifact: %s", e)
         raise FeatureArtifactLoadException(
             f"Failed to load feature artifact: {e}"
         )
@@ -57,7 +60,7 @@ def load_raw_feature_matrix(file_path: str) -> dict:
         target_col = candidate_features[0]
         candidate_features = []
 
-    return {
+    result = {
         "dataframe": df,
         "n_samples": len(df),
         "n_columns": len(columns),
@@ -65,3 +68,6 @@ def load_raw_feature_matrix(file_path: str) -> dict:
         "target_column": target_col,
         "candidate_feature_columns": candidate_features,
     }
+    logger.debug("loaded: %d samples, %d total cols, %d candidate features, target=%s",
+          result["n_samples"], result["n_columns"], len(candidate_features), target_col)
+    return result

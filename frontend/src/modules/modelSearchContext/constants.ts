@@ -1,7 +1,7 @@
 export const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   analyzing: 'Analyzing',
-  llm_advising: 'LLM Advising',
+  llm_advising: 'AI Advising',
   validating_advice: 'Validating Advice',
   updating: 'Updating',
   updated: 'Updated',

@@ -289,8 +289,8 @@ _FEATURIZERS: List[FeaturizerSpec] = [
             "structure_features",
             "crystal_structure_descriptors",
         ],
-        status="planned",
-        mvp_supported=False,
+        status="available",
+        mvp_supported=True,
         requires_dependencies=["pymatgen", "matminer"],
         dependency_status={
             "pymatgen": _DEPENDENCY_CACHE["pymatgen"].model_dump(),
@@ -303,7 +303,7 @@ _FEATURIZERS: List[FeaturizerSpec] = [
     FeaturizerSpec(
         id="pymatgen_structure_parser",
         display_name="Pymatgen Structure Parser",
-        description="Parse CIF/POSCAR/structure data using pymatgen. Planned for future version.",
+        description="Parse CIF/POSCAR/structure data strings into pymatgen Structure objects for downstream featurizers.",
         input_modalities=["structure"],
         feature_type="structure_descriptors",
         supported_task_types=["regression", "classification"],
@@ -312,8 +312,8 @@ _FEATURIZERS: List[FeaturizerSpec] = [
             "pymatgen_structure",
             "structure_parser",
         ],
-        status="planned",
-        mvp_supported=False,
+        status="available" if _pymatgen_ok else "planned",
+        mvp_supported=_pymatgen_ok,
         requires_dependencies=["pymatgen"],
         dependency_status=_DEPENDENCY_CACHE["pymatgen"].model_dump(),
         output_feature_kind="structural",
@@ -324,8 +324,7 @@ _FEATURIZERS: List[FeaturizerSpec] = [
         id="matminer_structure_basic",
         display_name="Matminer Basic Structure Features",
         description="Generate basic structure features: density, volume, n_sites, "
-                    "lattice parameters, space group, packing fraction. "
-                    "Planned for future version.",
+                    "lattice parameters, space group, packing fraction.",
         input_modalities=["structure"],
         feature_type="structure_descriptors",
         supported_task_types=["regression", "classification"],
@@ -334,8 +333,8 @@ _FEATURIZERS: List[FeaturizerSpec] = [
             "structure_basic",
             "basic_structure",
         ],
-        status="planned",
-        mvp_supported=False,
+        status="available" if _matminer_full_ok else "planned",
+        mvp_supported=_matminer_full_ok,
         requires_dependencies=["pymatgen", "matminer"],
         dependency_status={
             "pymatgen": _DEPENDENCY_CACHE["pymatgen"].model_dump(),
@@ -344,6 +343,129 @@ _FEATURIZERS: List[FeaturizerSpec] = [
         output_feature_kind="numeric",
         estimated_feature_count="10",
         fallback_priority=9,
+    ),
+
+    # ---- Matminer composition featurizers (new) ----
+    FeaturizerSpec(
+        id="matminer_oxidation_states",
+        display_name="Matminer OxidationStates Features",
+        description="Generate oxidation state probabilities for each element "
+                    "using matminer.featurizers.composition.ion.OxidationStates.",
+        input_modalities=["composition"],
+        feature_type="composition_descriptors",
+        supported_task_types=["regression", "classification"],
+        aliases=["matminer_oxidation_states", "oxidation_states"],
+        status="available" if _matminer_full_ok else "planned",
+        mvp_supported=_matminer_full_ok,
+        requires_dependencies=["pymatgen", "matminer"],
+        dependency_status={
+            "pymatgen": _DEPENDENCY_CACHE["pymatgen"].model_dump(),
+            "matminer": _DEPENDENCY_CACHE["matminer"].model_dump(),
+        },
+        output_feature_kind="numeric",
+        estimated_feature_count="variable",
+        fallback_priority=40,
+    ),
+    FeaturizerSpec(
+        id="matminer_ion_property",
+        display_name="Matminer Ionic Compound Features",
+        description="Generate ionic compound features (electronegativity, ionic radii) "
+                    "using matminer.featurizers.composition.ion.IonProperty.",
+        input_modalities=["composition"],
+        feature_type="composition_descriptors",
+        supported_task_types=["regression", "classification"],
+        aliases=["matminer_ion_property", "ion_property", "ionic_compound"],
+        status="available" if _matminer_full_ok else "planned",
+        mvp_supported=_matminer_full_ok,
+        requires_dependencies=["pymatgen", "matminer"],
+        dependency_status={
+            "pymatgen": _DEPENDENCY_CACHE["pymatgen"].model_dump(),
+            "matminer": _DEPENDENCY_CACHE["matminer"].model_dump(),
+        },
+        output_feature_kind="numeric",
+        estimated_feature_count="4",
+        fallback_priority=40,
+    ),
+    FeaturizerSpec(
+        id="matminer_band_center",
+        display_name="Matminer BandCenter Features",
+        description="Generate band center composition features "
+                    "using matminer.featurizers.composition.element.BandCenter.",
+        input_modalities=["composition"],
+        feature_type="composition_descriptors",
+        supported_task_types=["regression"],
+        aliases=["matminer_band_center", "band_center"],
+        status="available" if _matminer_full_ok else "planned",
+        mvp_supported=_matminer_full_ok,
+        requires_dependencies=["pymatgen", "matminer"],
+        dependency_status={
+            "pymatgen": _DEPENDENCY_CACHE["pymatgen"].model_dump(),
+            "matminer": _DEPENDENCY_CACHE["matminer"].model_dump(),
+        },
+        output_feature_kind="numeric",
+        estimated_feature_count="1",
+        fallback_priority=40,
+    ),
+
+    # ---- Matminer structure featurizers (new) ----
+    FeaturizerSpec(
+        id="matminer_site_stats",
+        display_name="Matminer SiteStats Features",
+        description="Generate site-level structure statistics (coordination, bond lengths, etc.) "
+                    "using matminer.featurizers.structure.sites.SiteStatsFingerprint.",
+        input_modalities=["structure"],
+        feature_type="structure_descriptors",
+        supported_task_types=["regression", "classification"],
+        aliases=["matminer_site_stats", "site_stats", "site_fingerprint"],
+        status="available" if _matminer_full_ok else "planned",
+        mvp_supported=_matminer_full_ok,
+        requires_dependencies=["pymatgen", "matminer"],
+        dependency_status={
+            "pymatgen": _DEPENDENCY_CACHE["pymatgen"].model_dump(),
+            "matminer": _DEPENDENCY_CACHE["matminer"].model_dump(),
+        },
+        output_feature_kind="numeric",
+        estimated_feature_count="variable",
+        fallback_priority=30,
+    ),
+
+    # ---- Pure-Python descriptor featurizers (new) ----
+    FeaturizerSpec(
+        id="descriptor_statistical",
+        display_name="Statistical Descriptor Features",
+        description="Generate pairwise ratios, products, and per-row summary statistics "
+                    "from existing numeric descriptor columns. No external dependencies.",
+        input_modalities=["descriptor"],
+        feature_type="existing_descriptors",
+        supported_task_types=["regression", "classification"],
+        aliases=["descriptor_statistical", "statistical_features", "descriptor_stats"],
+        status="available",
+        mvp_supported=True,
+        requires_dependencies=[],
+        dependency_status={},
+        output_feature_kind="numeric",
+        estimated_feature_count="variable",
+        fallback_priority=70,
+    ),
+
+    # ---- Metadata featurizer (new) ----
+    FeaturizerSpec(
+        id="metadata_feature_extractor",
+        display_name="Metadata Column Extractor",
+        description="Identify and extract experimental metadata columns (temperature, pressure, "
+                    "synthesis method, etc.) as features. Converts low-cardinality categorical "
+                    "metadata to one-hot encoding.",
+        input_modalities=["descriptor", "composition", "structure"],
+        feature_type="existing_descriptors",
+        supported_task_types=["regression", "classification"],
+        aliases=["metadata_feature_extractor", "metadata", "experimental_metadata"],
+        status="available",
+        mvp_supported=True,
+        requires_dependencies=[],
+        dependency_status={},
+        output_feature_kind="mixed",
+        estimated_feature_count="variable",
+        fallback_priority=20,
     ),
 ]
 
@@ -533,6 +655,68 @@ def get_planned_featurizers(input_modality: Optional[str] = None) -> List[Featur
 def get_featurizers_requiring_dependency(dep_name: str) -> List[FeaturizerSpec]:
     """Return featurizers that require a specific dependency."""
     return [s for s in _FEATURIZERS if dep_name in s.requires_dependencies]
+
+
+# ---------------------------------------------------------------------------
+# Capability-to-featurizer resolution
+# ---------------------------------------------------------------------------
+
+def resolve_featurizers_from_capability_actions(
+    selected_actions: list,
+    input_modality: str,
+) -> list:
+    """Resolve selected_feature_actions (from LLM) to executable featurizer IDs.
+
+    Each action should have 'action_id' and 'capability_id' keys.
+    Uses the FE Capability Registry's featurizer_ids mapping to bridge the two registries.
+
+    Returns a list of dicts with keys:
+        action_id, capability_id, featurizer_id, status
+    where status is one of: "resolved", "unavailable", "no_implementation"
+    """
+    from app.shared.registry.fe_capability_registry import resolve_capability_to_featurizers
+
+    results = []
+    for action in selected_actions:
+        capability_id = action.get("capability_id", "")
+        action_id = action.get("action_id", "")
+
+        featurizer_ids = resolve_capability_to_featurizers(capability_id)
+
+        if not featurizer_ids:
+            results.append({
+                "action_id": action_id,
+                "capability_id": capability_id,
+                "featurizer_id": None,
+                "status": "no_implementation",
+            })
+            continue
+
+        found = False
+        for fid in featurizer_ids:
+            spec = get_featurizer_by_id(fid)
+            if spec is None:
+                continue
+            eff = get_featurizer_effective_status(spec)
+            if eff == "available" and input_modality in spec.input_modalities:
+                results.append({
+                    "action_id": action_id,
+                    "capability_id": capability_id,
+                    "featurizer_id": fid,
+                    "status": "resolved",
+                })
+                found = True
+                break
+
+        if not found:
+            results.append({
+                "action_id": action_id,
+                "capability_id": capability_id,
+                "featurizer_id": featurizer_ids[0] if featurizer_ids else None,
+                "status": "unavailable",
+            })
+
+    return results
 
 
 # ---------------------------------------------------------------------------

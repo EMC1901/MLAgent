@@ -34,7 +34,7 @@ PREPROCESSING_PLAN_SCHEMA = {
                     "type": "object",
                     "required": ["fit_transform_scope", "target_column_excluded", "id_columns_excluded", "target_aware_selection_allowed", "rationale"],
                     "properties": {
-                        "fit_transform_scope": {"type": "string", "enum": ["train_fold_only"]},
+                        "fit_transform_scope": {"type": "string", "enum": ["train_fold_only", "fold_only"]},
                         "target_column_excluded": {"type": "boolean"},
                         "id_columns_excluded": {"type": "boolean"},
                         "target_aware_selection_allowed": {"type": "boolean"},
@@ -169,12 +169,14 @@ Your task is to generate a structured, executable PreprocessingPlan based on:
 2. Only capabilities with status="available" may be used in operations.
 3. You MUST NOT invent capability_ids or preprocessing operations.
 4. You MUST NOT generate Python code, SQL, or any executable code.
-5. Every operation MUST have a complete decision_rationale with: reason, evidence, expected_benefit, risk, fallback.
-6. Each operation's execution_scope MUST match the capability's declared fit_scope (no looser scope allowed).
-7. Target-aware selection MUST be disabled by default (target_aware_selection_allowed=false).
-8. Target column MUST be excluded from feature matrix (scope per capability's fit_scope).
-9. ID columns MUST be excluded or flagged.
-10. You MUST NOT fit any transformer on full data for CV evaluation.
+5. Every operation MUST have a decision_rationale (empty arrays for evidence/risk are acceptable).
+6. Each operation's execution_scope MUST match the capability's declared fit_scope (read from the registry).
+7. fold_only operations are deferred to CV fold execution — they will be fit on X_train only inside each fold.
+8. dataset_profile_only operations run globally on the full dataset (safe: analysis, filtering, leakage detection).
+9. Target-aware selection MUST be disabled by default (target_aware_selection_allowed=false).
+10. Target column MUST be excluded from feature matrix.
+11. ID columns MUST be excluded or flagged.
+12. You MUST NOT fit any transformer on full data for CV evaluation.
 11. Feature lineage MUST be traceable through all operations.
 12. Rejected operations MUST have a reason and evidence.
 
@@ -269,10 +271,13 @@ def build_preprocessing_plan_prompt(
         "REMEMBER:",
         "1. Output ONLY the JSON object. No markdown, no code blocks.",
         "2. Use ONLY capability_id from the Capability Registry.",
-        "3. Every operation MUST have complete decision_rationale.",
-        "4. fit_scope MUST be fold_only for all fit-type operations.",
-        "5. Target-aware selection is disabled by default.",
-        "6. Follow the operational sequence order.",
+        "3. Every operation MUST have decision_rationale (empty arrays ok for evidence if none).",
+        "4. execution_scope MUST match the capability's fit_scope from the registry (fold_only/dataset_profile_only).",
+        "5. fit_transform_scope in leakage_prevention should be 'fold_only' to match this architecture.",
+        "6. fold_only operations (imputation, scaling, transforms, feature selection, PCA) are deferred to CV fold execution — they will be fit on train data only inside each fold.",
+        "7. dataset_profile_only operations (analysis, filtering, leakage detection, correlation) are executed globally on full data.",
+        "8. Target-aware selection is disabled by default.",
+        "9. Follow the operational sequence order.",
     ]
 
     user_message = "\n".join(user_message_parts)

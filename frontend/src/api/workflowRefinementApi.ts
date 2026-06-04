@@ -63,15 +63,6 @@ export const getIterationRerunPlan = async (
   return response.data;
 };
 
-export const getFinalPipelineSelectionInput = async (
-  wrId: string,
-): Promise<ApiResponse<Record<string, unknown>>> => {
-  const response = await api.get<ApiResponse<Record<string, unknown>>>(
-    `/api/workflow-refinements/${wrId}/final-pipeline-selection-input`,
-  );
-  return response.data;
-};
-
 export const adoptRevisedPlan = async (
   wrId: string,
 ): Promise<ApiResponse<AdoptRevisedPlanResult>> => {

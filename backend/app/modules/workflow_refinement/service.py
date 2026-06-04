@@ -39,7 +39,6 @@ from app.modules.workflow_refinement.revised_workflow_plan_validator import (
 )
 from app.modules.workflow_refinement.workflow_plan_delta_builder import build_workflow_plan_delta
 from app.modules.workflow_refinement.iteration_rerun_plan_builder import build_iteration_rerun_plan
-from app.modules.workflow_refinement.final_selection_input_builder import build_final_selection_input
 from app.modules.workflow_refinement.refinement_artifact_manager import save_refinement_artifacts
 from app.modules.workflow_refinement.builder import build_response
 
@@ -156,7 +155,6 @@ class WorkflowRefinementService:
             evidence = normalized.get("evidence_used") or []
             llm_revised_plan = normalized.get("revised_workflow_plan")
             llm_rerun_plan = normalized.get("iteration_rerun_plan")
-            llm_fpsi = normalized.get("final_pipeline_selection_input")
             recommended_rerun = decision_obj.get("recommended_rerun_from_stage")
 
             # Step 10: Validate revised workflow plan if present
@@ -184,33 +182,10 @@ class WorkflowRefinementService:
                 (llm_revised_plan or {}).get("refinement_metadata") if llm_revised_plan else None,
             )
 
-            # Step 12: Build iteration rerun plan or final selection input
+            # Step 12: Build iteration rerun plan
             rerun_plan = build_iteration_rerun_plan(
                 llm_rerun_plan, decision, recommended_rerun,
                 (reasoning.get("final_reasoning_summary") if reasoning else ""),
-            )
-
-            # Gather best model/trial info
-            best_me_id = rd.metric_evaluation_id
-            best_model_id = None
-            best_trial_id = None
-            best_pipeline_spec_id = None
-            try:
-                from app.modules.metric_evaluation.repository import MetricEvaluationRepository
-                me_repo = MetricEvaluationRepository()
-                me = me_repo.get_latest_by_task_id(session, task_id)
-                if me:
-                    best_me_id = me.id
-                    best_model_id = me.best_model_id
-                    best_trial_id = me.best_trial_id
-                    if me.evaluation_json:
-                        best_pipeline_spec_id = me.evaluation_json.get("best_pipeline_spec_id")
-            except Exception:
-                pass
-
-            final_selection_input = build_final_selection_input(
-                wr_id, task_id, decision, llm_fpsi,
-                best_me_id, best_model_id, best_trial_id, best_pipeline_spec_id,
             )
 
             # Step 13: Save artifacts
@@ -223,7 +198,6 @@ class WorkflowRefinementService:
                 revised_workflow_plan=llm_revised_plan or {},
                 workflow_plan_delta=plan_delta,
                 iteration_rerun_plan=rerun_plan,
-                final_pipeline_selection_input=final_selection_input,
                 validation_result={
                     "is_valid": is_valid,
                     "safety_scan_passed": safety_passed,
@@ -246,15 +220,11 @@ class WorkflowRefinementService:
                 decision == WorkflowRefinementDecision.ITERATE_REFINEMENT
                 and (revised_plan_valid if revised_plan_valid is not None else True)
             )
-            record.ready_for_final_pipeline_selection = (
-                decision == WorkflowRefinementDecision.PROCEED_NEXT_STAGE
-            )
             record.iteration_index = iteration_index
             record.workflow_refinement_json = normalized
             record.revised_workflow_plan_json = llm_revised_plan
             record.workflow_plan_delta_json = plan_delta
             record.iteration_rerun_plan_json = rerun_plan
-            record.final_pipeline_selection_input_json = final_selection_input
             record.validation_result_json = {
                 "is_valid": is_valid,
                 "safety_scan_passed": safety_passed,
@@ -275,7 +245,6 @@ class WorkflowRefinementService:
                 revised_plan=llm_revised_plan,
                 plan_delta=plan_delta,
                 rerun_plan=rerun_plan,
-                final_selection_input=final_selection_input,
                 validation_result={
                     "is_valid": is_valid,
                     "decision_valid": is_valid,
@@ -343,16 +312,6 @@ class WorkflowRefinementService:
                 f"WorkflowRefinement '{wr_id}' not found."
             )
         return record.iteration_rerun_plan_json or {}
-
-    def get_final_pipeline_selection_input(
-        self, session: Session, wr_id: str
-    ) -> dict:
-        record = self.repo.get_by_id(session, wr_id)
-        if not record:
-            raise WorkflowRefinementNotFoundException(
-                f"WorkflowRefinement '{wr_id}' not found."
-            )
-        return record.final_pipeline_selection_input_json or {}
 
     def get_iteration_context_for_diagnosis(
         self, session: Session, rd_id: str
@@ -482,6 +441,5 @@ class WorkflowRefinementService:
             revised_plan=record.revised_workflow_plan_json,
             plan_delta=record.workflow_plan_delta_json,
             rerun_plan=record.iteration_rerun_plan_json,
-            final_selection_input=record.final_pipeline_selection_input_json,
             validation_result=record.validation_result_json,
         )

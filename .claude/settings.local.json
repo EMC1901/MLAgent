@@ -75,7 +75,17 @@
       "Bash(docker exec mlagent-db-1 *)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(alembic revision *)",
-      "Bash(alembic upgrade *)"
+      "Bash(alembic upgrade *)",
+      "Bash(git *)",
+      "Bash(PYTHONPATH=/c/projects/MLAgent/backend python *)",
+      "Bash(npm install *)",
+      "Bash(awk -F/ '{print}')",
+      "Bash(sed -i 's/        logger\\\\.info\\(/        _diag\\(/g' backend/app/modules/feature_engineering/featurizers/matminer_featurizers.py)",
+      "Bash(sed -i 's/                logger\\\\.info\\(/                _diag\\(/g' backend/app/modules/feature_engineering/featurizers/matminer_featurizers.py)",
+      "Bash(pip show *)",
+      "Bash(python3 *)",
+      "Bash(docker exec *)",
+      "WebSearch"
     ]
   }
 }

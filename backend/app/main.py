@@ -1,5 +1,36 @@
 import logging
-logging.basicConfig(level=logging.INFO, format="%(levelname)-5.5s [%(name)s] %(message)s")
+import sys
+import warnings
+
+# Suppress sklearn ConvergenceWarning noise
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
+warnings.filterwarnings("ignore", message=".*did not converge.*")
+
+# ── Application logging ──
+# uvicorn applies logging.config.dictConfig AFTER the on_event("startup")
+# handler runs, which overwrites any root-level handler we install.
+# Workaround: install a handler directly on every "app.*" logger as they are
+# created, via a small monkey-patch on logging.getLogger.
+
+_APP_FMT = logging.Formatter(
+    "%(asctime)s  %(levelname)-5s [%(name)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+_APP_HANDLER = logging.StreamHandler(sys.stderr)
+_APP_HANDLER.setFormatter(_APP_FMT)
+
+_orig_getLogger = logging.getLogger
+
+def _patched_getLogger(name=None):
+    logger = _orig_getLogger(name)
+    if name and (name == "app" or name.startswith("app.")):
+        logger.setLevel(logging.INFO)
+        if _APP_HANDLER not in logger.handlers:
+            logger.addHandler(_APP_HANDLER)
+        logger.propagate = False
+    return logger
+
+logging.getLogger = _patched_getLogger
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,11 +51,11 @@ from app.modules.model_search_context.api import router as model_search_context_
 from app.modules.pipeline_generation.api import router as pipeline_generation_router
 from app.modules.pipeline_execution.api import router as pipeline_execution_router
 from app.modules.metric_evaluation.api import router as metric_evaluation_router
-from app.modules.result_diagnosis.api import router as result_diagnosis_router
-from app.modules.workflow_refinement.api import router as workflow_refinement_router
-from app.modules.final_pipeline_selection.api import router as final_pipeline_selection_router
+from app.modules.iteration_decision.api import router as iteration_decision_router
 from app.modules.interpretability_analysis.api import router as interpretability_analysis_router
 from app.modules.final_output.api import router as final_output_router
+from app.modules.visualization.api import router as visualization_router
+from app.modules.llm_config.api import router as llm_config_router
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +73,22 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
+    # Suppress verbose third-party logging
+    for lib in ("sklearn", "optuna", "matplotlib", "PIL", "uvicorn", "fastapi"):
+        logging.getLogger(lib).setLevel(logging.WARNING)
+    try:
+        import optuna
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+    except ImportError:
+        pass
+
     try:
         alembic_cfg = Config("alembic.ini")
         command.upgrade(alembic_cfg, "head")
-        logger.info("Database migrations applied successfully.")
     except Exception as e:
         logger.error("Failed to apply database migrations: %s", str(e))
         raise
+    logger.info("MLAgent backend started successfully.")
 
 
 @app.on_event("shutdown")
@@ -67,11 +107,11 @@ app.include_router(model_search_context_router)
 app.include_router(pipeline_generation_router)
 app.include_router(pipeline_execution_router)
 app.include_router(metric_evaluation_router)
-app.include_router(result_diagnosis_router)
-app.include_router(workflow_refinement_router)
-app.include_router(final_pipeline_selection_router)
+app.include_router(iteration_decision_router)
 app.include_router(interpretability_analysis_router)
 app.include_router(final_output_router)
+app.include_router(visualization_router)
+app.include_router(llm_config_router)
 
 
 @app.exception_handler(BusinessException)

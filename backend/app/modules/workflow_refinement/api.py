@@ -140,28 +140,6 @@ def get_iteration_rerun_plan(
 
 
 @router.get(
-    "/api/workflow-refinements/{workflow_refinement_id}/final-pipeline-selection-input",
-    response_model=dict,
-)
-def get_final_pipeline_selection_input(
-    workflow_refinement_id: str,
-    session: Session = Depends(get_session),
-):
-    try:
-        result = service.get_final_pipeline_selection_input(session, workflow_refinement_id)
-        return success_response(
-            "Final pipeline selection input retrieved successfully.",
-            data=result,
-        )
-    except BusinessException as e:
-        status_code = 404 if e.error_code in ("WORKFLOW_REFINEMENT_NOT_FOUND",) else 400
-        raise HTTPException(
-            status_code=status_code,
-            detail={"message": e.message, "error_code": e.error_code},
-        )
-
-
-@router.get(
     "/api/result-diagnoses/{rd_id}/iteration-context",
     response_model=dict,
 )

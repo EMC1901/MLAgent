@@ -18,7 +18,6 @@ def save_refinement_artifacts(
     revised_workflow_plan: Dict[str, Any],
     workflow_plan_delta: Dict[str, Any],
     iteration_rerun_plan: Dict[str, Any],
-    final_pipeline_selection_input: Dict[str, Any],
     validation_result: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Save all workflow refinement artifacts to disk."""
@@ -35,7 +34,6 @@ def save_refinement_artifacts(
             "revised_workflow_plan.json": revised_workflow_plan,
             "workflow_plan_delta.json": workflow_plan_delta,
             "iteration_rerun_plan.json": iteration_rerun_plan,
-            "final_pipeline_selection_input.json": final_pipeline_selection_input,
             "validation_result.json": validation_result,
         }
 
@@ -61,7 +59,6 @@ def save_refinement_artifacts(
             "revised_workflow_plan_path": manifest.get("revised_workflow_plan"),
             "workflow_plan_delta_path": manifest.get("workflow_plan_delta"),
             "iteration_rerun_plan_path": manifest.get("iteration_rerun_plan"),
-            "final_pipeline_selection_input_path": manifest.get("final_pipeline_selection_input"),
             "validation_result_path": manifest.get("validation_result"),
         }
 

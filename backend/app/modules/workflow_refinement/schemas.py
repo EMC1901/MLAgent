@@ -102,27 +102,6 @@ class IterationRerunPlan(BaseModel):
     reasoning: str = ""
 
 
-class SelectionPolicy(BaseModel):
-    metric: Optional[str] = None
-    direction: Optional[str] = None
-    selection_criteria: List[str] = []
-
-
-class FinalPipelineSelectionInput(BaseModel):
-    workflow_refinement_id: Optional[str] = None
-    task_id: Optional[str] = None
-    decision: str = "proceed_next_stage"
-    candidate_metric_evaluation_ids: List[str] = []
-    candidate_pipeline_execution_ids: List[str] = []
-    best_metric_evaluation_id: Optional[str] = None
-    current_best_model_id: Optional[str] = None
-    current_best_trial_id: Optional[str] = None
-    current_best_pipeline_spec_id: Optional[str] = None
-    selection_policy: Optional[SelectionPolicy] = None
-    constraints: Optional[Dict[str, Any]] = None
-    ready_for_final_pipeline_selection: bool = False
-
-
 class ExperimentHistorySummary(BaseModel):
     n_iterations_completed: int = 0
     best_metric_so_far: Optional[Any] = None
@@ -142,7 +121,6 @@ class WorkflowRefinementValidationResult(BaseModel):
     reasoning_valid: bool = True
     revised_plan_valid: Optional[bool] = None
     rerun_plan_valid: Optional[bool] = None
-    final_selection_input_valid: Optional[bool] = None
     safety_scan_passed: bool = True
     issues: List[str] = []
     warnings: List[str] = []
@@ -154,7 +132,6 @@ class LLMWorkflowRefinementResult(BaseModel):
     evidence_used: List[EvidenceUsed] = []
     revised_workflow_plan: Optional[Dict[str, Any]] = None
     iteration_rerun_plan: Optional[Dict[str, Any]] = None
-    final_pipeline_selection_input: Optional[Dict[str, Any]] = None
     confidence_level: str = "medium"
 
 
@@ -167,7 +144,6 @@ class ArtifactManifest(BaseModel):
     revised_workflow_plan_path: Optional[str] = None
     workflow_plan_delta_path: Optional[str] = None
     iteration_rerun_plan_path: Optional[str] = None
-    final_pipeline_selection_input_path: Optional[str] = None
     validation_result_path: Optional[str] = None
 
 
@@ -188,12 +164,10 @@ class WorkflowRefinementResponse(BaseModel):
     revised_workflow_plan: Optional[RevisedWorkflowPlanResponse] = None
     workflow_plan_delta: Optional[WorkflowPlanDelta] = None
     iteration_rerun_plan: Optional[IterationRerunPlan] = None
-    final_pipeline_selection_input: Optional[FinalPipelineSelectionInput] = None
     llm_workflow_refinement: Optional[LLMWorkflowRefinementResult] = None
     workflow_refinement_validation_result: Optional[WorkflowRefinementValidationResult] = None
     artifact_manifest: Optional[ArtifactManifest] = None
     ready_for_iteration: bool = False
-    ready_for_final_pipeline_selection: bool = False
     warnings: List[str] = []
     error_message: Optional[str] = None
     created_at: Optional[datetime] = None

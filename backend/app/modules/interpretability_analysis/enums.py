@@ -79,10 +79,25 @@ VALID_CONFIDENCE_LEVELS = {
     LLMInterpretabilityConfidence.HIGH,
 }
 
-DANGEROUS_PATTERNS = [
-    "import ", "def ", "class ", "eval(", "exec(", "subprocess", "os.system",
-    "open(", "write(", "delete", "remove", "shutil", "model.fit", "model.predict",
-    "Pipeline(", "__import__", "compile(", "globals()", "locals()",
+# Literal substring patterns — already specific enough to avoid false positives
+DANGEROUS_PATTERNS_LITERAL = [
+    "eval(", "exec(", "subprocess", "os.system",
+    "model.fit", "model.predict", "Pipeline(",
+    "__import__", "compile(", "globals()", "locals()",
+    "shutil.",
+]
+
+# Regex patterns for Python keywords that are also common English words.
+# Use word-boundary + name-followed-by syntax to avoid matching natural language
+# (e.g. "class of materials" should NOT flag, but "class MyModel:" should).
+DANGEROUS_PATTERNS_REGEX = [
+    (r'\bclass\s+[A-Za-z_]\w*', 'class <Name>'),    # class definition
+    (r'\bdef\s+[A-Za-z_]\w*', 'def <Name>'),         # function definition
+    (r'\bimport\s+[A-Za-z_]\w*', 'import <Module>'),  # import statement
+    (r'\bopen\s*\(', 'open(...)'),                     # open() call
+    (r'\bwrite\s*\(', 'write(...)'),                   # write() call
+    (r'\bdelete\s+', 'delete <target>'),               # delete statement
+    (r'\bremove\s+', 'remove <target>'),               # remove statement
 ]
 
 FORBIDDEN_LLM_FIELDS = [

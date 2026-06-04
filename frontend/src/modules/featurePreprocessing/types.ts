@@ -250,6 +250,7 @@ export interface FeatureGroupValidation {
 export interface PreprocessingStepResult {
   executed: boolean;
   strategy: string;
+  execution_mode?: string;  // "global" | "fold_safe" | "none"
   columns: string[];
   artifact_component: string;
 }
@@ -257,7 +258,15 @@ export interface PreprocessingStepResult {
 export interface FeatureSelectionStepResult {
   executed: boolean;
   strategy: string;
+  execution_mode?: string;  // "global" | "fold_safe" | "none"
   columns_dropped: string[];
+}
+
+export interface FoldSafeDeferred {
+  has_deferred: boolean;
+  n_deferred_operations: number;
+  operations_by_group: Record<string, string[]>;
+  fold_spec_path?: string | null;
 }
 
 export interface PreprocessingExecution {
@@ -265,6 +274,7 @@ export interface PreprocessingExecution {
   scaling: PreprocessingStepResult;
   categorical_encoding: PreprocessingStepResult;
   feature_selection: FeatureSelectionStepResult;
+  fold_safe_deferred?: FoldSafeDeferred | null;
 }
 
 export interface InputArtifact {

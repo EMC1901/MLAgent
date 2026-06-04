@@ -5,9 +5,9 @@ const TaskSpecificationPage: React.FC = () => {
   return (
     <div style={styles.page}>
       <header style={styles.header}>
-        <h1 style={styles.title}>MLAgent - Task Specification</h1>
+        <h1 style={styles.title}>Mat-AIDE</h1>
         <p style={styles.subtitle}>
-          Submit your materials machine learning task requirements
+          An AI-driven platform for autonomous and interpretable data-driven modeling in materials science
         </p>
       </header>
       <main style={styles.main}>

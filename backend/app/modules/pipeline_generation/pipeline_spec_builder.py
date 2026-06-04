@@ -20,14 +20,26 @@ def build_pipeline_specs(context: dict, include_baselines: bool = True, include_
     specs = []
     task_type = context.get("task_type", "regression")
 
-    # Process baseline models
+    # Diagnostic: log the available search spaces at spec build time
+    space_model_ids = [s.get("model_id") for s in search_space_plan.get("spaces", [])]
+    cand_model_entries = [
+        (c.get("model_id"), c.get("model_family"), c.get("hpo_enabled"))
+        for c in candidate_model_plan.get("candidate_models", [])
+    ]
+    logger.info("PG spec build: search_space model_ids=%s", space_model_ids)
+    logger.info("PG spec build: candidate models=%s", cand_model_entries)
+
+    # Process baseline models (baselines never use HPO)
     if include_baselines:
         for b in candidate_model_plan.get("baseline_models", []):
+            if b.get("hpo_enabled"):
+                logger.warning("Baseline model '%s' has hpo_enabled=True — forcing to False", b.get("model_id"))
+                b["hpo_enabled"] = False
             spec = _build_single_spec(
                 model_entry=b,
                 role=PipelineRole.BASELINE,
                 context=context,
-                search_space_plan=search_space_plan,
+                search_space_plan={},  # baselines don't get search spaces
                 validation_plan=validation_plan,
                 evaluation_plan=evaluation_plan,
             )
@@ -86,11 +98,24 @@ def _build_single_spec(
     search_space_ref = None
     search_space = None
     if hpo_enabled:
-        for space in search_space_plan.get("spaces", []):
-            if space.get("model_id") == model_id:
+        spaces = search_space_plan.get("spaces", [])
+        for space in spaces:
+            if space.get("model_id") == model_id or space.get("model_id") == model_family:
                 search_space_ref = space.get("search_space_id")
                 search_space = space
                 break
+        # Fallback: match by model_family if model_id didn't match
+        if search_space is None and model_family and model_family != model_id:
+            for space in spaces:
+                if space.get("model_id") == model_family:
+                    search_space_ref = space.get("search_space_id")
+                    search_space = space
+                    logger.debug("search_space fallback match for '%s' via model_family '%s'", model_id, model_family)
+                    break
+        if search_space is None:
+            logger.debug("search_space NOT FOUND for model_id='%s' model_family='%s'; available spaces: %s",
+                         model_id, model_family,
+                         [s.get("model_id") for s in spaces])
 
     display_name = model_id
     if model_spec_entry:

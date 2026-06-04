@@ -1,3 +1,5 @@
+import logging
+import traceback
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 from app.shared.database.session import get_session
@@ -15,7 +17,11 @@ from app.modules.feature_preprocessing.service import FeaturePreprocessingServic
 from app.shared.common.response import success_response
 from app.shared.common.exceptions import BusinessException
 
-router = APIRouter(tags=["feature-preprocessing"])
+
+logger = logging.getLogger(__name__)
+
+
+router = APIRouter(tags=["data-preprocessing"])
 service = FeaturePreprocessingService()
 
 # ---- Error code classification ----
@@ -41,7 +47,7 @@ def get_fp_capabilities():
         available = get_available_fp_capabilities()
         snapshot = get_registry_snapshot_fp()
         return success_response(
-            "Feature Preprocessing capabilities retrieved.",
+            "Data Preprocessing capabilities retrieved.",
             data={
                 "capability_groups": CAPABILITY_GROUPS,
                 "available_capabilities": [
@@ -72,42 +78,62 @@ def get_fp_capabilities():
 # ---- Create (main flow) ----
 
 @router.post("/api/feature-preprocessing/{task_id}", response_model=dict)
-def create_feature_preprocessing(
+async def create_feature_preprocessing(
     task_id: str,
     request: FeaturePreprocessingCreateRequest = FeaturePreprocessingCreateRequest(),
     session: Session = Depends(get_session),
 ):
+    logger.debug("=== CREATE /api/feature-preprocessing/%s === mode=%s", task_id, request.planning_mode)
     try:
-        result = service.create_feature_preprocessing(session, task_id, request)
+        logger.debug("[fmp] calling service.create_feature_preprocessing ...")
+        result = await service.create_feature_preprocessing(session, task_id, request)
+        logger.debug("[fmp] service returned, status=%s", result.status)
         return success_response(
             "Feature preprocessing completed successfully.",
             data=result.model_dump(),
         )
     except BusinessException as e:
+        logger.debug("[fmp] BusinessException: code=%s msg=%s", e.error_code, e.message)
         raise HTTPException(
             status_code=_status_code(e),
             detail={"message": e.message, "error_code": e.error_code},
+        )
+    except Exception:
+        logger.debug("[fmp] UNHANDLED EXCEPTION in create_feature_preprocessing:\n%s", traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail={"message": "Internal server error during feature preprocessing.", "error_code": "INTERNAL_ERROR"},
         )
 
 
 # ---- Plan (generate plan only, no execution) ----
 
 @router.post("/api/feature-preprocessing/{task_id}/plan", response_model=dict)
-def generate_preprocessing_plan(
+async def generate_preprocessing_plan(
     task_id: str,
     request: PlanRequest = PlanRequest(),
     session: Session = Depends(get_session),
 ):
+    logger.debug("=== PLAN /api/feature-preprocessing/%s/plan === force=%s", task_id, request.force_regenerate)
     try:
-        result = service.plan_only(session, task_id, request)
+        logger.debug("[fmp-plan] calling service.plan_only ...")
+        result = await service.plan_only(session, task_id, request)
+        logger.debug("[fmp-plan] service returned, plan_id=%s", result.preprocessing_id)
         return success_response(
             "PreprocessingPlan generated successfully.",
             data=result.model_dump(),
         )
     except BusinessException as e:
+        logger.debug("[fmp-plan] BusinessException: code=%s msg=%s", e.error_code, e.message)
         raise HTTPException(
             status_code=_status_code(e),
             detail={"message": e.message, "error_code": e.error_code},
+        )
+    except Exception:
+        logger.debug("[fmp-plan] UNHANDLED EXCEPTION:\n%s", traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail={"message": "Internal server error during plan generation.", "error_code": "INTERNAL_ERROR"},
         )
 
 
@@ -119,16 +145,27 @@ def execute_preprocessing_plan(
     request: ExecuteRequest = ExecuteRequest(),
     session: Session = Depends(get_session),
 ):
+    logger.debug("=== EXECUTE /api/feature-preprocessing/%s/execute === plan_id=%s has_inline_plan=%s",
+          task_id, request.plan_id, request.plan is not None)
     try:
+        logger.debug("[fmp-exec] calling service.execute_plan ...")
         result = service.execute_plan(session, task_id, request)
+        logger.debug("[fmp-exec] service returned, status=%s", result.status)
         return success_response(
             "PreprocessingPlan executed successfully.",
             data=result.model_dump(),
         )
     except BusinessException as e:
+        logger.debug("[fmp-exec] BusinessException: code=%s msg=%s", e.error_code, e.message)
         raise HTTPException(
             status_code=_status_code(e),
             detail={"message": e.message, "error_code": e.error_code},
+        )
+    except Exception:
+        logger.debug("[fmp-exec] UNHANDLED EXCEPTION:\n%s", traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail={"message": "Internal server error during plan execution.", "error_code": "INTERNAL_ERROR"},
         )
 
 
@@ -169,21 +206,30 @@ def get_latest_feature_preprocessing_by_task(task_id: str, session: Session = De
 # ---- Rerun ----
 
 @router.post("/api/feature-preprocessing/{task_id}/rerun", response_model=dict)
-def rerun_feature_preprocessing(
+async def rerun_feature_preprocessing(
     task_id: str,
     request: FeaturePreprocessingCreateRequest = FeaturePreprocessingCreateRequest(),
     session: Session = Depends(get_session),
 ):
+    logger.debug("=== RERUN /api/feature-preprocessing/%s/rerun === mode=%s", task_id, request.planning_mode)
     try:
-        result = service.rerun_feature_preprocessing(session, task_id, request)
+        result = await service.rerun_feature_preprocessing(session, task_id, request)
+        logger.debug("[fmp-rerun] service returned, status=%s", result.status)
         return success_response(
             "Feature preprocessing re-run successfully.",
             data=result.model_dump(),
         )
     except BusinessException as e:
+        logger.debug("[fmp-rerun] BusinessException: code=%s msg=%s", e.error_code, e.message)
         raise HTTPException(
             status_code=_status_code(e),
             detail={"message": e.message, "error_code": e.error_code},
+        )
+    except Exception:
+        logger.debug("[fmp-rerun] UNHANDLED EXCEPTION:\n%s", traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail={"message": "Internal server error during feature preprocessing rerun.", "error_code": "INTERNAL_ERROR"},
         )
 
 

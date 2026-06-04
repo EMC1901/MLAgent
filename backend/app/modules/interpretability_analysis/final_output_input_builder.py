@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 def build_final_output_input(
     interpretability_analysis_id: str,
-    final_pipeline_selection_id: str,
     task_id: str,
     final_model_id: str,
     final_trial_id: str,
@@ -47,7 +46,6 @@ def build_final_output_input(
     logger.info("Built FinalOutputInput for interpretability analysis %s", interpretability_analysis_id)
     return FinalOutputInput(
         interpretability_analysis_id=interpretability_analysis_id,
-        final_pipeline_selection_id=final_pipeline_selection_id,
         task_id=task_id,
         final_model_id=final_model_id,
         final_trial_id=final_trial_id,

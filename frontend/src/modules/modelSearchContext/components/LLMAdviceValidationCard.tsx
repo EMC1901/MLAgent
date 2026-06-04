@@ -8,7 +8,7 @@ interface Props {
 
 const LLMAdviceValidationCard: React.FC<Props> = ({ validation }) => {
   return (
-    <Card title="LLM Advice Validation" size="small" style={{ marginBottom: 16 }}>
+    <Card title="AI Advice Validation" size="small" style={{ marginBottom: 16 }}>
       <Descriptions bordered size="small" column={2}>
         <Descriptions.Item label="Is Valid">
           <Tag color={validation.is_valid ? 'success' : 'error'}>

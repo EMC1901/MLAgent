@@ -73,7 +73,8 @@ def build_model_search_context(session: Session, task_id: str) -> dict:
         )
     if fe.status not in ("completed", "completed_with_warning"):
         raise UpstreamNotReadyException(
-            f"Feature engineering for task {task_id} status is '{fe.status}'.",
+            f"Feature engineering for task {task_id} status is '{fe.status}'. "
+            "Expected 'completed' or 'completed_with_warning'.",
             "FEATURE_ENGINEERING_NOT_READY",
         )
 
@@ -83,9 +84,10 @@ def build_model_search_context(session: Session, task_id: str) -> dict:
         raise UpstreamNotReadyException(
             f"No feature preprocessing found for task {task_id}.", "FEATURE_PREPROCESSING_NOT_READY"
         )
-    if fmp.status not in ("preprocessed", "preprocessed_with_warning"):
+    if fmp.status not in ("preprocessed", "preprocessed_with_warning", "success"):
         raise UpstreamNotReadyException(
-            f"Feature preprocessing for task {task_id} status is '{fmp.status}'.",
+            f"Feature preprocessing for task {task_id} status is '{fmp.status}'. "
+            "Expected 'preprocessed' or 'preprocessed_with_warning'.",
             "FEATURE_PREPROCESSING_NOT_READY",
         )
     if not fmp.is_ready_for_model_search:

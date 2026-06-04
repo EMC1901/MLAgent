@@ -13,7 +13,7 @@ def load_feature_matrix(
     feature_columns: List[str],
     target_column: Optional[str] = None,
     max_samples: Optional[int] = None,
-) -> Tuple[pd.DataFrame, Optional[pd.Series]]:
+) -> Tuple[pd.DataFrame, Optional[pd.Series], Optional[pd.Index]]:
     if not os.path.exists(matrix_path):
         raise FeatureMatrixLoadException(f"Feature matrix not found at: {matrix_path}")
 
@@ -23,6 +23,9 @@ def load_feature_matrix(
         raise FeatureMatrixLoadException(
             f"Feature matrix path is outside allowed directory: {matrix_path}"
         )
+
+    file_size_mb = os.path.getsize(normalized) / (1024 * 1024) if os.path.exists(normalized) else 0
+    logger.info("Loading feature matrix (%.1f MB) from %s ...", file_size_mb, normalized)
 
     try:
         if matrix_path.endswith(".parquet"):
@@ -63,6 +66,7 @@ def load_feature_matrix(
     if target_column and target_column in df.columns:
         y = df[target_column].copy()
 
+    sampled_indices: Optional[pd.Index] = None
     if max_samples and len(X) > max_samples:
         sampled_indices = X.sample(n=max_samples, random_state=42).index
         X = X.loc[sampled_indices]
@@ -73,4 +77,4 @@ def load_feature_matrix(
     logger.info(
         "Loaded feature matrix: %d samples, %d features", len(X), len(feature_columns_final)
     )
-    return X, y
+    return X, y, sampled_indices

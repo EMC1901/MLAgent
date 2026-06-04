@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { listTasks, TaskSummaryResponse } from '../../../api/taskApi';
+import ModelConfigModal from './ModelConfigModal';
 
 interface TaskHistoryListProps {
   onLoadTask: (taskId: string) => void;
@@ -18,25 +19,31 @@ const TaskHistoryList: React.FC<TaskHistoryListProps> = ({
   const [tasks, setTasks] = useState<TaskSummaryResponse[]>([]);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [modelConfigVisible, setModelConfigVisible] = useState(false);
+  const [configVersion, setConfigVersion] = useState(0);
+
+  const fetchTasks = async () => {
+    setFetching(true);
+    setFetchError(null);
+    try {
+      const response = await listTasks();
+      if (response.success) {
+        setTasks(response.data);
+      } else {
+        setFetchError(response.message);
+      }
+    } catch (err: any) {
+      setFetchError(err.message || 'Failed to fetch task list.');
+    } finally {
+      setFetching(false);
+    }
+  };
 
   const handleToggle = async () => {
     const next = !expanded;
     setExpanded(next);
-    if (next && tasks.length === 0) {
-      setFetching(true);
-      setFetchError(null);
-      try {
-        const response = await listTasks();
-        if (response.success) {
-          setTasks(response.data);
-        } else {
-          setFetchError(response.message);
-        }
-      } catch (err: any) {
-        setFetchError(err.message || 'Failed to fetch task list.');
-      } finally {
-        setFetching(false);
-      }
+    if (next) {
+      await fetchTasks();
     }
   };
 
@@ -70,6 +77,20 @@ const TaskHistoryList: React.FC<TaskHistoryListProps> = ({
       <button type="button" onClick={handleToggle} style={s.toggleButton}>
         {expanded ? 'Hide Historical Tasks' : 'Load Historical Tasks'}
       </button>
+
+      <button
+        type="button"
+        onClick={() => setModelConfigVisible(true)}
+        style={s.switchModelButton}
+      >
+        Switch Model
+      </button>
+
+      <ModelConfigModal
+        visible={modelConfigVisible}
+        onClose={() => setModelConfigVisible(false)}
+        onConfigChanged={() => setConfigVersion((v) => v + 1)}
+      />
 
       {expanded && (
         <div style={s.panel}>
@@ -125,6 +146,9 @@ const TaskHistoryList: React.FC<TaskHistoryListProps> = ({
           <button type="button" onClick={onNewTask} style={s.newTaskButton}>
             + New Task
           </button>
+          <button type="button" onClick={fetchTasks} disabled={fetching} style={s.refreshButton}>
+            {fetching ? 'Refreshing...' : 'Refresh'}
+          </button>
         </div>
       )}
     </div>
@@ -144,6 +168,17 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontWeight: 600,
     cursor: 'pointer',
+  },
+  switchModelButton: {
+    padding: '8px 16px',
+    backgroundColor: '#6a1b9a',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '14px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    marginLeft: '8px',
   },
   panel: {
     marginTop: '8px',
@@ -220,6 +255,17 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: '13px',
     fontWeight: 600,
     cursor: 'pointer',
+  },
+  refreshButton: {
+    padding: '6px 16px',
+    backgroundColor: '#1565c0',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    marginLeft: '8px',
   },
 };
 

@@ -1,6 +1,14 @@
 import hashlib
+import logging
+import sys
 from datetime import datetime
 from app.modules.feature_engineering.enums import FeatureEngineeringStatus
+
+def _diag(msg, *args):
+    formatted = msg % args if args else msg
+    print(f"DIAG     [bldr] {formatted}", file=sys.stderr, flush=True)
+
+_log = logging.getLogger(__name__)
 from app.modules.feature_engineering.schemas import (
     FeatureEngineeringResponse,
     FeatureGeneration,
@@ -36,10 +44,20 @@ def _build_quality_profile(feature_df, quality_result, feature_groups_list) -> F
     """Build a detailed feature quality profile from the feature matrix."""
     import pandas as pd
     import numpy as np
+    import logging
+    import sys
+    _logger = logging.getLogger(__name__)
+    _logger.setLevel(logging.INFO)
+    if not _logger.handlers and not logging.getLogger().handlers:
+        _h = logging.StreamHandler(sys.stderr)
+        _h.setFormatter(logging.Formatter("%(levelname)-5.5s [%(name)s] %(message)s"))
+        _logger.addHandler(_h)
 
     n_rows = len(feature_df)
     n_cols = len(feature_df.columns)
     numeric_cols = feature_df.select_dtypes(include=[np.number]).columns.tolist()
+    _diag("Building quality profile: %d rows, %d cols, %d numeric",
+                 n_rows, n_cols, len(numeric_cols))
 
     # Global summary
     missing_ratio = float(feature_df.isnull().mean().mean()) if n_cols > 0 else 0.0
@@ -122,6 +140,8 @@ def _build_quality_profile(feature_df, quality_result, feature_groups_list) -> F
     if high_skewness_count > 5:
         quality_warnings.append(QualityWarning(warning_type="high_skewness", severity="medium", message=f"{high_skewness_count} features with |skewness| > 2.0"))
 
+    _diag("Quality profile built: %d feature summaries, %d group summaries, %d warnings",
+                 len(per_feature), len(per_group), len(quality_warnings))
     return FeatureQualityProfile(
         global_summary=GlobalQualitySummary(
             row_count=n_rows,
@@ -143,17 +163,28 @@ def _build_quality_profile(feature_df, quality_result, feature_groups_list) -> F
 
 
 def _build_execution_report(featurization_result, resolved_strategy) -> ExecutionReport:
-    """Build action-level execution report."""
+    """Build action-level execution report using LLM action_ids when available."""
     action_results = []
     executed = featurization_result.get("executed_featurizers", [])
     selected = resolved_strategy.get("selected_featurizers", [])
+    resolution_log = resolved_strategy.get("resolution_log", [])
+
+    # Build mapping from featurizer_id -> action_id and action_id -> capability_id
+    featurizer_to_action = {}
+    action_to_capability = {}
+    for entry in resolution_log:
+        if entry.get("action_id"):
+            featurizer_to_action[entry.get("resolved_to", "")] = entry["action_id"]
+            action_to_capability[entry["action_id"]] = entry.get("input", "")
 
     for i, featurizer_id in enumerate(selected):
         ef_match = next((e for e in executed if e.get("name") == featurizer_id), None)
+        action_id = featurizer_to_action.get(featurizer_id, f"action_{i}_{featurizer_id}")
+        capability_id = action_to_capability.get(action_id, featurizer_id)
         if ef_match:
             action_results.append(ActionResult(
-                action_id=f"action_{i}_{featurizer_id}",
-                capability_id=featurizer_id,
+                action_id=action_id,
+                capability_id=capability_id,
                 status=ef_match.get("status", "unknown"),
                 generated_feature_count=ef_match.get("n_features_generated", 0),
                 warnings=[],
@@ -162,8 +193,8 @@ def _build_execution_report(featurization_result, resolved_strategy) -> Executio
             ))
         else:
             action_results.append(ActionResult(
-                action_id=f"action_{i}_{featurizer_id}",
-                capability_id=featurizer_id,
+                action_id=action_id,
+                capability_id=capability_id,
                 status="skipped",
                 generated_feature_count=0,
                 warnings=["Featurizer not executed"],
@@ -174,19 +205,31 @@ def _build_execution_report(featurization_result, resolved_strategy) -> Executio
 
 
 def _build_feature_groups(featurization_result, resolved_strategy) -> list:
-    """Build structured feature groups list."""
+    """Build structured feature groups list using LLM action_ids when available."""
     groups = []
     executed = featurization_result.get("executed_featurizers", [])
     fg_list = featurization_result.get("feature_groups", [])
+    resolution_log = resolved_strategy.get("resolution_log", [])
+
+    # Build mapping from featurizer_id -> action_id and action_id -> capability_id
+    featurizer_to_action = {}
+    action_to_capability = {}
+    for entry in resolution_log:
+        if entry.get("action_id"):
+            featurizer_to_action[entry.get("resolved_to", "")] = entry["action_id"]
+            action_to_capability[entry["action_id"]] = entry.get("input", "")
 
     for i, fg in enumerate(fg_list):
         ef_match = next((e for e in executed if e.get("name") == fg.get("group_name", "")), None)
+        group_name = fg.get("group_name", "unknown")
+        action_id = featurizer_to_action.get(group_name, f"action_{i}_{group_name}")
+        capability_id = action_to_capability.get(action_id, group_name)
         groups.append(FeatureGroup(
-            group_id=f"fg_{i}_{fg.get('group_name', 'unknown')}",
-            source_action_id=f"action_{i}_{fg.get('group_name', 'unknown')}",
-            capability_id=fg.get("group_name", ""),
+            group_id=f"fg_{i}_{group_name}",
+            source_action_id=action_id,
+            capability_id=capability_id,
             feature_family="composition" if "composition" in str(fg.get("display_name", "")).lower() else "descriptor",
-            feature_names=fg.get("feature_columns", [])[:50],  # Cap at 50 for response size
+            feature_names=fg.get("feature_columns", [])[:50],
             feature_count=fg.get("n_features", 0),
             semantic_description=fg.get("display_name", ""),
         ))
@@ -369,6 +412,7 @@ def build_feature_engineering_object(
     )
 
     # NEW: Feature Quality Profile
+    _diag("[fe: %s] Builder: building quality profile", feature_engineering_id)
     feature_df = featurization_result.get("feature_dataframe")
     if feature_df is not None:
         quality_profile = _build_quality_profile(feature_df, q, feature_groups_list)
@@ -376,15 +420,19 @@ def build_feature_engineering_object(
         quality_profile = FeatureQualityProfile()
 
     # NEW: Execution Report
+    _diag("[fe: %s] Builder: building execution report", feature_engineering_id)
     execution_report = _build_execution_report(featurization_result, resolved_strategy)
 
     # NEW: Feature Groups (structured)
+    _diag("[fe: %s] Builder: building feature groups", feature_engineering_id)
     feature_groups = _build_feature_groups(featurization_result, resolved_strategy)
 
     # NEW: Feature Provenance
+    _diag("[fe: %s] Builder: building feature provenance", feature_engineering_id)
     feature_provenance = _build_feature_provenance(artifact_result, featurization_result)
 
     # NEW: Preprocessing Decision Input
+    _diag("[fe: %s] Builder: building preprocessing decision input", feature_engineering_id)
     preprocessing_decision_input = _build_preprocessing_decision_input(
         context, featurization_result, quality_profile,
         task_type, target_column, primary_metric, status
@@ -418,6 +466,7 @@ def build_feature_engineering_object(
 
     now = datetime.now()
 
+    _diag("[fe: %s] Builder: constructing FeatureEngineeringResponse", feature_engineering_id)
     return FeatureEngineeringResponse(
         feature_engineering_id=feature_engineering_id,
         task_id=context["task_id"],

@@ -12,6 +12,13 @@ from app.modules.feature_engineering.featurizers.matminer_featurizers import (
     MatminerElementPropertyFeaturizer,
     MatminerMagpieFeaturizer,
     MatminerValenceOrbitalFeaturizer,
+    MatminerOxidationStatesFeaturizer,
+    MatminerIonicCompoundFeaturizer,
+    MatminerBandCenterFeaturizer,
 )
 from app.modules.feature_engineering.featurizers.descriptor_cleaner import DescriptorCleanerFeaturizer
 from app.modules.feature_engineering.featurizers.matminer_structure_basic import MatminerStructureBasicFeaturizer
+from app.modules.feature_engineering.featurizers.pymatgen_structure_parser import PymatgenStructureParserFeaturizer
+from app.modules.feature_engineering.featurizers.matminer_structure_featurizers import MatminerSiteStatsFeaturizer
+from app.modules.feature_engineering.featurizers.descriptor_statistical_featurizer import DescriptorStatisticalFeaturizer
+from app.modules.feature_engineering.featurizers.metadata_featurizer import MetadataFeaturizer

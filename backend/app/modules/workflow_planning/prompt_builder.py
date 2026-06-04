@@ -3,6 +3,7 @@ from typing import Tuple
 from app.shared.registry.featurizer_registry import get_available_featurizers, get_planned_featurizers
 from app.shared.registry.fe_capability_registry import (
     get_available_fe_capabilities,
+    get_all_fe_capabilities,
     get_registry_snapshot,
 )
 
@@ -374,13 +375,43 @@ def build_prompt(context: dict) -> Tuple[str, str]:
         input_modality=input_modality,
         task_type=task_type,
     )
-    fe_caps_for_prompt = [c.model_dump() for c in fe_capabilities]
+    fe_caps_for_prompt = []
+    for c in fe_capabilities:
+        cap_dict = c.model_dump()
+        if not c.featurizer_ids:
+            cap_dict["_warning"] = (
+                "This capability has NO mapped executable featurizer. "
+                "Do NOT use it in selected_feature_actions."
+            )
+        fe_caps_for_prompt.append(cap_dict)
 
     # All capabilities (for rejection reference)
     all_fe_caps = get_available_fe_capabilities()
     all_fe_caps_for_prompt = [
-        {"capability_id": c.capability_id, "display_name": c.display_name, "status": c.status, "feature_family": c.feature_family}
+        {
+            "capability_id": c.capability_id,
+            "display_name": c.display_name,
+            "status": c.status,
+            "feature_family": c.feature_family,
+            "featurizer_ids": c.featurizer_ids,
+        }
         for c in all_fe_caps
+    ]
+
+    # Planned capabilities (for awareness, NOT selectable)
+    planned_fe_caps = get_all_fe_capabilities(status="planned")
+    planned_fe_caps_for_prompt = [
+        {
+            "capability_id": c.capability_id,
+            "display_name": c.display_name,
+            "feature_family": c.feature_family,
+            "why_not_available": (
+                "No featurizer implementation yet"
+                if not c.featurizer_ids
+                else f"Mapped featurizers {c.featurizer_ids} are not yet available"
+            ),
+        }
+        for c in planned_fe_caps
     ]
 
     # Registry snapshot
@@ -400,8 +431,11 @@ def build_prompt(context: dict) -> Tuple[str, str]:
         "### All Registered Capabilities (for reference)",
         json.dumps(all_fe_caps_for_prompt, indent=2, ensure_ascii=False),
         "",
-        "### Available Capabilities for This Task (you MUST use capability_id from this list for selected_feature_actions)",
+        "### Available Capabilities for This Task",
         json.dumps(fe_caps_for_prompt, indent=2, ensure_ascii=False),
+        "",
+        "### Planned Capabilities (for awareness — do NOT use in selected_feature_actions)",
+        json.dumps(planned_fe_caps_for_prompt, indent=2, ensure_ascii=False),
         "",
         "### Registry Snapshot Version",
         registry_snapshot["snapshot_version"],
@@ -420,10 +454,12 @@ def build_prompt(context: dict) -> Tuple[str, str]:
         "1. Output ONLY the JSON object. No markdown, no code blocks, no explanatory text.",
         "2. Generate a COMPLETE WorkflowPlan — not just FeatureStrategy.",
         "3. FeatureStrategy.selected_feature_actions must use capability_id from the FE Capability Registry.",
-        "4. Each selected feature action MUST have complete decision_rationale.",
-        "5. Each selected model action MUST have complete decision_rationale (reason, evidence, expected_performance, risk, fallback).",
-        "6. Each rejected model MUST have a reason explaining why it was excluded.",
-        "7. preprocessing_intent must ONLY contain high-level goals.",
+        "4. Each selected capability MUST have at least one mapped featurizer_id (check the featurizer_ids field).",
+        "5. Capabilities with empty featurizer_ids or a _warning MUST NOT be used as 'required' or 'recommended'.",
+        "6. Each selected feature action MUST have complete decision_rationale.",
+        "7. Each selected model action MUST have complete decision_rationale (reason, evidence, expected_performance, risk, fallback).",
+        "8. Each rejected model MUST have a reason explaining why it was excluded.",
+        "9. preprocessing_intent must ONLY contain high-level goals.",
     ]
 
     user_message = "\n".join(user_message_parts)
