@@ -86,6 +86,15 @@ def build_pipeline_generation_context(session: Session, task_id: str) -> dict:
     allowed_model_families = get_all_model_families()
     allowed_hpo_methods = get_all_hpo_methods()
 
+    # Read latest WorkflowPlan for iteration_guidance
+    from app.modules.workflow_planning.repository import WorkflowPlanRepository
+    wp_repo = WorkflowPlanRepository()
+    iteration_guidance = {}
+    wp = wp_repo.get_latest_by_task_id(session, task_id)
+    if wp:
+        plan_json = wp.plan_json or {}
+        iteration_guidance = plan_json.get("iteration_guidance", {})
+
     feature_columns = pg_input.get("feature_columns", [])
     if not feature_columns and feature_preprocessing and feature_preprocessing.preprocessing_json:
         ms_input = feature_preprocessing.preprocessing_json.get("model_search_input") or {}
@@ -114,4 +123,5 @@ def build_pipeline_generation_context(session: Session, task_id: str) -> dict:
         "context_json": context_json,
         "model_search_context": msc,
         "feature_preprocessing": feature_preprocessing,
+        "iteration_guidance": iteration_guidance,
     }

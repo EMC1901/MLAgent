@@ -86,6 +86,8 @@ def check_feature_quality(
     near_constant_features = []
     all_zero_features = []
     for col in feature_df.columns:
+        if not pd.api.types.is_numeric_dtype(feature_df[col]):
+            continue
         vals = feature_df[col].dropna()
         n_unique = vals.nunique()
         if n_unique <= 1:

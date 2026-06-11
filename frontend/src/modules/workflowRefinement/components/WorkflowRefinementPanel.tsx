@@ -113,7 +113,6 @@ const WorkflowRefinementPanel: React.FC<WorkflowRefinementPanelProps> = ({ taskI
         feature_engineering: createFeatureEngineering,
         feature_preprocessing: createFeaturePreprocessing,
         model_search_context: createModelSearchContext,
-        model_search: createModelSearchContext,
         pipeline_generation: createPipelineGeneration,
         pipeline_execution: createPipelineExecution,
         metric_evaluation: createMetricEvaluation,

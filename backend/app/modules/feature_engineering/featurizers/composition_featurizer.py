@@ -149,7 +149,7 @@ def _compute_descriptors(elements: dict) -> dict:
 class CompositionFeaturizer(BaseFeaturizer):
 
     def featurizer_name(self) -> str:
-        return "elemental_property_statistics"
+        return "basic_composition"
 
     def featurize(self, raw_dataframe, context, resolved_strategy) -> dict:
         data_context = context.get("data_context") or {}

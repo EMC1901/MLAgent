@@ -15,7 +15,7 @@ def compute_permutation_importance(
     X: pd.DataFrame,
     y: pd.Series,
     feature_columns: List[str],
-    n_repeats: int = 10,
+    n_repeats: int = 5,
     scoring: str = "neg_mean_squared_error",
 ) -> List[PermutationImportanceResult]:
     import time

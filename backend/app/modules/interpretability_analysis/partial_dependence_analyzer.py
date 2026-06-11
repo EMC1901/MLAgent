@@ -1,9 +1,14 @@
 import logging
+import time
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+# Shared worker cap for PDP parallelism.
+# 1D and 2D run sequentially, so no nesting — a single pool is alive at a time.
+_PDP_MAX_WORKERS = 2
 
 
 def compute_partial_dependence(
@@ -11,8 +16,8 @@ def compute_partial_dependence(
     X: Optional[pd.DataFrame],
     feature_columns: List[str],
     top_n_features: int = 10,
-    top_n_interactions: int = 3,
-    grid_resolution: int = 30,
+    top_n_interactions: int = 2,
+    grid_resolution: int = 20,
 ) -> Dict[str, Any]:
     """
     Compute 1D PDP for top N features and 2D PDP for top feature pairs.
@@ -28,10 +33,9 @@ def compute_partial_dependence(
     Returns:
         Dict with "pdp_1d" (list of dicts) and "pdp_2d" (list of dicts).
     """
-    import time
+    t0 = time.time()
     logger.info("PDP — top_n_features=%d top_n_interactions=%d grid=%d",
                  top_n_features, top_n_interactions, grid_resolution)
-    t0 = time.time()
     try:
         from sklearn.inspection import partial_dependence
     except ImportError:
@@ -55,56 +59,125 @@ def compute_partial_dependence(
         logger.warning("No valid feature indices found in X for PDP.")
         return {"pdp_1d": [], "pdp_2d": []}
 
+    # sklearn partial_dependence misbehaves with integer-typed columns
+    # (numpy percentile rounding → malformed grid arrays → PiB allocations).
+    X_pdp = X.astype({col: "float64" for col in X.select_dtypes(include=["integer", "bool"]).columns})
+
+    # Filter out features too narrow for PDP grid construction
+    low_var = []
+    filtered_idx = []
+    filtered_names = []
+    for idx, name in zip(feature_indices, valid_feature_names):
+        col_vals = X_pdp[name].dropna()
+        if col_vals.nunique() < 2:
+            low_var.append(name)
+            continue
+        if pd.api.types.is_numeric_dtype(X_pdp[name]):
+            q5 = col_vals.quantile(0.05)
+            q95 = col_vals.quantile(0.95)
+            denom = max(abs(q95), abs(q5), 1e-10)
+            if (q95 - q5) / denom < 1e-6:
+                low_var.append(name)
+                continue
+        filtered_idx.append(idx)
+        filtered_names.append(name)
+    if low_var:
+        logger.info("PDP: skipping %d low-variance features: %s",
+                     len(low_var), low_var[:10])
+    feature_indices = filtered_idx
+    valid_feature_names = filtered_names
+
+    if not feature_indices:
+        logger.warning("PDP skipped: all top features filtered out (low variance).")
+        return {"pdp_1d": [], "pdp_2d": []}
+
     n_features = min(top_n_features, len(feature_indices))
     selected_idx = feature_indices[:n_features]
     selected_names = valid_feature_names[:n_features]
 
-    # sklearn partial_dependence misbehaves with integer-typed columns
-    # (numpy percentile rounding → malformed grid arrays → PiB allocations).
-    # Convert the selected columns to float64 before calling.
-    X_pdp = X.astype({col: "float64" for col in X.select_dtypes(include=["integer"]).columns})
+    # Map X column index → feature name for reliable lookup in 2D PDP.
+    col_idx_to_name = dict(zip(feature_indices, valid_feature_names))
 
+    # ── 1D PDP ──────────────────────────────────────────────────────────
     pdp_1d: List[Dict[str, Any]] = []
-    try:
-        pd_result = partial_dependence(
-            model, X_pdp, features=selected_idx, kind="average", grid_resolution=grid_resolution
-        )
-        for i, (name, idx) in enumerate(zip(selected_names, selected_idx)):
-            grid = pd_result["grid_values"][i].tolist()
-            values = pd_result["average"][i].tolist()
-            pdp_1d.append({
-                "feature_name": name,
-                "grid_values": grid,
-                "pdp_values": values,
-            })
-    except Exception as e:
-        logger.warning("1D PDP computation failed: %s", str(e))
+    t0_1d = time.time()
+    if selected_idx:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    # 2D PDP for top feature pairs
+        def _compute_1d_feature(feature_spec):
+            fidx, fname = feature_spec
+            t_feat = time.time()
+            result = partial_dependence(
+                model, X_pdp, features=[fidx],
+                kind="average", grid_resolution=grid_resolution,
+            )
+            item = {
+                "feature_name": fname,
+                "grid_values": result["grid_values"][0].tolist(),
+                "pdp_values": result["average"][0].tolist(),
+            }
+            logger.debug("PDP 1D [%s] done in %.1fs",
+                         fname, time.time() - t_feat)
+            return item
+
+        feature_specs = list(zip(selected_idx, selected_names))
+        results = {}
+        with ThreadPoolExecutor(max_workers=_PDP_MAX_WORKERS) as pool:
+            futures = {pool.submit(_compute_1d_feature, fs): fs for fs in feature_specs}
+            for future in as_completed(futures):
+                fidx, fname = futures[future]
+                try:
+                    results[fidx] = future.result()
+                except Exception as e:
+                    logger.warning(
+                        "1D PDP feature failed (idx=%d name=%s): %s",
+                        fidx, fname, str(e),
+                    )
+
+        for fidx, _ in feature_specs:
+            if fidx in results:
+                pdp_1d.append(results[fidx])
+    logger.info("PDP 1D done — %d features in %.1fs", len(pdp_1d), time.time() - t0_1d)
+
+    # ── 2D PDP ──────────────────────────────────────────────────────────
     pdp_2d: List[Dict[str, Any]] = []
     n_pairs = min(top_n_interactions, n_features * (n_features - 1) // 2)
     if n_pairs > 0 and n_features >= 2:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         pair_indices = _select_top_pairs(selected_idx, n_features, n_pairs)
-        for (i1, i2) in pair_indices:
-            try:
-                pd_pair = partial_dependence(
-                    model, X_pdp, features=[(i1, i2)], kind="average",
-                    grid_resolution=max(10, grid_resolution // 2),
-                )
-                grid1 = pd_pair["grid_values"][0][0].tolist()
-                grid2 = pd_pair["grid_values"][0][1].tolist()
-                matrix = pd_pair["average"][0].tolist()
-                f1_name = feature_columns[i1] if i1 < len(feature_columns) else f"f{i1}"
-                f2_name = feature_columns[i2] if i2 < len(feature_columns) else f"f{i2}"
-                pdp_2d.append({
-                    "feature_1": f1_name,
-                    "feature_2": f2_name,
-                    "grid_1": grid1,
-                    "grid_2": grid2,
-                    "pdp_matrix": matrix,
-                })
-            except Exception as e:
-                logger.warning("2D PDP for pair (%d, %d) failed: %s", i1, i2, str(e))
+        grid_2d = max(grid_resolution // 2, 5)
+
+        def _compute_2d_pdp(pair):
+            i1, i2 = pair
+            pd_pair = partial_dependence(
+                model, X_pdp, features=[(i1, i2)], kind="average",
+                grid_resolution=grid_2d,
+            )
+            # grid_values is [(grid_i1, grid_i2)] for a single pair
+            grids = pd_pair["grid_values"][0]
+            grid1 = grids[0].tolist()
+            grid2 = grids[1].tolist()
+            matrix = pd_pair["average"][0].tolist()
+            f1 = col_idx_to_name.get(i1, f"f{i1}")
+            f2 = col_idx_to_name.get(i2, f"f{i2}")
+            return {
+                "feature_1": f1, "feature_2": f2,
+                "grid_1": grid1, "grid_2": grid2, "pdp_matrix": matrix,
+            }
+
+        results = {}
+        with ThreadPoolExecutor(max_workers=min(n_pairs, _PDP_MAX_WORKERS)) as pool:
+            futures = {pool.submit(_compute_2d_pdp, p): p for p in pair_indices}
+            for future in as_completed(futures):
+                pair = futures[future]
+                try:
+                    results[pair] = future.result()
+                except Exception as e:
+                    logger.warning("2D PDP for pair (%d, %d) failed: %s",
+                                   pair[0], pair[1], str(e))
+        for pair in pair_indices:
+            if pair in results:
+                pdp_2d.append(results[pair])
 
     logger.info("PDP done — %d 1D + %d 2D plots in %.1fs",
                  len(pdp_1d), len(pdp_2d), time.time() - t0)
@@ -116,10 +189,7 @@ def _select_top_pairs(
     n_features: int,
     n_pairs: int,
 ) -> List[Tuple[int, int]]:
-    """
-    Select the top feature pairs for 2D PDP from the given index list.
-    Prioritizes the first few features.
-    """
+    """Select top feature pairs for 2D PDP. Prioritizes the first few features."""
     pairs = []
     max_first = min(3, n_features)
     for i in range(max_first):

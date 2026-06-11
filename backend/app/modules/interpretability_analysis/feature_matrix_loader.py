@@ -4,6 +4,7 @@ from typing import List, Tuple, Optional
 import pandas as pd
 
 from app.modules.interpretability_analysis.exceptions import FeatureMatrixLoadException
+from app.modules.feature_engineering.feature_matrix_builder import _normalize_bool_columns
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,10 @@ def load_feature_matrix(
         )
 
     X = df[fc].copy()
+
+    # Normalise boolean and boolean-like columns to float64 before the
+    # non-numeric filter, so they are not incorrectly dropped.
+    _normalize_bool_columns(X)
 
     for col in X.select_dtypes(include=["object", "category"]).columns:
         logger.warning("Dropping non-numeric column: %s", col)

@@ -38,7 +38,7 @@ def detect_conflicts(iteration_plan: IterationPlan) -> List[str]:
         stages_after_rerun = set()
         stage_order = [
             "workflow_planning", "feature_engineering", "feature_preprocessing",
-            "model_search_context", "model_search", "pipeline_generation",
+            "model_search_context", "pipeline_generation",
             "pipeline_execution", "metric_evaluation",
         ]
         found = False

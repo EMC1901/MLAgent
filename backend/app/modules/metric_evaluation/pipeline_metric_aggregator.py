@@ -1,10 +1,12 @@
 import numpy as np
 from typing import Dict, List, Any
 from app.modules.metric_evaluation.schemas import TrialMetricResult, PipelineMetricResult
+from app.modules.metric_evaluation.enums import MetricDirection
 
 
 def aggregate_pipeline_metrics(
     trial_results: List[TrialMetricResult],
+    metric_direction: str = "minimize",
 ) -> List[PipelineMetricResult]:
     pipeline_groups: Dict[str, List[TrialMetricResult]] = {}
     for tr in trial_results:
@@ -26,10 +28,17 @@ def aggregate_pipeline_metrics(
             ))
             continue
 
-        best_trial = min(
-            evaluated_trials,
-            key=lambda t: t.primary_metric_mean if t.primary_metric_mean is not None else float("inf"),
-        )
+        is_minimize = metric_direction == MetricDirection.MINIMIZE
+        if is_minimize:
+            best_trial = min(
+                evaluated_trials,
+                key=lambda t: t.primary_metric_mean if t.primary_metric_mean is not None else float("inf"),
+            )
+        else:
+            best_trial = max(
+                evaluated_trials,
+                key=lambda t: t.primary_metric_mean if t.primary_metric_mean is not None else float("-inf"),
+            )
 
         primary_values = [
             t.primary_metric_mean for t in evaluated_trials

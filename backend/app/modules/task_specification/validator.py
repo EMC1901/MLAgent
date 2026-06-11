@@ -7,6 +7,13 @@ REGRESSION_METRICS = {"MAE", "RMSE", "R2"}
 CLASSIFICATION_METRICS = {"Accuracy", "F1", "ROC-AUC"}
 RANKING_METRICS = {"Spearman", "NDCG", "Top-k recall"}
 
+UNSUPPORTED_METRICS = {"Spearman", "NDCG", "Top-k recall"}
+UNSUPPORTED_METRIC_MSG = (
+    "{metric} is a ranking metric and is not yet supported. "
+    "Please select a supported metric: MAE, RMSE, R2 (regression) "
+    "or Accuracy, F1, ROC-AUC (classification)."
+)
+
 TASK_METRIC_MAP = {
     "regression": REGRESSION_METRICS,
     "classification": CLASSIFICATION_METRICS,
@@ -83,13 +90,35 @@ def check_evaluation_metric_provided(normalized_data: Dict[str, Any]) -> List[Is
     return []
 
 
+def check_unsupported_metrics(normalized_data: Dict[str, Any]) -> List[Issue]:
+    """Reject ranking metrics that are not yet implemented in the backend."""
+    metric = normalized_data.get("evaluation_metric")
+    if metric and metric in UNSUPPORTED_METRICS:
+        return [("error", UNSUPPORTED_METRIC_MSG.format(metric=metric))]
+    return []
+
+
+def check_ranking_task_type(normalized_data: Dict[str, Any]) -> List[Issue]:
+    """Reject ranking task type as it is not yet supported."""
+    task_type = normalized_data.get("task_type")
+    if task_type == "ranking":
+        return [("error",
+            "Ranking tasks are not yet supported. "
+            "Please select Regression or Classification as the task type."
+        )]
+    return []
+
+
 def validate(normalized_data: Dict[str, Any]) -> Dict[str, Any]:
     missing_fields, required_issues = check_required_fields(normalized_data)
     compat_issues = check_evaluation_metric_compatibility(normalized_data)
     consistency_issues = check_input_dataset_consistency(normalized_data)
     metric_warnings = check_evaluation_metric_provided(normalized_data)
+    unsupported_issues = check_unsupported_metrics(normalized_data)
+    ranking_task_issues = check_ranking_task_type(normalized_data)
 
-    all_issues = required_issues + compat_issues + consistency_issues + metric_warnings
+    all_issues = (required_issues + compat_issues + consistency_issues
+                  + metric_warnings + unsupported_issues + ranking_task_issues)
 
     errors = [msg for sev, msg in all_issues if sev == "error"]
     warnings = [msg for sev, msg in all_issues if sev == "warning"]

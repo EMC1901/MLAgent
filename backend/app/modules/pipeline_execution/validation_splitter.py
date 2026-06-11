@@ -119,6 +119,37 @@ def create_validation_splits(
             })
         return splits
 
+    elif strategy == "repeated_k_fold":
+        from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
+
+        n_splits = validation_plan.get("n_splits", 5)
+        n_repeats = validation_plan.get("n_repeats", 3)
+
+        stratification_required = validation_plan.get("stratification_required", False)
+        if stratification_required:
+            if y is None:
+                raise ValidationSplitException(
+                    "RepeatedStratifiedKFold requires non-null y for stratification."
+                )
+            splitter = RepeatedStratifiedKFold(
+                n_splits=n_splits, n_repeats=n_repeats, random_state=random_state
+            )
+        else:
+            splitter = RepeatedKFold(
+                n_splits=n_splits, n_repeats=n_repeats, random_state=random_state
+            )
+
+        splits = []
+        for fold_idx, (train_idx, val_idx) in enumerate(splitter.split(X, y)):
+            splits.append({
+                "fold_index": fold_idx,
+                "train_indices": train_idx,
+                "validation_indices": val_idx,
+                "train_size": len(train_idx),
+                "validation_size": len(val_idx),
+            })
+        return splits
+
     else:
         raise ValidationSplitException(
             f"Unsupported split strategy: {validation_plan.get('split_strategy')}"
@@ -135,6 +166,9 @@ def _normalize_strategy(strategy: str) -> str:
     # k_fold_cross_validation → k_fold
     if s in ("k_fold_cross_validation", "k_fold_cv", "kfold", "k-fold"):
         return "k_fold"
+
+    if s in ("repeated_cv", "repeated_k_fold", "repeated_kfold"):
+        return "repeated_k_fold"
 
     # canonical names pass through
     if s in ("train_test_split", "k_fold", "stratified_k_fold", "holdout"):

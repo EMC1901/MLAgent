@@ -10,8 +10,8 @@ def parse_llm_response(raw_text: str) -> Dict[str, Any]:
 
     cleaned = raw_text.strip()
 
-    code_fence_pattern = r"^```(?:json)?\s*\n(.*?)\n```\s*$"
-    match = re.search(code_fence_pattern, cleaned, re.DOTALL)
+    code_fence_pattern = r"^```(?:json)?\s*([\s\S]*?)```\s*$"
+    match = re.search(code_fence_pattern, cleaned)
     if match:
         cleaned = match.group(1).strip()
 

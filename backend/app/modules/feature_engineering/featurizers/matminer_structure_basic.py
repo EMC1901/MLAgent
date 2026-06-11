@@ -11,6 +11,9 @@ import time
 import pandas as pd
 import numpy as np
 from app.modules.feature_engineering.featurizers.base_featurizer import BaseFeaturizer
+from app.modules.feature_engineering.featurizers.structure_parsing_utils import (
+    parse_structure_value,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,10 +82,7 @@ class MatminerStructureBasicFeaturizer(BaseFeaturizer):
         failed = []
         for idx, val in raw_dataframe[structure_col].items():
             try:
-                if isinstance(val, Structure):
-                    struct = val
-                else:
-                    struct = Structure.from_str(str(val), fmt="cif")
+                struct = parse_structure_value(val)
                 row_features = self._compute_basic_descriptors(struct)
                 features_list.append(row_features)
             except Exception:

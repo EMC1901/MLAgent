@@ -24,6 +24,20 @@ def evaluate_fold_metrics(
             y_true = df["y_true"].values
             y_pred = df["y_pred"].values
 
+            # Extract y_score for ROC-AUC (binary classification only)
+            y_score = None
+            if "y_pred_proba" in df.columns:
+                y_score = df["y_pred_proba"].values
+            else:
+                proba_cols = sorted(
+                    [c for c in df.columns if c.startswith("y_pred_proba_class_")],
+                    key=lambda c: int(c.rsplit("_", 1)[-1]),
+                )
+                if len(proba_cols) == 2:
+                    y_score = df["y_pred_proba_class_1"].values
+                # > 2 columns → multi-class; y_score stays None
+                # (ROC_AUC will return NaN with a warning)
+
             model_id = str(df["model_id"].iloc[0]) if "model_id" in df.columns else "unknown"
             pipeline_spec_id = (
                 str(df["pipeline_spec_id"].iloc[0])
@@ -31,24 +45,31 @@ def evaluate_fold_metrics(
                 else "unknown"
             )
 
+            # Ensure primary_metric is computed alongside defaults (canonicalised)
+            canonical_primary = primary_metric.replace("-", "_") if primary_metric else None
+            metrics_to_compute = list(default_metrics)
+            if canonical_primary and canonical_primary not in metrics_to_compute:
+                metrics_to_compute.append(canonical_primary)
+
             try:
-                metrics = calculate_all_metrics(y_true, y_pred, task_type, default_metrics)
+                metrics = calculate_all_metrics(
+                    y_true, y_pred, task_type, metrics_to_compute, y_score=y_score,
+                )
             except Exception as e:
                 metrics = {}
                 warnings.append(f"Metric calculation failed: {str(e)}")
                 status = "failed"
                 error_message = str(e)
 
-            # Case-insensitive fallback: metric_calculator produces Title Case keys
-            # ("Accuracy", "F1") but primary_metric may arrive as lowercase from user
-            # input or _METRIC_DIRECTIONS (model_search_context/builder.py).
+            # Look up primary_metric value.  Keys in *metrics* are canonical
+            # ("ROC_AUC") but *primary_metric* may arrive with hyphens ("ROC-AUC").
             primary_value = None
             if primary_metric:
-                primary_value = metrics.get(primary_metric)
+                primary_value = metrics.get(canonical_primary)
                 if primary_value is None:
-                    pm_lower = primary_metric.lower()
+                    pm_normalised = primary_metric.replace("-", "_").lower()
                     for k, v in metrics.items():
-                        if k.lower() == pm_lower:
+                        if k.lower() == pm_normalised:
                             primary_value = v
                             break
 

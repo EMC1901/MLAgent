@@ -1,5 +1,5 @@
 import json
-from typing import Tuple
+from typing import Tuple, Dict, Any
 from app.shared.registry.model_registry import get_model_families_for_task_type, get_baseline_models, get_all_model_families, MODEL_FAMILIES
 from app.shared.registry.hpo_registry import get_all_hpo_methods
 
@@ -231,6 +231,7 @@ def build_llm_context(
     original_model_strategy: dict,
     original_hpo_strategy: dict,
     original_validation_strategy: dict,
+    iteration_guidance: Dict[str, Any] = None,
 ) -> Tuple[str, str]:
     allowed_model_families = get_model_families_for_task_type(task_type)
     if not allowed_model_families:
@@ -277,6 +278,7 @@ def build_llm_context(
         "allowed_model_families": allowed_model_families_info,
         "allowed_hpo_methods": allowed_hpo_methods,
         "baseline_model_suggestions": get_baseline_models(task_type),
+        "iteration_guidance": iteration_guidance,
     }
 
     user_message_parts = [

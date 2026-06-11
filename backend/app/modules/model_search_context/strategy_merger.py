@@ -84,7 +84,15 @@ def merge_strategies(
         # Apply the change if adjustment is enabled and type is not 'confirmed'
         if adjust_flags.get(strategy_area, True) and change_type != "confirmed":
             if change_type == "modified" and field_path in target_strategy:
-                target_strategy[field_path] = updated_value
+                if _type_compatible(updated_value, actual_current):
+                    target_strategy[field_path] = updated_value
+                else:
+                    logger.warning(
+                        "LLM updated_value type for %s.%s incompatible — rejected. "
+                        "Expected %s, got %s",
+                        strategy_area, field_path,
+                        type(actual_current).__name__, type(updated_value).__name__,
+                    )
             elif change_type == "added":
                 target_strategy[field_path] = updated_value
             elif change_type == "removed" and field_path in target_strategy:
@@ -236,3 +244,18 @@ def _values_equal(a: Any, b: Any) -> bool:
     if isinstance(a, (list, dict)) or isinstance(b, (list, dict)):
         return str(a) == str(b)
     return a == b
+
+
+def _type_compatible(new_value: Any, current_value: Any) -> bool:
+    """Check that new_value has compatible type with current_value."""
+    if current_value is None:
+        return True
+    if isinstance(current_value, list) and not isinstance(new_value, list):
+        return False
+    if isinstance(current_value, dict) and not isinstance(new_value, dict):
+        return False
+    if isinstance(current_value, (int, float, bool)) and not isinstance(new_value, (int, float, bool)):
+        return False
+    if isinstance(current_value, str) and not isinstance(new_value, str):
+        return False
+    return True

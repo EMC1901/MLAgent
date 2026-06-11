@@ -213,6 +213,35 @@ class PipelineExecutionService:
             # Step 8-9: Build metric_evaluation_input
             logger.info("[8-9/12] Building metric evaluation input ...")
             t0 = time.time()
+
+            _ep = ei.evaluation_plan or {}
+            _primary_metric = _ep.get("primary_metric")
+            _raw_direction = _ep.get("metric_direction")
+            if _raw_direction:
+                _metric_direction = _raw_direction
+            elif _primary_metric:
+                from app.modules.metric_evaluation.metric_registry import get_metric_direction
+                _metric_direction = get_metric_direction(_primary_metric)
+                logger.warning(
+                    "metric_direction missing from evaluation_plan — "
+                    "inferred '%s' from primary_metric='%s'",
+                    _metric_direction, _primary_metric,
+                )
+                warnings.append(
+                    f"metric_direction was missing from evaluation_plan; "
+                    f"inferred '{_metric_direction}' from primary_metric='{_primary_metric}'."
+                )
+            else:
+                _metric_direction = "minimize"
+                logger.warning(
+                    "metric_direction and primary_metric both missing from "
+                    "evaluation_plan — falling back to 'minimize'"
+                )
+                warnings.append(
+                    "metric_direction and primary_metric both missing from "
+                    "evaluation_plan; defaulting to 'minimize'."
+                )
+
             metric_input = build_metric_evaluation_input(
                 pipeline_execution_id=pe_id,
                 pipeline_generation_id=pg.id,
@@ -224,8 +253,8 @@ class PipelineExecutionService:
                 trial_results=trial_results,
                 prediction_artifacts=pred_artifacts,
                 model_artifacts=model_artifacts,
-                primary_metric=ei.evaluation_plan.get("primary_metric"),
-                metric_direction=ei.evaluation_plan.get("metric_direction", "minimize"),
+                primary_metric=_primary_metric,
+                metric_direction=_metric_direction,
             )
 
             # Step 10: Save artifacts

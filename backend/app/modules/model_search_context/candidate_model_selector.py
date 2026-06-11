@@ -31,6 +31,7 @@ def select_candidate_models(
     selected_actions = updated_model_strategy.get("selected_model_actions", [])
 
     # Build a priority lookup from selected_model_actions
+    selected_actions = [a for a in selected_actions if isinstance(a, dict)]
     priority_from_action: dict = {}
     reason_from_action: dict = {}
     for action in selected_actions:
@@ -121,6 +122,7 @@ def select_candidate_models(
     # Build excluded models from strategy
     excluded_plans: List[ExcludedModelPlan] = []
     rejected_actions = updated_model_strategy.get("rejected_model_actions", [])
+    rejected_actions = [a for a in rejected_actions if isinstance(a, dict)]
     for action in rejected_actions:
         family = action.get("model_family", "")
         reason = action.get("reason", "")

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class DescriptorFeaturizer(BaseFeaturizer):
 
     def featurizer_name(self) -> str:
-        return "existing_descriptors"
+        return "descriptor_passthrough"
 
     def featurize(self, raw_dataframe, context, resolved_strategy) -> dict:
         data_context = context.get("data_context") or {}

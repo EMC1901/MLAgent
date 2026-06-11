@@ -9,8 +9,22 @@ from app.modules.interpretability_analysis.schemas import (
 )
 from app.modules.interpretability_analysis.enums import ImportanceMethod, ImportanceDirection
 from app.modules.interpretability_analysis.exceptions import ShapCalculationException
+from app.modules.feature_engineering.feature_matrix_builder import _normalize_bool_columns
 
 logger = logging.getLogger(__name__)
+
+
+def _get_model_training_features(model: Any) -> Optional[List[str]]:
+    """Extract the ordered feature list the model was trained on.
+
+    Supports LightGBM (feature_name_), sklearn (feature_names_in_), and
+    XGBoost (feature_names_ / feature_names_in_).
+    """
+    for attr in ("feature_name_", "feature_names_in_"):
+        names = getattr(model, attr, None)
+        if names is not None:
+            return list(names)
+    return None
 
 
 def compute_shap(
@@ -32,18 +46,118 @@ def compute_shap(
 
     logger.info("SHAP: X_shape=%s n_features=%d max_samples=%d explainer=%s",
                 X.shape, len(feature_columns), max_samples, explainer_type)
+
+    # ── Resolve the feature list the model was actually trained on ──
+    train_features = _get_model_training_features(model)
+
     n_samples = min(len(X), max_samples)
     X_sample = X.head(n_samples) if len(X) > n_samples else X
 
-    # Ensure all columns are numeric before passing to SHAP
-    non_numeric_cols = X.select_dtypes(exclude=["number"]).columns.tolist()
-    if non_numeric_cols:
-        logger.warning("Dropping non-numeric columns before SHAP: %s", non_numeric_cols)
-        X = X.drop(columns=non_numeric_cols)
-        X_sample = X_sample.drop(columns=non_numeric_cols)
+    # ── 1. Convert boolean-like columns to float64 ─────────────────────
+    _normalize_bool_columns(X)
+    _normalize_bool_columns(X_sample)
+
+    # ── 2. Check for remaining non-numeric columns ─────────────────────
+    remaining_non_numeric = X.select_dtypes(exclude=["number"]).columns.tolist()
+    if remaining_non_numeric:
+        if train_features is not None:
+            critical = [c for c in remaining_non_numeric if c in train_features]
+        else:
+            # Without train_features we fall back to the metadata list
+            critical = [c for c in remaining_non_numeric if c in feature_columns]
+
+        if critical:
+            msg = (
+                f"SHAP aborted: {len(critical)} training feature(s) are non-numeric "
+                f"and could not be converted: {critical}. "
+                f"SHAP input must match model training input exactly."
+            )
+            logger.error(msg)
+            return ShapSummary(
+                shap_available=False,
+                explainer_type="",
+                n_samples_explained=0,
+                top_shap_features=[],
+                shap_artifact_paths=None,
+                warnings=[msg],
+            ), None, [msg]
+
+        # Non-critical non-numeric columns (not in training features) —
+        # safe to drop.
+        logger.warning(
+            "Dropping non-numeric columns not in training features: %s",
+            remaining_non_numeric,
+        )
+        X = X.drop(columns=remaining_non_numeric)
+        X_sample = X_sample.drop(columns=remaining_non_numeric)
+        feature_columns = [c for c in feature_columns if c not in remaining_non_numeric]
+
     X = X.astype(float)
     X_sample = X_sample.astype(float)
 
+    # ── 2.5  Normalise column names to match LightGBM convention ──────
+    # LightGBM internally replaces spaces with underscores in feature_name_.
+    # Normalise X.columns the same way so alignment succeeds for columns
+    # whose names contain spaces (e.g. matminer "compound possible").
+    X.columns = [c.replace(" ", "_") for c in X.columns]
+    X_sample.columns = [c.replace(" ", "_") for c in X_sample.columns]
+    feature_columns = [c.replace(" ", "_") for c in feature_columns]
+
+    # ── 3. Align X columns with model training features ────────────────
+    if train_features is not None:
+        # Normalise to the same convention (defensive — LightGBM already does this)
+        train_features = [c.replace(" ", "_") for c in train_features]
+        # Keep only columns the model knows about, in training order
+        available = [c for c in train_features if c in X.columns]
+        missing = [c for c in train_features if c not in X.columns]
+        extra = [c for c in X.columns if c not in train_features]
+
+        if missing:
+            msg = (
+                f"SHAP aborted: X is missing {len(missing)} feature(s) "
+                f"that the model was trained on: {missing[:15]}"
+            )
+            logger.error(msg)
+            return ShapSummary(
+                shap_available=False,
+                explainer_type="",
+                n_samples_explained=0,
+                top_shap_features=[],
+                shap_artifact_paths=None,
+                warnings=[msg],
+            ), None, [msg]
+
+        if extra:
+            logger.info(
+                "Dropping %d extra columns not seen during training: %s",
+                len(extra), extra[:10],
+            )
+            warnings_list.append(
+                f"Dropped {len(extra)} extra column(s) not in training features: "
+                f"{', '.join(extra[:10])}"
+            )
+
+        X = X[available]
+        X_sample = X_sample[available]
+        feature_columns = available
+
+        if list(X.columns) != train_features:
+            msg = (
+                f"SHAP aborted: X.columns do not match model training features "
+                f"after alignment. X has {len(X.columns)} cols, "
+                f"model expects {len(train_features)}."
+            )
+            logger.error(msg)
+            return ShapSummary(
+                shap_available=False,
+                explainer_type="",
+                n_samples_explained=0,
+                top_shap_features=[],
+                shap_artifact_paths=None,
+                warnings=[msg],
+            ), None, [msg]
+
+    # ── 4. Compute SHAP ────────────────────────────────────────────────
     try:
         explainer = _create_explainer(model, X, explainer_type, background_sample_size)
         try:

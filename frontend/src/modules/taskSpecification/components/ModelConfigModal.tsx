@@ -166,9 +166,15 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({ visible, onClose, o
             </div>
           )}
 
-          {!currentConfig?.is_custom && currentConfig && (
+          {!currentConfig?.is_custom && currentConfig && currentConfig.model_name && (
             <div style={s.infoBannerDefault}>
               Using server default: <strong>{currentConfig.model_name}</strong>
+            </div>
+          )}
+
+          {!currentConfig?.is_custom && currentConfig && !currentConfig.model_name && (
+            <div style={{ ...s.infoBannerDefault, backgroundColor: '#fff3e0', borderLeft: '4px solid #e65100' }}>
+              No LLM model configured. Enter a model below to get started.
             </div>
           )}
 

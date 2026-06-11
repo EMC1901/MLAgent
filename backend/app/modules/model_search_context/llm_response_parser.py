@@ -4,8 +4,8 @@ from typing import Dict, Any
 from app.modules.model_search_context.exceptions import LLMOutputParseException
 
 CODE_BLOCK_PATTERN = re.compile(
-    r"```(?:json)?\s*\n(.*?)\n```",
-    re.DOTALL | re.IGNORECASE,
+    r"```(?:json)?\s*([\s\S]*?)```",
+    re.IGNORECASE,
 )
 
 

@@ -505,6 +505,10 @@ class FeatureEngineeringService:
         import pandas as pd
         merged = pd.concat(all_feature_dfs, axis=1)
         merged = merged.loc[:, ~merged.columns.duplicated()]
+        merged = merged.drop(
+            columns=["_pymatgen_structure", "_pymatgen_composition"],
+            errors="ignore",
+        )
 
         overall_status = "success" if any_success else "failed"
         if all_errors:

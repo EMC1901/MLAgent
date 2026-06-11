@@ -336,7 +336,7 @@ For materials science tasks:
 - Large samples (n >= 1000) -> complex models, more HPO budget"""
 
 
-def build_prompt(context: dict) -> Tuple[str, str]:
+def build_prompt(context: dict, iteration_guidance: dict = None) -> Tuple[str, str]:
     data_ctx = context.get("data_context") or {}
     input_modality = data_ctx.get("input_modality")
     task_type = (context.get("task_context") or {}).get("task_type")
@@ -446,6 +446,29 @@ def build_prompt(context: dict) -> Tuple[str, str]:
         "## Planned / Future Featurizers (for unsupported_future_featurizers)",
         json.dumps(planned_for_prompt, indent=2, ensure_ascii=False),
         "",
+    ]
+
+    if iteration_guidance:
+        user_message_parts += [
+            "## Iteration Feedback (CRITICAL — Read Before Planning)",
+            "This Workflow Plan is being REGENERATED because the previous pipeline ",
+            "iteration was analyzed by the Iteration Decision module and found to be ",
+            "deficient. You MUST produce a materially different strategy from what ",
+            "was produced before. Focus your changes on the root cause and improvement ",
+            "levers identified below.",
+            "",
+            json.dumps(iteration_guidance, indent=2, ensure_ascii=False),
+            "",
+            "KEY INSTRUCTIONS:",
+            "- Modify feature_strategy if the root cause lies in feature engineering.",
+            "- Modify preprocessing_intent if preprocessing choices were suboptimal.",
+            "- Modify model_strategy if model selection or hyperparameters were the issue.",
+            "- Modify validation_strategy or evaluation_strategy if those were the problem.",
+            "- Do NOT produce the same plan as last time. Introduce concrete changes.",
+            "",
+        ]
+
+    user_message_parts += [
         "## Output JSON Schema",
         "You MUST output a single JSON object that strictly follows this schema:",
         json.dumps(OUTPUT_JSON_SCHEMA, indent=2),

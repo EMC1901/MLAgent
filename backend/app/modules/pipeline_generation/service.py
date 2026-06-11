@@ -169,8 +169,10 @@ class PipelineGenerationService:
 
         if request.use_llm_reviewer:
             try:
+                iteration_guidance = context.get("iteration_guidance")
                 prompt_data = build_llm_review_prompt(
                     context, pipeline_specs, trial_plan, validation_result,
+                    iteration_guidance=iteration_guidance,
                 )
                 llm_request_json = {
                     "system_prompt": prompt_data["system_prompt"],

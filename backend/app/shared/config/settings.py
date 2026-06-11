@@ -9,16 +9,16 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@db:5432/mlagent"
     CORS_ORIGINS: List[str] = ["http://localhost:3000"]
 
-    # LLM configuration
+    # LLM configuration — no default model; must be configured via Switch Model
     LLM_PROVIDER: str = "dashscope"
-    LLM_MODEL: str = "glm-5.1"
+    LLM_MODEL: str = ""
     LLM_API_KEY: str = ""
     LLM_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    LLM_TIMEOUT: int = 120
-    LLM_MAX_RETRIES: int = 4
+    LLM_TIMEOUT: int = 300
+    LLM_MAX_RETRIES: int = 2
     LLM_TEMPERATURE: float = 0.0
     LLM_CALL_COOLDOWN_SECONDS: int = 20
-    LLM_THINKING: bool = True
+    LLM_THINKING: bool = False
     LLM_REASONING_EFFORT: str = "high"
 
     # Dataset upload configuration

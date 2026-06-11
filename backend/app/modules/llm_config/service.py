@@ -35,6 +35,8 @@ def _infer_base_url(model_name: str, requested_base_url: str) -> str:
         return "https://api.openai.com/v1"
     if "claude" in model_lower:
         return "https://api.anthropic.com"
+    if "qwen" in model_lower:
+        return "https://dashscope.aliyuncs.com/compatible-mode/v1"
     return "https://api.openai.com/v1"
 
 
@@ -49,10 +51,13 @@ async def validate_config(request: LLMConfigRequest) -> LLMConfigValidateRespons
         "model": model_name,
         "messages": [{"role": "user", "content": _VALIDATION_PROMPT}],
         "temperature": 0.0,
-        "max_tokens": 16,
+        "max_tokens": 256,
     }
     if request.thinking_enabled:
-        request_body["thinking"] = {"type": "enabled"}
+        if "dashscope" in base_url.lower():
+            request_body["enable_thinking"] = True
+        else:
+            request_body["thinking"] = {"type": "enabled"}
 
     logger.info(
         "Validating LLM config: model=%s url=%s thinking=%s api_key=***%s",

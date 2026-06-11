@@ -19,7 +19,7 @@ export type TaskSpecificationFormData = z.infer<typeof taskSpecificationSchema>;
 export const TASK_TYPE_OPTIONS = [
   { label: 'Regression', value: 'regression' },
   { label: 'Classification', value: 'classification' },
-  { label: 'Ranking', value: 'ranking' },
+  { label: 'Ranking (coming soon)', value: 'ranking', disabled: true },
 ];
 
 export const INPUT_TYPE_OPTIONS = [
@@ -45,9 +45,9 @@ export const EVALUATION_METRIC_OPTIONS = [
   { label: 'Accuracy', value: 'Accuracy' },
   { label: 'F1 score', value: 'F1' },
   { label: 'ROC-AUC', value: 'ROC-AUC' },
-  { label: 'Spearman', value: 'Spearman' },
-  { label: 'NDCG', value: 'NDCG' },
-  { label: 'Top-k recall', value: 'Top-k recall' },
+  { label: 'Spearman (coming soon)', value: 'Spearman', disabled: true },
+  { label: 'NDCG (coming soon)', value: 'NDCG', disabled: true },
+  { label: 'Top-k recall (coming soon)', value: 'Top-k recall', disabled: true },
 ];
 
 export const USER_PRIORITY_OPTIONS = [

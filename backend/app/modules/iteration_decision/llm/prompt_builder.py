@@ -61,7 +61,7 @@ Output a single JSON object with this structure:
       "primary_root_cause": "the single most important root cause",
       "dimension": "data_side" or "feature_side" or "model_side" or "evaluation_side",
       "causal_chain": "step-by-step causal chain from root cause to observed result",
-      "upstream_stage_at_fault": "workflow_planning" or "feature_engineering" or "feature_preprocessing" or "model_search_context" or "model_search" or "pipeline_generation" or "pipeline_execution" or "metric_evaluation" or null,
+      "upstream_stage_at_fault": "workflow_planning" or "feature_engineering" or "feature_preprocessing" or "model_search_context" or "pipeline_generation" or "pipeline_execution" or "metric_evaluation" or null,
       "supporting_evidence": ["evidence point 1", "evidence point 2"]
     }},
     "improvement_potential": {{
@@ -83,7 +83,7 @@ Output a single JSON object with this structure:
   ],
 
   "iteration_plan": null or {{
-    "rerun_from_stage": "workflow_planning" or "feature_engineering" or "feature_preprocessing" or "model_search_context" or "model_search" or "pipeline_generation" or "pipeline_execution" or "metric_evaluation",
+    "rerun_from_stage": "workflow_planning" or "feature_engineering" or "feature_preprocessing" or "model_search_context" or "pipeline_generation" or "pipeline_execution" or "metric_evaluation",
     "stage_changes": [
       {{
         "stage": "which stage to change",
@@ -115,7 +115,7 @@ CRITICAL RULES:
 - All reasoning fields must be complete with concrete, evidence-based statements — not generic placeholders.
 - evidence_basis items must reference actual values from the provided context.
 - upstream_stage_at_fault must be a valid stage name or null.
-- rerun_from_stage must be a valid stage name.
+- rerun_from_stage must be the earliest stage where changes are needed, based on your root_cause analysis. Use "workflow_planning" when the plan strategy itself needs revision (feature engineering, featurizer selection). Use "feature_preprocessing" when preprocessing choices caused the issue. Use "model_search_context" when model selection is at fault. The system will automatically re-execute all downstream stages from this point.
 - If physics_constraints_satisfied is false, this should strongly influence the root_cause analysis.
 - If the task target is clearly achieved, the decision should be "stop" with category "target_achieved".
 - NEVER output Python code, import statements, class/def, model.fit(), Pipeline(), SQL, shell commands, file paths.

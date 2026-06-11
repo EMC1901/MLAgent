@@ -15,7 +15,10 @@ REVIEW_DIMENSIONS = [
 ]
 
 
-def build_llm_review_prompt(context: dict, pipeline_specs: list, trial_plan, validation_result) -> dict:
+def build_llm_review_prompt(
+    context: dict, pipeline_specs: list, trial_plan, validation_result,
+    iteration_guidance: dict = None,
+) -> dict:
     specs = [s if isinstance(s, dict) else s.model_dump() for s in pipeline_specs]
     tp = trial_plan if isinstance(trial_plan, dict) else trial_plan.model_dump() if trial_plan else {}
 
@@ -67,6 +70,7 @@ def build_llm_review_prompt(context: dict, pipeline_specs: list, trial_plan, val
             "n_samples": context.get("n_samples"),
             "n_features": context.get("n_features"),
             "primary_metric": context.get("primary_metric"),
+            "iteration_guidance": iteration_guidance,
         },
         "pipeline_summary": {
             "candidate_models": model_summary,

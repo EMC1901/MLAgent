@@ -11,7 +11,7 @@ import {
 
 // Feature engineering can take much longer due to matminer featurizers
 // (e.g., 4604 rows × 3 featurizers ≈ 7-10 minutes)
-const FEATURE_ENGINEERING_TIMEOUT = 600000; // 10 minutes
+const FEATURE_ENGINEERING_TIMEOUT = 900000; // 15 minutes
 
 export const createFeatureEngineering = async (
   taskId: string,

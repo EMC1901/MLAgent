@@ -39,7 +39,7 @@ def analyze_high_error_samples(
         if n == 0:
             return items
 
-    errors = np.abs(np.asarray(y_true) - np.asarray(y_pred))
+    errors = np.abs(np.asarray(y_true, dtype=float) - np.asarray(y_pred, dtype=float))
     n = len(errors)
 
     top_n = min(max_samples, n)

@@ -138,6 +138,64 @@ def validate_llm_advice(parsed_advice: dict, task_type: str) -> dict:
                         rejected.append(f"baseline_model: '{m}' is not in Model Registry")
                 change["updated_value"] = list(dict.fromkeys(valid_baselines))  # dedupe preserving order
 
+        # Validate selected_model_actions structure
+        if field_path == "selected_model_actions":
+            updated = change.get("updated_value", [])
+            if not isinstance(updated, list):
+                rejected.append(f"{change_key}: selected_model_actions must be an array")
+                fallback_applied = True
+            else:
+                valid_actions = []
+                for j, action in enumerate(updated):
+                    if not isinstance(action, dict):
+                        rejected.append(
+                            f"{change_key}[{j}]: each action must be an object, got {type(action).__name__}"
+                        )
+                        fallback_applied = True
+                        continue
+                    family = str(action.get("model_family", ""))
+                    resolved = _resolve_model_family(family)
+                    if not is_valid_model_family(resolved):
+                        rejected.append(
+                            f"{change_key}[{j}]: model_family '{family}' is not in Model Registry"
+                        )
+                        fallback_applied = True
+                    else:
+                        action["model_family"] = resolved
+                    valid_actions.append(action)
+                change["updated_value"] = valid_actions
+
+        # Validate rejected_model_actions structure
+        if field_path == "rejected_model_actions":
+            updated = change.get("updated_value", [])
+            if not isinstance(updated, list):
+                rejected.append(f"{change_key}: rejected_model_actions must be an array")
+                fallback_applied = True
+            else:
+                valid_actions = []
+                for j, action in enumerate(updated):
+                    if not isinstance(action, dict):
+                        rejected.append(
+                            f"{change_key}[{j}]: each action must be an object, got {type(action).__name__}"
+                        )
+                        fallback_applied = True
+                        continue
+                    family = str(action.get("model_family", ""))
+                    resolved = _resolve_model_family(family)
+                    if not is_valid_model_family(resolved):
+                        rejected.append(
+                            f"{change_key}[{j}]: model_family '{family}' is not in Model Registry"
+                        )
+                        fallback_applied = True
+                    else:
+                        action["model_family"] = resolved
+                    if not action.get("reason", "").strip():
+                        warnings.append(
+                            f"{change_key}[{j}]: missing 'reason' for rejected model '{family}'"
+                        )
+                    valid_actions.append(action)
+                change["updated_value"] = valid_actions
+
         # Validate HPO search_method
         if field_path == "search_method":
             updated = change.get("updated_value", "")

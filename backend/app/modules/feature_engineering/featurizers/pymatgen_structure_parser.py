@@ -9,6 +9,9 @@ import logging
 import time
 import pandas as pd
 from app.modules.feature_engineering.featurizers.base_featurizer import BaseFeaturizer
+from app.modules.feature_engineering.featurizers.structure_parsing_utils import (
+    parse_structure_value,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,20 +86,7 @@ class PymatgenStructureParserFeaturizer(BaseFeaturizer):
         failed = []
         for idx, val in raw_dataframe[structure_col].items():
             try:
-                if isinstance(val, Structure):
-                    struct = val
-                elif isinstance(val, str):
-                    val_stripped = val.strip()
-                    if not val_stripped:
-                        raise ValueError("Empty structure string")
-                    try:
-                        struct = Structure.from_str(val_stripped, fmt="cif")
-                    except Exception:
-                        struct = Structure.from_str(val_stripped, fmt="poscar")
-                elif isinstance(val, dict):
-                    struct = Structure.from_dict(val)
-                else:
-                    raise ValueError(f"Unsupported structure value type: {type(val)}")
+                struct = parse_structure_value(val)
                 parsed.append(struct)
             except Exception:
                 parsed.append(None)

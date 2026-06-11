@@ -202,6 +202,7 @@ class IterationDecisionService:
             revised_plan = None
             rerun_plan = None
             stop_rationale = None
+            iteration_guidance = None
             conflicts = []
             if normalized.decision == Decision.ITERATE:
                 current_wp = upstream.get("workflow_plan", {})
@@ -209,6 +210,7 @@ class IterationDecisionService:
                 revised_plan = plans["revised_workflow_plan"]
                 rerun_plan = plans["iteration_rerun_plan"]
                 iteration_plan = normalized.iteration_plan
+                iteration_guidance = plans["iteration_guidance"]
 
                 # Conflict detection
                 if normalized.iteration_plan:
@@ -221,6 +223,11 @@ class IterationDecisionService:
                 revised_valid = validate_revised_workflow_plan(revised_plan)
                 rerun_valid = validate_rerun_plan(rerun_plan)
 
+                logger.info(
+                    "[6/7] Plan validation — iteration_plan=%s revised=%s rerun=%s",
+                    plan_valid["is_valid"], revised_valid["is_valid"], rerun_valid["is_valid"],
+                )
+
                 if not all([plan_valid["is_valid"], revised_valid["is_valid"], rerun_valid["is_valid"]]):
                     all_warnings = (
                         plan_valid.get("errors", []) + plan_valid.get("warnings", []) +
@@ -228,9 +235,23 @@ class IterationDecisionService:
                         rerun_valid.get("errors", []) + rerun_valid.get("warnings", [])
                     )
                     warnings_list.extend(all_warnings)
+                    logger.warning(
+                        "[6/7] Validation issues — plan_errors=%s plan_warnings=%s "
+                        "revised_errors=%s revised_warnings=%s rerun_errors=%s rerun_warnings=%s",
+                        plan_valid.get("errors"), plan_valid.get("warnings"),
+                        revised_valid.get("errors"), revised_valid.get("warnings"),
+                        rerun_valid.get("errors"), rerun_valid.get("warnings"),
+                    )
 
-                record.rerun_from_stage = normalized.iteration_plan.rerun_from_stage if normalized.iteration_plan else None
-                record.ready_for_iteration = plan_valid["is_valid"]
+                record.rerun_from_stage = rerun_plan.rerun_from_stage if rerun_plan else None
+                # ready_for_iteration depends on the system-built plans (revised_plan,
+                # rerun_plan), not the LLM's raw iteration_plan.  The LLM's
+                # iteration_plan is advisory — the system overrides rerun_from_stage
+                # and builds the actual execution plan.
+                record.ready_for_iteration = all([
+                    revised_valid["is_valid"],
+                    rerun_valid["is_valid"],
+                ])
 
             elif normalized.decision == Decision.STOP:
                 stop_rationale = normalized.stop_rationale
@@ -373,7 +394,15 @@ class IterationDecisionService:
         return record.revised_workflow_plan_json or {}
 
     def adopt_revised_plan(self, session: Session, id_: str) -> dict:
-        """Adopt the revised workflow plan: validate and persist as new WorkflowPlan."""
+        """Adopt the revised workflow plan: validate and persist as new WorkflowPlan.
+
+        When the iteration guidance indicates changes to workflow_planning or
+        feature_engineering, we trigger a full WP LLM re-run (the only path
+        that can translate natural-language guidance into structured strategy
+        changes that FE can consume).  For all other stages, the revised plan
+        is persisted directly with iteration_guidance — downstream LLM modules
+        read it from the new WorkflowPlan.
+        """
         record = self.repo.get_by_id(session, id_)
         if not record:
             raise IterationDecisionNotFoundException(f"IterationDecision '{id_}' not found.")
@@ -402,19 +431,30 @@ class IterationDecisionService:
             from app.shared.common.exceptions import BusinessException
             raise BusinessException(f"Plan validation failed: {plan_valid['errors']}", "ADOPT_PLAN_INVALID")
 
-        # Persist as new WorkflowPlan
+        rerun_plan = record.iteration_rerun_plan_json or {}
+        iteration_guidance = rwp.iteration_guidance
+        needs_wp_rerun = (rerun_plan.get("rerun_from_stage") == "workflow_planning")
+
         from app.modules.workflow_planning.service import WorkflowPlanningService
         wp_service = WorkflowPlanningService()
-        wp_dict = {
-            "task_summary": rwp.task_summary,
-            "data_strategy": rwp.data_strategy,
-            "feature_strategy": rwp.feature_strategy,
-            "model_strategy": rwp.model_strategy,
-            "hpo_strategy": rwp.hpo_strategy,
-            "validation_strategy": rwp.validation_strategy,
-            "evaluation_strategy": rwp.evaluation_strategy,
-        }
-        wp_response = wp_service.adopt_revised_plan(session, record.task_id, wp_dict)
+
+        if needs_wp_rerun:
+            logger.info("Adopt: triggering WP LLM re-run with iteration_guidance for task %s", record.task_id)
+            wp_response = wp_service.rerun_with_iteration_guidance(
+                session, record.task_id, iteration_guidance,
+            )
+        else:
+            wp_dict = {
+                "task_summary": rwp.task_summary,
+                "data_strategy": rwp.data_strategy,
+                "feature_strategy": rwp.feature_strategy,
+                "model_strategy": rwp.model_strategy,
+                "hpo_strategy": rwp.hpo_strategy,
+                "validation_strategy": rwp.validation_strategy,
+                "evaluation_strategy": rwp.evaluation_strategy,
+                "iteration_guidance": iteration_guidance,
+            }
+            wp_response = wp_service.adopt_revised_plan(session, record.task_id, wp_dict)
         new_plan_id = wp_response.workflow_plan_id
 
         record.source_workflow_plan_id = new_plan_id
@@ -422,11 +462,11 @@ class IterationDecisionService:
         record.updated_at = datetime.now(timezone.utc)
         self.repo.update(session, record)
 
-        rerun_plan = record.iteration_rerun_plan_json or {}
         return {
             "adopted": True,
             "iteration_decision_id": id_,
             "adopted_workflow_plan_id": new_plan_id,
+            "needs_wp_rerun": needs_wp_rerun,
             "rerun_from_stage": record.rerun_from_stage,
             "rerun_stages": rerun_plan.get("rerun_stages", []),
             "reuse_artifacts": rerun_plan.get("reuse_artifacts", []),
@@ -483,7 +523,7 @@ def _rule_based_fallback(checks, history, request) -> dict:
             },
             "evidence_basis": [],
             "iteration_plan": {
-                "rerun_from_stage": "feature_engineering" if checks.feature_count_low else "model_search",
+                "rerun_from_stage": "feature_engineering",
                 "stage_changes": [{"stage": "feature_engineering", "action": "expand", "description": "Fallback: expand features.", "rationale": "System rule detected feature insufficiency."}],
                 "preserved_stages": [],
                 "expected_improvement": "unknown (fallback)",

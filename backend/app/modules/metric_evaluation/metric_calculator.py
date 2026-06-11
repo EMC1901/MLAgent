@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 from typing import Dict, Optional
 from app.modules.metric_evaluation.metric_registry import (
@@ -9,6 +10,14 @@ from app.modules.metric_evaluation.exceptions import (
     MetricCalculationException,
 )
 
+logger = logging.getLogger(__name__)
+
+
+def _canonical_metric_name(name: str) -> str:
+    """Normalise metric name: replace hyphens with underscores so that
+    'ROC-AUC' and 'ROC_AUC' resolve to the same canonical key."""
+    return name.replace("-", "_")
+
 
 def _safe_divide(a: float, b: float) -> float:
     if b == 0:
@@ -16,9 +25,13 @@ def _safe_divide(a: float, b: float) -> float:
     return a / b
 
 
-def calculate_metric(y_true: np.ndarray, y_pred: np.ndarray, metric_name: str) -> float:
+def calculate_metric(y_true: np.ndarray, y_pred: np.ndarray, metric_name: str, y_score: np.ndarray = None) -> float:
     y_true = np.asarray(y_true, dtype=float)
     y_pred = np.asarray(y_pred, dtype=float)
+    if y_score is not None:
+        y_score = np.asarray(y_score, dtype=float)
+
+    metric_name = _canonical_metric_name(metric_name)
 
     if metric_name == "MAE":
         return float(np.mean(np.abs(y_true - y_pred)))
@@ -55,6 +68,23 @@ def calculate_metric(y_true: np.ndarray, y_pred: np.ndarray, metric_name: str) -
         if precision + recall == 0:
             return 0.0
         return float(2 * precision * recall / (precision + recall))
+    elif metric_name == "ROC_AUC":
+        if y_score is None:
+            logger.warning("ROC_AUC requires y_score (predict_proba), got None — returning NaN")
+            return float("nan")
+        unique_classes = np.unique(y_true)
+        if len(unique_classes) > 2:
+            logger.warning(
+                "Multi-class ROC-AUC (n_classes=%d) is not yet supported — returning NaN",
+                len(unique_classes),
+            )
+            return float("nan")
+        try:
+            from sklearn.metrics import roc_auc_score
+            return float(roc_auc_score(y_true, y_score))
+        except Exception as exc:
+            logger.warning("ROC_AUC calculation failed: %s", exc)
+            return float("nan")
     else:
         raise MetricNotSupportedException(
             f"Metric '{metric_name}' is not supported."
@@ -66,6 +96,7 @@ def calculate_all_metrics(
     y_pred: np.ndarray,
     task_type: str,
     metric_names: Optional[list] = None,
+    y_score: np.ndarray = None,
 ) -> Dict[str, float]:
     if metric_names is None:
         from app.modules.metric_evaluation.metric_registry import get_default_metrics
@@ -73,11 +104,12 @@ def calculate_all_metrics(
 
     results = {}
     for name in metric_names:
-        if not is_metric_supported(name, task_type):
+        canonical = _canonical_metric_name(name)
+        if not is_metric_supported(canonical, task_type):
             continue
         try:
-            value = calculate_metric(y_true, y_pred, name)
-            results[name] = value if np.isfinite(value) else float("nan")
+            value = calculate_metric(y_true, y_pred, canonical, y_score=y_score)
+            results[canonical] = value if np.isfinite(value) else float("nan")
         except Exception:
-            results[name] = float("nan")
+            results[canonical] = float("nan")
     return results

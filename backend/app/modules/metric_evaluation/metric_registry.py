@@ -79,11 +79,13 @@ def get_metrics_for_task_type(task_type: str) -> dict:
 
 
 def is_metric_supported(metric_name: str, task_type: str) -> bool:
+    metric_name = metric_name.replace("-", "_")
     metrics = get_metrics_for_task_type(task_type)
     return metric_name in metrics
 
 
 def get_metric_direction(metric_name: str) -> str:
+    metric_name = metric_name.replace("-", "_")
     if metric_name in ALL_METRICS:
         return ALL_METRICS[metric_name]["direction"]
     return MetricDirection.MINIMIZE

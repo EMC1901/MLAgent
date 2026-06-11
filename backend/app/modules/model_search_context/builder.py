@@ -401,8 +401,9 @@ def _normalize_metric_name(name: str) -> str:
     """Map any casing of a known metric name to its canonical (Title Case) form."""
     if not name:
         return name
+    normalised = name.replace("-", "_")
     for canonical in _METRIC_DIRECTIONS:
-        if canonical.lower() == name.lower():
+        if canonical.lower() == normalised.lower():
             return canonical
     return name
 

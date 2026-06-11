@@ -117,6 +117,7 @@ class ModelSearchContextService:
         original_hpo_strategy = plan_ctx.get("hpo_strategy", {})
         original_validation_strategy = plan_ctx.get("validation_strategy", {})
         original_evaluation_strategy = plan_ctx.get("evaluation_strategy", {})
+        iteration_guidance = plan_ctx.get("iteration_guidance")
 
         # --- 6. Build LLM context and call LLM ---
         llm_used = request.use_llm_advisor
@@ -136,6 +137,7 @@ class ModelSearchContextService:
                 original_model_strategy=original_model_strategy,
                 original_hpo_strategy=original_hpo_strategy,
                 original_validation_strategy=original_validation_strategy,
+                iteration_guidance=iteration_guidance,
             )
 
             llm_request_json = {

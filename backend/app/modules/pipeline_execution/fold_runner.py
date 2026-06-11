@@ -139,6 +139,7 @@ def run_fold(
         _fit_kwargs = {}
         if hasattr(model, "fit") and _supports_eval_set(type(model).__name__):
             _fit_kwargs["eval_set"] = [(X_val, y_val)]
+        if type(model).__name__ in _MODELS_WITH_VERBOSE_IN_FIT:
             _fit_kwargs["verbose"] = False
 
         try:
@@ -217,6 +218,10 @@ def run_fold(
 _MODELS_WITH_EVAL_SET = {
     "XGBRegressor", "XGBClassifier", "XGBModel",
     "LGBMRegressor", "LGBMClassifier",
+}
+
+_MODELS_WITH_VERBOSE_IN_FIT = {
+    "XGBRegressor", "XGBClassifier", "XGBModel",
 }
 
 

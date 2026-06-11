@@ -257,6 +257,18 @@ def _build_feature_provenance(artifact_result, featurization_result) -> FeatureP
     )
 
 
+def _trim_quality_profile_for_prompt(quality_profile) -> dict:
+    """Return quality_profile sans per_feature_summary for the LLM prompt.
+
+    per_feature_summary carries one entry per feature (e.g. 156 × ~420 chars
+    ≈ 65K with indent=2).  The FP planner works at the feature-group level — it
+    does not need per-column variance/skewness in the prompt.
+    """
+    d = quality_profile.model_dump(mode="json")
+    d.pop("per_feature_summary", None)
+    return d
+
+
 def _build_preprocessing_decision_input(
     context, featurization_result, quality_profile, task_type, target_column, primary_metric, status
 ) -> dict:
@@ -287,7 +299,9 @@ def _build_preprocessing_decision_input(
             "row_count": quality_profile.global_summary.row_count,
             "feature_count": quality_profile.global_summary.feature_count,
             "feature_groups": featurization_result.get("feature_groups", []),
-            "feature_quality_profile": quality_profile.model_dump(mode="json"),
+            # Drop per_feature_summary (156 features × ~420 chars = ~65K) —
+            # the LLM plans at group level, per-column stats are noise in the prompt.
+            "feature_quality_profile": _trim_quality_profile_for_prompt(quality_profile),
         },
         "execution_context": {
             "feature_engineering_status": status,

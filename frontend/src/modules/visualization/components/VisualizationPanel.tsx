@@ -106,7 +106,10 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({ taskId, initial
 
   const fa = result?.feature_analysis;
   const mp = result?.model_performance;
-  const taskType = result?.task_type || 'regression';
+  const rawTaskType = result?.task_type || 'regression';
+  const taskType = rawTaskType.includes('classif') ? 'classification'
+    : rawTaskType.includes('regress') ? 'regression'
+    : rawTaskType;
 
   const featSubTabs = [
     { id: 'correlationHeatmap', label: 'Correlation Heatmap' },
@@ -134,14 +137,29 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({ taskId, initial
     </div>
   );
 
+  const isClassification = taskType === 'classification';
+
   const modelPerfSubTabs = [
-    { id: 'predictedVsActual', label: 'Predicted vs Actual', avail: !!mp?.predicted_vs_actual },
-    { id: 'residualPlot', label: 'Residual Plot', avail: !!mp?.residual_plot },
+    ...(!isClassification ? [
+      { id: 'predictedVsActual', label: 'Predicted vs Actual', avail: !!mp?.predicted_vs_actual },
+      { id: 'residualPlot', label: 'Residual Plot', avail: !!mp?.residual_plot },
+    ] : []),
     { id: 'trainTest', label: 'Train/Test', avail: !!mp?.train_test_comparison },
     { id: 'cvBoxPlot', label: 'CV Box Plot', avail: !!mp?.cross_validation_box_plot },
-    { id: 'confusionMatrix', label: 'Confusion Matrix', avail: true },
-    { id: 'rocCurve', label: 'ROC / PR', avail: true },
+    ...(isClassification ? [
+      { id: 'confusionMatrix', label: 'Confusion Matrix', avail: !!mp?.confusion_matrix },
+      { id: 'rocCurve', label: 'ROC / PR', avail: !!(mp?.roc_curve || mp?.pr_curve) },
+    ] : []),
   ];
+
+  // Keep active sub-tab in sync: when task type changes (e.g. data loaded),
+  // switch to first visible tab if the current one is no longer available.
+  useEffect(() => {
+    const visibleIds = modelPerfSubTabs.filter(t => t.avail).map(t => t.id);
+    if (visibleIds.length > 0 && !visibleIds.includes(activePerfSubTab)) {
+      setActivePerfSubTab(visibleIds[0]);
+    }
+  }, [taskType, mp, activePerfSubTab]);
 
   return (
     <div style={s.container}>
@@ -227,7 +245,7 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({ taskId, initial
               <div>
                 {/* Sub-tabs */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 16 }}>
-                  {modelPerfSubTabs.map(t => (
+                  {modelPerfSubTabs.filter(t => t.avail).map(t => (
                     renderSubTab(t.id, t.label, activePerfSubTab === t.id, () => setActivePerfSubTab(t.id))
                   ))}
                 </div>

@@ -22,7 +22,6 @@ class RerunStage:
     FEATURE_ENGINEERING = "feature_engineering"
     FEATURE_PREPROCESSING = "feature_preprocessing"
     MODEL_SEARCH_CONTEXT = "model_search_context"
-    MODEL_SEARCH = "model_search"
     PIPELINE_GENERATION = "pipeline_generation"
     PIPELINE_EXECUTION = "pipeline_execution"
     METRIC_EVALUATION = "metric_evaluation"
@@ -33,7 +32,6 @@ VALID_RERUN_STAGES = {
     RerunStage.FEATURE_ENGINEERING,
     RerunStage.FEATURE_PREPROCESSING,
     RerunStage.MODEL_SEARCH_CONTEXT,
-    RerunStage.MODEL_SEARCH,
     RerunStage.PIPELINE_GENERATION,
     RerunStage.PIPELINE_EXECUTION,
     RerunStage.METRIC_EVALUATION,
@@ -64,7 +62,7 @@ RERUN_STAGE_RECOMMENDATIONS = {
     "feature_noise": RerunStage.WORKFLOW_PLANNING,
     "underfitting": RerunStage.WORKFLOW_PLANNING,
     "model_mismatch": RerunStage.MODEL_SEARCH_CONTEXT,
-    "hpo_insufficient": RerunStage.MODEL_SEARCH,
+    "hpo_insufficient": RerunStage.MODEL_SEARCH_CONTEXT,
     "validation_instability": RerunStage.WORKFLOW_PLANNING,
     "weak_baseline_improvement": RerunStage.WORKFLOW_PLANNING,
     "limited_pipeline_gain": RerunStage.WORKFLOW_PLANNING,

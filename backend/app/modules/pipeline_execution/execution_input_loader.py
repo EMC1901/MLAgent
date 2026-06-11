@@ -1,6 +1,11 @@
 """Execution Input Loader — loads and validates execution_input_json."""
 
+import logging
+
 from app.modules.pipeline_execution.exceptions import ExecutionInputInvalidException
+
+logger = logging.getLogger(__name__)
+
 from app.modules.pipeline_generation.schemas import (
     ExecutionInput,
     PipelineSpec,
@@ -69,6 +74,12 @@ def load_execution_input(execution_input_raw: dict) -> ExecutionInput:
     if not ei.evaluation_plan.get("primary_metric"):
         raise ExecutionInputInvalidException(
             "evaluation_plan missing primary_metric."
+        )
+    if not ei.evaluation_plan.get("metric_direction"):
+        logger.warning(
+            "evaluation_plan is missing metric_direction for primary_metric='%s' — "
+            "downstream will infer it via metric_registry.get_metric_direction()",
+            ei.evaluation_plan.get("primary_metric"),
         )
 
     # Feature/target

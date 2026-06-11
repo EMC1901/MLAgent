@@ -8,6 +8,9 @@ import time
 import pandas as pd
 import numpy as np
 from app.modules.feature_engineering.featurizers.base_featurizer import BaseFeaturizer
+from app.modules.feature_engineering.featurizers.structure_parsing_utils import (
+    parse_structure_value,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +32,12 @@ except ImportError:
 _DEPS_OK = _PYMATGEN_AVAILABLE and _MATMINER_AVAILABLE
 
 _STRUCTURE_FEATURIZERS = {}
+
+
+def _get_default_site_featurizer():
+    """Return a fresh default site featurizer instance for SiteStatsFingerprint."""
+    from matminer.featurizers.site import AGNIFingerprints
+    return AGNIFingerprints()
 
 
 def _get_matminer_structure_featurizer(key):
@@ -66,20 +75,7 @@ def _parse_structures(series, start_time):
     failed = []
     for idx, val in series.items():
         try:
-            if isinstance(val, Structure):
-                struct = val
-            elif isinstance(val, str):
-                val_stripped = val.strip()
-                if not val_stripped:
-                    raise ValueError("Empty string")
-                try:
-                    struct = Structure.from_str(val_stripped, fmt="cif")
-                except Exception:
-                    struct = Structure.from_str(val_stripped, fmt="poscar")
-            elif isinstance(val, dict):
-                struct = Structure.from_dict(val)
-            else:
-                raise ValueError(f"Unsupported type: {type(val)}")
+            struct = parse_structure_value(val)
             structures.append(struct)
         except Exception:
             structures.append(None)
@@ -276,4 +272,5 @@ class MatminerSiteStatsFeaturizer(BaseFeaturizer):
             raw_dataframe=raw_dataframe,
             context=context,
             matminer_key="site_stats",
+            matminer_kwargs={"site_featurizer": _get_default_site_featurizer()},
         )

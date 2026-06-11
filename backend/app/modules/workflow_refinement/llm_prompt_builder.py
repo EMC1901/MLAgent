@@ -49,7 +49,7 @@ Output your response as a single JSON object with this structure:
     "decision_confidence_level": "low" or "medium" or "high",
     "primary_reason": "concise primary reason for the decision",
     "should_generate_revised_workflow_plan": true or false,
-    "recommended_rerun_from_stage": "workflow_planning" or "feature_engineering" or "feature_preprocessing" or "model_search_context" or "model_search" or "pipeline_generation" or "pipeline_execution" or "metric_evaluation" or null
+    "recommended_rerun_from_stage": "workflow_planning" or "feature_engineering" or "feature_preprocessing" or "model_search_context" or "pipeline_generation" or "pipeline_execution" or "metric_evaluation" or null
   }},
   "decision_reasoning": {{
     "performance_assessment": "...",

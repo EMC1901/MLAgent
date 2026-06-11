@@ -16,8 +16,9 @@ import {
   ExecuteRequest,
 } from '../modules/featurePreprocessing/types';
 
-// Feature preprocessing can take time for imputation/scaling on large matrices
-const FEATURE_PREPROCESSING_TIMEOUT = 600000; // 10 minutes
+// Feature preprocessing LLM calls can take 5-10 min for thinking models
+// (glm-5.1 with reasoning). With retries the total may reach ~15 min.
+const FEATURE_PREPROCESSING_TIMEOUT = 900000; // 15 minutes
 
 export const createFeaturePreprocessing = async (
   taskId: string,

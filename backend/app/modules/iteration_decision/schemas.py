@@ -156,6 +156,7 @@ class RevisedWorkflowPlan(BaseModel):
     validation_strategy: Optional[Dict[str, Any]] = None
     evaluation_strategy: Optional[Dict[str, Any]] = None
     hpo_strategy: Optional[Dict[str, Any]] = None
+    iteration_guidance: Optional[Dict[str, Any]] = None
     changed_sections: List[str] = []
     preserved_sections: List[str] = []
     planning_warnings: List[str] = []

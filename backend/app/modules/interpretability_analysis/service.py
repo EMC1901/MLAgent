@@ -152,7 +152,9 @@ class InterpretabilityAnalysisService:
         logger.info("[3/25] Transaction released")
 
         # ---- [4/25] Validate paths ----
+        logger.info("[4/25] Validating artifact paths ...")
         _validate_artifact_paths(ia_input.model_artifact_path, ia_input.model_ready_matrix_path)
+        logger.info("[4/25] Done")
 
         # ---- [5/25] Load model artifact ----
         logger.info("[5/25] Loading model artifact ...")
@@ -354,6 +356,7 @@ class InterpretabilityAnalysisService:
         # Step 11: Cross-method consensus
         cross_method_consensus = None
         if request.include_cross_method_consensus and len(per_method_importance) >= 2:
+            logger.info("[11/25] Computing cross-method consensus ...")
             try:
                 cross_method_consensus = compute_cross_method_consensus(per_method_importance)
             except Exception as e:
@@ -363,6 +366,7 @@ class InterpretabilityAnalysisService:
         # Step 12: Partial dependence
         partial_dependence = None
         if request.include_pdp:
+            logger.info("[12/25] Computing partial dependence ...")
             try:
                 partial_dependence = compute_partial_dependence(
                     model=model, X=X, feature_columns=feature_columns,
@@ -377,6 +381,7 @@ class InterpretabilityAnalysisService:
         # NOT `y` from the feature matrix which has a different row order.
         residual_analysis = None
         if request.include_residual_analysis and y_true_aligned is not None and y_pred is not None:
+            logger.info("[13/25] Computing residual analysis ...")
             try:
                 residual_analysis = analyze_residuals(
                     y_true=y_true_aligned, y_pred=y_pred, X=X, feature_columns=feature_columns,
@@ -388,6 +393,7 @@ class InterpretabilityAnalysisService:
         # Step 14: Systematic error detection
         systematic_errors = None
         if request.include_residual_analysis and y_true_aligned is not None and y_pred is not None:
+            logger.info("[14/25] Detecting systematic errors ...")
             try:
                 systematic_errors = detect_systematic_errors(
                     X=X, y_true=y_true_aligned, y_pred=y_pred, feature_columns=feature_columns,
@@ -399,6 +405,7 @@ class InterpretabilityAnalysisService:
         # Step 15: Physics constraint check
         physics_constraints = None
         if request.include_physics_constraints and y_pred is not None:
+            logger.info("[15/25] Checking physics constraints ...")
             try:
                 physics_constraints = check_physics_constraints(
                     y_pred=y_pred,
@@ -412,6 +419,7 @@ class InterpretabilityAnalysisService:
         # Step 16: SHAP interaction values
         shap_interactions = None
         if "shap" in method_plan.methods_selected and shap_values is not None:
+            logger.info("[16/25] Computing SHAP interactions ...")
             try:
                 shap_interactions = compute_shap_interactions(
                     shap_values=shap_values,
@@ -425,6 +433,7 @@ class InterpretabilityAnalysisService:
         # Step 17: SHAP dependence data
         shap_dependence = None
         if "shap" in method_plan.methods_selected and shap_values is not None:
+            logger.info("[17/25] Computing SHAP dependence ...")
             try:
                 shap_dependence = compute_shap_dependence(
                     shap_values=shap_values,
@@ -441,6 +450,7 @@ class InterpretabilityAnalysisService:
         _y_pred_arr = np.asarray(y_pred) if y_pred is not None else None
         local_explanations = []
         try:
+            logger.info("[18/25] Building local explanations ...")
             local_explanations = build_local_explanations(
                 X=X,
                 y_true=_y_true,
@@ -457,6 +467,7 @@ class InterpretabilityAnalysisService:
         high_error_analysis = []
         if request.include_high_error_samples:
             try:
+                logger.info("[19/25] Analyzing high-error samples ...")
                 high_error_analysis = analyze_high_error_samples(
                     X=X,
                     y_true=y_true_aligned if y_true_aligned is not None else y,
@@ -471,6 +482,7 @@ class InterpretabilityAnalysisService:
 
         # Step 20: Feature group summary
         try:
+            logger.info("[20/25] Building feature group summary ...")
             feature_group_summary = build_feature_group_summary(
                 top_importance,
                 feature_lineage=ia_input.feature_lineage,
@@ -489,7 +501,7 @@ class InterpretabilityAnalysisService:
         llm_confidence = None
 
         if request.use_llm_summarizer:
-            logger.info("[23/25] Calling LLM summarizer ...")
+            logger.info("[21/25] Building LLM interpretability context ...")
             try:
                 llm_context = build_llm_interpretability_context(
                     task_summary={
@@ -520,6 +532,7 @@ class InterpretabilityAnalysisService:
                 )
                 llm_raw_request = llm_context
 
+                logger.info("[22/25] Generating LLM summary ...")
                 llm_result = self.llm_summarizer.summarize(
                     llm_context["system_prompt"], llm_context["user_message"]
                 )

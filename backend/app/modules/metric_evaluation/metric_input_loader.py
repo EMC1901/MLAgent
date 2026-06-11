@@ -1,5 +1,9 @@
 from typing import Dict, Any
+import logging
+
 from app.modules.metric_evaluation.exceptions import MetricEvaluationInputInvalidException
+
+logger = logging.getLogger(__name__)
 
 
 REQUIRED_FIELDS = [
@@ -56,6 +60,17 @@ def load_metric_evaluation_input(metric_input_json: Dict[str, Any]) -> Dict[str,
     if metric_direction not in ("minimize", "maximize"):
         raise MetricEvaluationInputInvalidException(
             f"Invalid metric_direction '{metric_direction}'. Expected 'minimize' or 'maximize'."
+        )
+
+    # Cross-validate: does metric_direction match the expected direction for primary_metric?
+    primary_metric = metric_input_json["primary_metric"]
+    from app.modules.metric_evaluation.metric_registry import get_metric_direction
+    expected_direction = get_metric_direction(primary_metric)
+    if expected_direction != metric_direction:
+        logger.warning(
+            "metric_direction='%s' does not match expected direction '%s' "
+            "for primary_metric='%s' — ranking may be incorrect.",
+            metric_direction, expected_direction, primary_metric,
         )
 
     return metric_input_json

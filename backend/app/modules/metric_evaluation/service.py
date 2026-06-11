@@ -1,8 +1,11 @@
 import uuid
 import traceback
+import logging
 from datetime import datetime
 from typing import Optional
 from sqlmodel import Session
+
+logger = logging.getLogger(__name__)
 
 from app.modules.metric_evaluation.model import MetricEvaluation
 from app.modules.metric_evaluation.repository import MetricEvaluationRepository
@@ -75,6 +78,19 @@ class MetricEvaluationService:
             target_column = metric_input["target_column"]
             primary_metric = metric_input["primary_metric"]
             metric_direction = metric_input["metric_direction"]
+
+            # Correct metric_direction if it contradicts primary_metric
+            # (e.g. stale JSONB persisted "minimize" for ROC-AUC before fixes were in place).
+            from app.modules.metric_evaluation.metric_registry import get_metric_direction
+            expected_direction = get_metric_direction(primary_metric)
+            if metric_direction != expected_direction:
+                logger.warning(
+                    "metric_direction='%s' contradicts expected direction '%s' "
+                    "for primary_metric='%s' — overriding to '%s'",
+                    metric_direction, expected_direction, primary_metric, expected_direction,
+                )
+                metric_direction = expected_direction
+
             trial_results_raw = metric_input["trial_results"]
             prediction_artifact_paths = metric_input["prediction_artifacts"]
 
@@ -132,7 +148,7 @@ class MetricEvaluationService:
             )
 
             # Step 7: Aggregate pipeline/model-level metrics
-            pipeline_results = aggregate_pipeline_metrics(trial_results)
+            pipeline_results = aggregate_pipeline_metrics(trial_results, metric_direction)
 
             # Step 8: Rank models and trials
             best_trial, best_model_id, best_trial_id, best_pipeline_spec_id, ranking_items = (

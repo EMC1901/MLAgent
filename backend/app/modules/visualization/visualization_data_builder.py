@@ -39,7 +39,7 @@ def build_visualization_data(
     pe: Optional[PipelineExecution],
     fp: Optional[FeaturePreprocessing],
 ) -> VisualizationDataResponse:
-    task_type = _resolve_task_type(me, ia)
+    task_type = _resolve_task_type(me, pe)
     feature_analysis = _build_feature_analysis(ia, fp, dp)
     model_performance = _build_model_performance(ia, me, pe, task_type)
 
@@ -53,10 +53,25 @@ def build_visualization_data(
 
 # ---- Helpers ----
 
-def _resolve_task_type(me: Optional[MetricEvaluation], ia: Optional[InterpretabilityAnalysis]) -> str:
+def _resolve_task_type(
+    me: Optional[MetricEvaluation],
+    pe: Optional[PipelineExecution],
+) -> str:
     if me and me.task_type:
-        return me.task_type
+        return _normalize_task_type(me.task_type)
+    if pe and pe.task_type:
+        return _normalize_task_type(pe.task_type)
     return "regression"
+
+
+def _normalize_task_type(raw: str) -> str:
+    """Normalize task_type to canonical 'regression' or 'classification'."""
+    lower = raw.strip().lower()
+    if "classif" in lower:
+        return "classification"
+    if "regress" in lower:
+        return "regression"
+    return lower
 
 
 def _safe_json(val: Any) -> dict:
@@ -244,12 +259,15 @@ def _build_model_performance(
         model_id=(ia.final_model_id if ia else None) or (me.best_model_id if me else None),
         model_family=(ia.final_model_family if ia else None) or None,
         model_trial_id=(ia.final_trial_id if ia else None) or (me.best_trial_id if me else None),
-        predicted_vs_actual=_build_predicted_vs_actual(ia, me),
-        residual_plot=_build_residual_plot(ia, me),
+        predicted_vs_actual=None,
+        residual_plot=None,
         train_test_comparison=_build_train_test_comparison(me),
         cross_validation_box_plot=_build_cv_box_plot(me),
     )
-    if task_type == "classification":
+    if task_type == "regression":
+        section.predicted_vs_actual = _build_predicted_vs_actual(ia, me)
+        section.residual_plot = _build_residual_plot(ia, me)
+    elif task_type == "classification":
         section.confusion_matrix = _build_confusion_matrix(pe, me)
         section.roc_curve = _build_roc_curve(pe, me)
         section.pr_curve = _build_pr_curve(pe, me)
@@ -495,32 +513,66 @@ def _build_roc_curve(
     """Compute ROC curves from prediction parquet files."""
     pred_path = _find_prediction_parquet(pe, me)
     if not pred_path:
+        logger.info("ROC curve: no prediction parquet found")
         return None
     try:
         df = _load_parquet(pred_path)
         y_true_col = _find_column(df, ["y_true", "target", "actual", "ground_truth", "label"])
         prob_cols = _find_prob_columns(df)
-        if y_true_col is None or not prob_cols:
+        if y_true_col is None:
+            logger.warning(
+                "ROC curve: y_true column not found in %s, columns=%s",
+                pred_path, list(df.columns),
+            )
+            return None
+        if not prob_cols:
+            logger.warning(
+                "ROC curve: no probability columns found in %s, columns=%s",
+                pred_path, list(df.columns),
+            )
             return None
         from sklearn.metrics import roc_curve, auc
-        from sklearn.preprocessing import label_binarize
         y_true = df[y_true_col].values
         classes = sorted(set(y_true))
         if len(classes) > 20:
+            logger.warning("ROC curve: too many classes (%d)", len(classes))
             return None
+
+        # Detect binary classification with a single proba column (e.g. y_pred_proba)
+        is_binary_proba = (
+            len(classes) == 2
+            and len(prob_cols) == 1
+            and not any("class" in c.lower() for c in prob_cols)
+        )
+
         curves: List[Dict[str, Any]] = []
         for cls in classes:
             y_bin = (y_true == cls).astype(int)
-            prob_col = _find_column(df, [f"prob_{cls}", f"proba_{cls}", f"score_{cls}"])
-            if prob_col is None:
+            prob_col = _find_column(df, [
+                f"y_pred_proba_class_{cls}",
+                f"prob_{cls}", f"proba_{cls}", f"score_{cls}",
+            ])
+            if prob_col is not None:
+                scores = df[prob_col].values.astype(float)
+            elif is_binary_proba:
+                # Single proba column holds P(positive class)
+                proba = df[prob_cols[0]].values.astype(float)
+                scores = proba if cls == classes[1] else 1.0 - proba
+            else:
                 continue
-            scores = df[prob_col].values.astype(float)
             try:
                 fpr, tpr, _ = roc_curve(y_bin, scores)
                 roc_auc = auc(fpr, tpr)
-                curves.append({"class_id": str(cls), "fpr": fpr.tolist(), "tpr": tpr.tolist(), "auc": float(roc_auc)})
+                curves.append({
+                    "class_id": str(cls),
+                    "fpr": fpr.tolist(),
+                    "tpr": tpr.tolist(),
+                    "auc": float(roc_auc),
+                })
             except Exception:
                 continue
+        if not curves:
+            logger.warning("ROC curve: no curves produced for classes=%s", classes)
         return ROCCurveData(curves=curves) if curves else None
     except Exception as e:
         logger.warning("Failed to compute ROC curves: %s", str(e))
@@ -534,24 +586,53 @@ def _build_pr_curve(
     """Compute PR curves from prediction parquet files."""
     pred_path = _find_prediction_parquet(pe, me)
     if not pred_path:
+        logger.info("PR curve: no prediction parquet found")
         return None
     try:
         df = _load_parquet(pred_path)
         y_true_col = _find_column(df, ["y_true", "target", "actual", "ground_truth", "label"])
         if y_true_col is None:
+            logger.warning(
+                "PR curve: y_true column not found in %s, columns=%s",
+                pred_path, list(df.columns),
+            )
+            return None
+        prob_cols = _find_prob_columns(df)
+        if not prob_cols:
+            logger.warning(
+                "PR curve: no probability columns found in %s, columns=%s",
+                pred_path, list(df.columns),
+            )
             return None
         y_true = df[y_true_col].values
         classes = sorted(set(y_true))
         if len(classes) > 20:
+            logger.warning("PR curve: too many classes (%d)", len(classes))
             return None
+
         from sklearn.metrics import precision_recall_curve, average_precision_score
+
+        # Detect binary classification with a single proba column
+        is_binary_proba = (
+            len(classes) == 2
+            and len(prob_cols) == 1
+            and not any("class" in c.lower() for c in prob_cols)
+        )
+
         curves: List[Dict[str, Any]] = []
         for cls in classes:
             y_bin = (y_true == cls).astype(int)
-            prob_col = _find_column(df, [f"prob_{cls}", f"proba_{cls}", f"score_{cls}"])
-            if prob_col is None:
+            prob_col = _find_column(df, [
+                f"y_pred_proba_class_{cls}",
+                f"prob_{cls}", f"proba_{cls}", f"score_{cls}",
+            ])
+            if prob_col is not None:
+                scores = df[prob_col].values.astype(float)
+            elif is_binary_proba:
+                proba = df[prob_cols[0]].values.astype(float)
+                scores = proba if cls == classes[1] else 1.0 - proba
+            else:
                 continue
-            scores = df[prob_col].values.astype(float)
             try:
                 precision, recall, _ = precision_recall_curve(y_bin, scores)
                 ap = average_precision_score(y_bin, scores)
@@ -563,6 +644,8 @@ def _build_pr_curve(
                 })
             except Exception:
                 continue
+        if not curves:
+            logger.warning("PR curve: no curves produced for classes=%s", classes)
         return PRCurveData(curves=curves) if curves else None
     except Exception as e:
         logger.warning("Failed to compute PR curves: %s", str(e))
@@ -601,6 +684,13 @@ def _find_prediction_parquet(
                     for p in paths:
                         if p and os.path.exists(p):
                             return p
+    if not candidate:
+        logger.info(
+            "No prediction parquet found: me.id=%s, me.evaluation_json_keys=%s, pe.id=%s",
+            me.id if me else None,
+            list(_safe_json(me.evaluation_json).keys()) if me and me.evaluation_json else None,
+            pe.id if pe else None,
+        )
     return candidate
 
 
@@ -616,10 +706,18 @@ def _find_column(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
 
 
 def _find_prob_columns(df: pd.DataFrame) -> List[str]:
-    """Find probability score columns."""
-    prob_cols = []
+    """Find probability score columns.
+
+    Matches the column naming conventions used by prediction_writer.py:
+      - y_pred_proba            (binary classification)
+      - y_pred_proba_class_0 .. N (multi-class classification)
+    Also matches legacy prefixes for compatibility.
+    """
+    prob_cols: List[str] = []
     for col in df.columns:
         lower = col.lower()
-        if lower.startswith("prob") or lower.startswith("proba") or lower.startswith("score"):
+        if lower.startswith(("prob", "proba", "score")):
+            prob_cols.append(col)
+        elif "proba" in lower:
             prob_cols.append(col)
     return prob_cols

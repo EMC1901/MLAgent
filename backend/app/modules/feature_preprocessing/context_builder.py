@@ -143,6 +143,7 @@ def build_preprocessing_context(session: Session, task_id: str) -> dict:
             "hpo_strategy": plan_json.get("hpo_strategy", {}),
             "interpretability_strategy": plan_json.get("interpretability_strategy", {}),
             "feature_strategy": plan_json.get("feature_strategy", {}),
+            "iteration_guidance": plan_json.get("iteration_guidance", {}),
         },
         "feature_engineering_context": {
             "feature_engineering_id": fe.id,

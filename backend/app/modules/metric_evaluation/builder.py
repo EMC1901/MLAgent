@@ -13,6 +13,7 @@ from app.modules.metric_evaluation.schemas import (
     EvaluationArtifactManifest,
     ResultDiagnosisInput,
 )
+from app.modules.metric_evaluation.enums import MetricDirection
 
 
 def build_metric_summary(
@@ -32,11 +33,13 @@ def build_metric_summary(
             metric_direction=metric_direction,
         )
 
+    is_minimize = metric_direction == MetricDirection.MINIMIZE
+
     return MetricSummary(
         primary_metric=primary_metric,
         metric_direction=metric_direction,
-        best_metric_value=min(values),
-        worst_metric_value=max(values),
+        best_metric_value=min(values) if is_minimize else max(values),
+        worst_metric_value=max(values) if is_minimize else min(values),
         mean_metric_value=sum(values) / len(values),
         std_metric_value=(
             (sum((v - sum(values) / len(values)) ** 2 for v in values) / (len(values) - 1)) ** 0.5

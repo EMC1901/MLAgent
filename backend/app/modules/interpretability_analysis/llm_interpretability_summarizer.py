@@ -12,23 +12,24 @@ class LLMInterpretabilitySummarizer:
         self.llm_client = LLMClient()
 
     def summarize(self, system_prompt: str, user_message: str) -> Dict[str, Any]:
-        provider = self.llm_client.provider
-        model = self.llm_client.model
-
-        request_info = {
-            "provider": provider,
-            "model": model,
-            "system_prompt": system_prompt,
-            "user_message": user_message,
-        }
-
-        logger.info("Calling LLM for interpretability summarization: provider=%s model=%s", provider, model)
+        logger.info("Calling LLM for interpretability summarization ...")
 
         try:
             raw_response = self.llm_client.generate(system_prompt, user_message)
         except Exception as e:
             logger.error("LLM interpretability summary call failed: %s", str(e))
             raise LLMInterpretabilitySummaryException(f"LLM call failed: {str(e)}")
+
+        # Read provider/model AFTER generate() — it calls _resolve_config() internally
+        request_info = {
+            "provider": self.llm_client.provider,
+            "model": self.llm_client.model,
+            "system_prompt": system_prompt,
+            "user_message": user_message,
+        }
+
+        logger.info("LLM interpretability summarization done — provider=%s model=%s",
+                     self.llm_client.provider, self.llm_client.model)
 
         return {
             "request_info": request_info,

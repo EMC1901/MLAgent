@@ -216,6 +216,7 @@ You MUST output ONLY a valid JSON object matching the exact schema provided. No 
 def build_preprocessing_plan_prompt(
     decision_input: Dict[str, Any],
     preprocessing_intent: Dict[str, Any] = None,
+    iteration_guidance: Dict[str, Any] = None,
 ) -> Tuple[str, str]:
     """Build the system prompt and user message for PreprocessingPlan generation."""
 
@@ -233,8 +234,6 @@ def build_preprocessing_plan_prompt(
             "allowed_pipeline_positions": c.allowed_pipeline_positions,
             "parameters_schema": c.parameters_schema,
             "default_parameters": c.default_parameters,
-            "risk_notes": c.risk_notes,
-            "fallback_capability_ids": c.fallback_capability_ids,
         }
         for c in available_caps
     ]
@@ -254,6 +253,21 @@ def build_preprocessing_plan_prompt(
         "",
         "## Preprocessing Intent (Reference Only)",
         json.dumps(preprocessing_intent or {}, indent=2, ensure_ascii=False),
+    ]
+
+    if iteration_guidance:
+        user_message_parts += [
+            "",
+            "## Iteration Guidance (from Iteration Decision)",
+            "The previous pipeline iteration was analyzed by the Iteration Decision ",
+            "module. Incorporate the guidance below into your preprocessing plan. ",
+            "The stage_changes for feature_preprocessing contain specific instructions ",
+            "that are authoritative — follow them unless contradicted by hard data ",
+            "constraints.",
+            json.dumps(iteration_guidance, indent=2, ensure_ascii=False),
+        ]
+
+    user_message_parts += [
         "",
         "## Feature Preprocessing Capability Registry",
         f"### Available Capabilities by Group: {json.dumps(capability_groups_summary)}",

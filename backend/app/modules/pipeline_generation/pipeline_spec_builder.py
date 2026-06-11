@@ -78,6 +78,21 @@ def build_pipeline_specs(context: dict, include_baselines: bool = True, include_
     return specs
 
 
+def _normalize_model_family(raw_family: str) -> str:
+    """Normalize LLM-generated family names to canonical lower_snake_case."""
+    canonical = (raw_family or "").lower().replace(" ", "_").replace("-", "_")
+    if get_model_spec(canonical):
+        return canonical
+    _ALIAS_MAP = {
+        "gradient": "gradient_boosting",
+        "gradientboosting": "gradient_boosting",
+        "randomforest": "random_forest",
+        "decisiontree": "decision_tree",
+        "extratrees": "extra_trees",
+    }
+    return _ALIAS_MAP.get(canonical, canonical)
+
+
 def _build_single_spec(
     model_entry: dict,
     role: str,
@@ -87,7 +102,7 @@ def _build_single_spec(
     evaluation_plan: dict,
 ) -> PipelineSpec:
     model_id = model_entry.get("model_id", "unknown")
-    model_family = model_entry.get("model_family", model_id)
+    model_family = _normalize_model_family(model_entry.get("model_family", model_id))
     model_spec_entry = get_model_spec(model_family) or get_model_spec(model_id)
 
     spec_id = f"ps_{model_id}_{uuid.uuid4().hex[:6]}"

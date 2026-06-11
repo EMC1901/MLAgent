@@ -48,7 +48,9 @@ def is_valid_validation_strategy(strategy: str) -> bool:
 
 
 def is_valid_metric(metric: str) -> bool:
-    return metric.lower() in ALLOWED_METRICS
+    if not metric:
+        return False
+    return metric.lower().replace("-", "_") in ALLOWED_METRICS
 
 
 def get_component_capability(component_type: str) -> dict:

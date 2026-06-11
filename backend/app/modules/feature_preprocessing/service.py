@@ -93,7 +93,6 @@ from app.shared.registry.fp_capability_registry import (
 )
 from app.modules.task_interpretation.llm_client import LLMClient
 
-import asyncio
 import hashlib
 import json
 import re
@@ -174,10 +173,14 @@ class FeaturePreprocessingService:
         goals = preprocessing_intent.get("high_level_goals", []) if isinstance(preprocessing_intent, dict) else []
         logger.info("FP Plan: preprocessing_intent — goals=%d: %s", len(goals), goals[:5] if len(goals) > 5 else goals)
 
+        # Extract iteration guidance from revised WorkflowPlan (if any)
+        iteration_guidance = plan_context.get("iteration_guidance")
+
         # Build LLM prompt
         logger.info("FP Plan: building LLM prompt...")
         system_prompt, user_message = build_preprocessing_plan_prompt(
-            decision_input, preprocessing_intent
+            decision_input, preprocessing_intent,
+            iteration_guidance=iteration_guidance,
         )
         logger.info(
             "FP Plan: prompt ready — system_prompt_chars=%d user_message_chars=%d",
@@ -189,9 +192,7 @@ class FeaturePreprocessingService:
               self.llm_client.provider, self.llm_client.model,
               self.llm_client.timeout, self.llm_client.max_retries)
         try:
-            raw_response = await asyncio.to_thread(
-                self.llm_client.generate, system_prompt, user_message
-            )
+            raw_response = await self.llm_client.async_generate(system_prompt, user_message)
             logger.debug("[fmp:plan] LLM response received — chars=%d", len(raw_response) if raw_response else 0)
         except Exception as e:
             logger.debug("[fmp:plan] LLM call FAILED — error_type=%s: %s", type(e).__name__, str(e))
@@ -1298,8 +1299,8 @@ class FeaturePreprocessingService:
             raise ImputationFailedException("LLM returned empty response for plan generation.")
         cleaned = raw_text.strip()
         logger.debug("[fmp:parse] raw response length=%d chars", len(cleaned))
-        code_fence_pattern = r"^```(?:json)?\s*\n(.*?)\n```\s*$"
-        match = re.search(code_fence_pattern, cleaned, re.DOTALL)
+        code_fence_pattern = r"^```(?:json)?\s*([\s\S]*?)```\s*$"
+        match = re.search(code_fence_pattern, cleaned)
         if match:
             inner = match.group(1).strip()
             logger.debug("[fmp:parse] detected code fence — inner content=%d chars", len(inner))

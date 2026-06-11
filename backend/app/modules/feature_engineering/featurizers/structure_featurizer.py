@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class StructureFeaturizer(BaseFeaturizer):
 
     def featurizer_name(self) -> str:
-        return "structure_descriptors"
+        return "structure_placeholder"
 
     def featurize(self, raw_dataframe, context, resolved_strategy) -> dict:
         """MVP placeholder: structure featurization is not yet supported.

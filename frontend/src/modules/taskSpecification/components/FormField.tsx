@@ -4,6 +4,7 @@ import { Controller, Control, FieldValues, Path } from 'react-hook-form';
 interface Option {
   label: string;
   value: string;
+  disabled?: boolean;
 }
 
 interface FormFieldProps<T extends FieldValues> {
@@ -64,7 +65,9 @@ function FormField<T extends FieldValues>({
               <select {...field} style={styles.select} value={field.value ?? ''}>
                 <option value="" disabled>{placeholder ?? `Select ${label.toLowerCase()}`}</option>
                 {options?.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value} disabled={opt.disabled}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             );

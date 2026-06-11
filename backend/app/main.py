@@ -18,6 +18,7 @@ _APP_FMT = logging.Formatter(
 )
 _APP_HANDLER = logging.StreamHandler(sys.stderr)
 _APP_HANDLER.setFormatter(_APP_FMT)
+_APP_HANDLER_LOGGERS = set()
 
 _orig_getLogger = logging.getLogger
 
@@ -27,6 +28,7 @@ def _patched_getLogger(name=None):
         logger.setLevel(logging.INFO)
         if _APP_HANDLER not in logger.handlers:
             logger.addHandler(_APP_HANDLER)
+            _APP_HANDLER_LOGGERS.add(logger)
         logger.propagate = False
     return logger
 
@@ -38,6 +40,7 @@ from fastapi.responses import JSONResponse
 from alembic.config import Config
 from alembic import command
 from app.shared.config.settings import settings
+from app.shared.database.connection import engine
 from app.shared.common.response import error_response
 from app.shared.common.exceptions import BusinessException
 from app.modules.task_specification.api import router as task_spec_router
@@ -93,7 +96,27 @@ def on_startup():
 
 @app.on_event("shutdown")
 def on_shutdown():
-    pass
+    logger.info("MLAgent backend shutting down...")
+
+    # Dispose the database connection pool — this closes all pooled TCP
+    # connections to PostgreSQL so the process can exit cleanly.
+    try:
+        engine.dispose()
+        logger.info("Database connection pool disposed.")
+    except Exception:
+        logger.exception("Failed to dispose database engine.")
+
+    # Remove the application-level stream handler so that any remaining
+    # file descriptors are released before the interpreter finalizes.
+    for h in list(_APP_HANDLER_LOGGERS):
+        try:
+            h.removeHandler(_APP_HANDLER)
+        except Exception:
+            pass
+    _APP_HANDLER_LOGGERS.clear()
+    _APP_HANDLER.close()
+
+    logger.info("MLAgent backend shutdown complete.")
 
 
 app.include_router(task_spec_router)

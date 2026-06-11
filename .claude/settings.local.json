@@ -85,7 +85,11 @@
       "Bash(pip show *)",
       "Bash(python3 *)",
       "Bash(docker exec *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(dir /s /b C:\\\\projects\\\\MLAgent\\\\artifacts\\\\model_ready_features.parquet)",
+      "Bash(dir /s /b C:\\\\projects\\\\MLAgent\\\\*.parquet)",
+      "Bash(docker compose *)",
+      "Bash(docker-compose ps *)"
     ]
   }
 }

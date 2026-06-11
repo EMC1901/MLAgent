@@ -7,7 +7,7 @@ from app.modules.interpretability_analysis.enums import ImportanceMethod, Analys
 logger = logging.getLogger(__name__)
 
 SHAP_LINEAR_MODELS = {"linear", "ridge", "lasso", "elastic_net", "elasticnet", "linear_regression", "logistic_regression", "logisticregression"}
-SHAP_TREE_MODELS = {"random_forest", "randomforest", "gradient_boosting", "gradientboosting", "xgboost", "xgb", "lightgbm", "lgbm", "decision_tree", "decisiontree", "extra_trees", "extratrees"}
+SHAP_TREE_MODELS = {"random_forest", "randomforest", "gradient_boosting", "gradientboosting", "gradient", "xgboost", "xgb", "lightgbm", "lgbm", "catboost", "decision_tree", "decisiontree", "extra_trees", "extratrees"}
 PERMUTATION_ONLY_MODELS = {"svr", "svm", "svc", "knn", "kneighbors", "gaussian_process", "gaussianprocess", "gp", "mlp"}
 BASELINE_MODELS = {"dummy_mean", "dummy", "baseline", "dummy_classifier", "dummy_regressor"}
 

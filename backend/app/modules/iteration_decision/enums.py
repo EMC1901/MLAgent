@@ -50,7 +50,6 @@ class TargetStage:
     FEATURE_ENGINEERING = "feature_engineering"
     FEATURE_PREPROCESSING = "feature_preprocessing"
     MODEL_SEARCH_CONTEXT = "model_search_context"
-    MODEL_SEARCH = "model_search"
     PIPELINE_GENERATION = "pipeline_generation"
     PIPELINE_EXECUTION = "pipeline_execution"
     METRIC_EVALUATION = "metric_evaluation"
@@ -88,7 +87,6 @@ VALID_TARGET_STAGES = {
     TargetStage.FEATURE_ENGINEERING,
     TargetStage.FEATURE_PREPROCESSING,
     TargetStage.MODEL_SEARCH_CONTEXT,
-    TargetStage.MODEL_SEARCH,
     TargetStage.PIPELINE_GENERATION,
     TargetStage.PIPELINE_EXECUTION,
     TargetStage.METRIC_EVALUATION,
@@ -111,9 +109,9 @@ STAGE_ALIASES: dict[str, str] = {
     "preprocessing": TargetStage.FEATURE_PREPROCESSING,
     "feature_preprocess": TargetStage.FEATURE_PREPROCESSING,
     "fp": TargetStage.FEATURE_PREPROCESSING,
-    "models": TargetStage.MODEL_SEARCH,
-    "model_search": TargetStage.MODEL_SEARCH,
-    "hpo": TargetStage.PIPELINE_GENERATION,
+    "models": TargetStage.MODEL_SEARCH_CONTEXT,
+    "model_search": TargetStage.MODEL_SEARCH_CONTEXT,
+    "hpo": TargetStage.MODEL_SEARCH_CONTEXT,
     "pipeline": TargetStage.PIPELINE_EXECUTION,
     "training": TargetStage.PIPELINE_EXECUTION,
     "workflow": TargetStage.WORKFLOW_PLANNING,
