@@ -1,0 +1,2137 @@
+{
+  "feature_preprocessing_id": "fmp_765fc406",
+  "status": "success",
+  "n_raw_features": 64,
+  "n_valid_features": 64,
+  "n_final_features": 38,
+  "n_dropped_features": 26,
+  "is_ready_for_model_search": true,
+  "removed_features": {
+    "removed_features": [
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI eta=2.89e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI eta=4.43e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI eta=6.80e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI eta=1.04e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI eta=1.04e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI eta=1.60e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI eta=1.60e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=x eta=4.43e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=x eta=6.80e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=x eta=1.04e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=x eta=1.60e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI dir=y eta=2.89e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI dir=y eta=4.43e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=y eta=4.43e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=y eta=6.80e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=y eta=1.04e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=y eta=1.60e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI dir=z eta=2.89e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI dir=z eta=4.43e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=z eta=4.43e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI dir=z eta=6.80e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=z eta=6.80e+00",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI dir=z eta=1.04e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=z eta=1.04e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__mean AGNI dir=z eta=1.60e+01",
+        "source_feature_group": ""
+      },
+      {
+        "reason": "Filtered by pearson_correlation_filter",
+        "evidence": "capability=pearson_correlation_filter",
+        "feature_name": "matminer_site_stats__std_dev AGNI dir=z eta=1.60e+01",
+        "source_feature_group": ""
+      }
+    ]
+  },
+  "feature_lineage": {
+    "feature_lineage_map": {
+      "matminer_site_stats__mean AGNI eta=1.04e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI eta=1.04e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI eta=1.04e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI eta=1.23e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI eta=1.23e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI eta=1.23e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI eta=1.60e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI eta=1.60e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI eta=1.60e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI eta=1.88e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI eta=1.88e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI eta=1.88e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI eta=2.89e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI eta=2.89e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI eta=2.89e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI eta=4.43e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI eta=4.43e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI eta=4.43e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI eta=6.80e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI eta=6.80e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI eta=6.80e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI eta=8.00e-01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI eta=8.00e-01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI eta=8.00e-01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI eta=1.04e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI eta=1.04e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI eta=1.04e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI eta=1.23e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI eta=1.60e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI eta=1.60e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI eta=1.60e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI eta=1.88e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI eta=2.89e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI eta=4.43e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI eta=6.80e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI eta=8.00e-01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=x eta=1.04e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=x eta=1.23e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=x eta=1.60e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=x eta=1.88e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=x eta=2.89e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=x eta=4.43e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=x eta=6.80e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=x eta=8.00e-01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=y eta=1.04e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=y eta=1.23e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=y eta=1.60e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=y eta=1.88e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=y eta=2.89e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=y eta=2.89e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=y eta=2.89e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=y eta=4.43e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=y eta=4.43e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=y eta=4.43e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=y eta=6.80e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=y eta=8.00e-01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=z eta=1.04e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=z eta=1.04e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=z eta=1.04e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=z eta=1.23e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=z eta=1.60e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=z eta=1.60e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=z eta=1.60e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=z eta=1.88e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=z eta=2.89e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=z eta=2.89e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=z eta=2.89e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=z eta=4.43e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=z eta=4.43e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=z eta=4.43e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=z eta=6.80e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=z eta=6.80e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=z eta=6.80e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__mean AGNI dir=z eta=8.00e-01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=x eta=1.04e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=x eta=1.04e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=x eta=1.04e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=x eta=1.60e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=x eta=1.60e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=x eta=1.60e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=x eta=4.43e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=x eta=4.43e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=x eta=4.43e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=x eta=6.80e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=x eta=6.80e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=x eta=6.80e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=y eta=1.04e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=y eta=1.04e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=y eta=1.04e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=y eta=1.60e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=y eta=1.60e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=y eta=1.60e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=y eta=4.43e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=y eta=4.43e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=y eta=4.43e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=y eta=6.80e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=y eta=6.80e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=y eta=6.80e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=z eta=1.04e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=z eta=1.04e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=z eta=1.04e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=z eta=1.60e+01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=z eta=1.60e+01",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=z eta=1.60e+01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=z eta=4.43e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=z eta=4.43e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=z eta=4.43e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=z eta=6.80e+00": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": true,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=z eta=6.80e+00",
+        "removal_reason": "Filtered by pearson_correlation_filter",
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=z eta=6.80e+00",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      },
+      "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01": {
+        "scaled": false,
+        "imputed": false,
+        "reduced": false,
+        "removed": false,
+        "selected": true,
+        "transformed": false,
+        "original_name": "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+        "removal_reason": null,
+        "is_interpretable": true,
+        "transformed_name": "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+        "source_feature_group": "",
+        "source_feature_action": "",
+        "transformations_applied": []
+      }
+    },
+    "feature_group_lineage_map": {
+      "matminer_site_stats": {
+        "group_name": "matminer_site_stats",
+        "group_status": "partially_retained",
+        "operations_applied": [
+          "near_constant_feature_filter",
+          "target_column_excluder",
+          "feature_name_lineage_tracker",
+          "id_column_dropper",
+          "missingness_profile_analyzer",
+          "constant_feature_filter",
+          "pearson_correlation_filter"
+        ],
+        "removed_feature_count": 26,
+        "original_feature_count": 64,
+        "retained_feature_count": 38
+      },
+      "pymatgen_structure_parser": {
+        "group_name": "pymatgen_structure_parser",
+        "group_status": "removed",
+        "operations_applied": [],
+        "removed_feature_count": 1,
+        "original_feature_count": 1,
+        "retained_feature_count": 0
+      }
+    }
+  },
+  "preprocessing_plan": {
+    "plan_id": "fmp_765fc406",
+    "plan_version": "1.0.0",
+    "global_policy": {
+      "variant_strategy": {
+        "mode": "single",
+        "rationale": "A single robust preprocessing pipeline is sufficient for the materials science regression task with descriptor-based features, prioritizing robustness to outliers and skewness."
+      },
+      "leakage_prevention": {
+        "rationale": "Target and ID columns must be excluded to prevent data leakage. Target-aware selection is disabled to ensure unsupervised feature selection safety. All transformer fitting is deferred to CV folds to prevent optimistic bias.",
+        "fit_transform_scope": "fold_only",
+        "id_columns_excluded": true,
+        "target_column_excluded": true,
+        "target_aware_selection_allowed": false
+      }
+    },
+    "column_policies": [
+      {
+        "risk": "none",
+        "action": "drop",
+        "reason": "Target column must be excluded from the feature matrix to prevent leakage.",
+        "evidence": [
+          "target_column"
+        ],
+        "column_name": "log10(K_VRH)"
+      },
+      {
+        "risk": "loss of raw structure if site stats are insufficient, but necessary for tabular pipeline",
+        "action": "drop",
+        "reason": "Non-numeric structure object that cannot be directly consumed by standard tabular ML models. Featurization is already captured by matminer_site_stats.",
+        "evidence": [
+          "non_numeric",
+          "redundant_with_site_stats"
+        ],
+        "column_name": "_pymatgen_structure"
+      }
+    ],
+    "operation_sequence": [
+      {
+        "parameters": {
+          "target_column": "log10(K_VRH)"
+        },
+        "step_order": 1,
+        "operation_id": "seq_target_excluder",
+        "capability_id": "target_column_excluder",
+        "target_columns": [],
+        "execution_scope": "dataset_profile_only",
+        "decision_rationale": {
+          "risk": "none",
+          "reason": "Exclude target column from feature matrix to prevent data leakage.",
+          "evidence": [
+            "target_column"
+          ],
+          "fallback": "none",
+          "expected_benefit": "Valid CV evaluation."
+        },
+        "target_feature_groups": [
+          "all"
+        ]
+      },
+      {
+        "parameters": {},
+        "step_order": 2,
+        "operation_id": "seq_id_dropper",
+        "capability_id": "id_column_dropper",
+        "target_columns": [],
+        "execution_scope": "dataset_profile_only",
+        "decision_rationale": {
+          "risk": "none",
+          "reason": "Drop any potential ID columns that could cause leakage or overfitting.",
+          "evidence": [
+            "best_practice"
+          ],
+          "fallback": "none",
+          "expected_benefit": "Prevent ID-based leakage."
+        },
+        "target_feature_groups": [
+          "all"
+        ]
+      },
+      {
+        "parameters": {},
+        "step_order": 3,
+        "operation_id": "seq_missingness_analyzer",
+        "capability_id": "missingness_profile_analyzer",
+        "target_columns": [],
+        "execution_scope": "dataset_profile_only",
+        "decision_rationale": {
+          "risk": "none",
+          "reason": "Analyze missingness patterns to confirm data quality before filtering.",
+          "evidence": [
+            "missing_value_ratio: 0.0"
+          ],
+          "fallback": "none",
+          "expected_benefit": "Verification of data completeness."
+        },
+        "target_feature_groups": [
+          "matminer_site_stats"
+        ]
+      },
+      {
+        "parameters": {
+          "strict": false
+        },
+        "step_order": 4,
+        "operation_id": "seq_constant_filter",
+        "capability_id": "constant_feature_filter",
+        "target_columns": [],
+        "execution_scope": "dataset_profile_only",
+        "decision_rationale": {
+          "risk": "none",
+          "reason": "Remove strictly constant features that provide no information.",
+          "evidence": [
+            "constant_feature_count: 0"
+          ],
+          "fallback": "none",
+          "expected_benefit": "Cleaner feature space."
+        },
+        "target_feature_groups": [
+          "matminer_site_stats"
+        ]
+      },
+      {
+        "parameters": {
+          "threshold": 0.95
+        },
+        "step_order": 5,
+        "operation_id": "seq_near_constant_filter",
+        "capability_id": "near_constant_feature_filter",
+        "target_columns": [],
+        "execution_scope": "dataset_profile_only",
+        "decision_rationale": {
+          "risk": "Loss of rare structural signals.",
+          "reason": "Filter out near-constant features to reduce noise.",
+          "evidence": [
+            "24 near-constant features detected"
+          ],
+          "fallback": "Adjust threshold if critical features are dropped.",
+          "expected_benefit": "Reduced dimensionality and noise."
+        },
+        "target_feature_groups": [
+          "matminer_site_stats"
+        ]
+      },
+      {
+        "parameters": {
+          "max_method": "yeo_johnson",
+          "skewness_threshold": 1.0
+        },
+        "step_order": 6,
+        "operation_id": "seq_skewness_transform",
+        "capability_id": "auto_skewness_transform_selector",
+        "target_columns": [],
+        "execution_scope": "fold_only",
+        "decision_rationale": {
+          "risk": "Reduced physical interpretability of transformed values.",
+          "reason": "Transform highly skewed features to approximate normality.",
+          "evidence": [
+            "32 features with |skewness| > 2.0"
+          ],
+          "fallback": "Use quantile transform if Yeo-Johnson fails.",
+          "expected_benefit": "Improved performance for linear and distance-based models."
+        },
+        "target_feature_groups": [
+          "matminer_site_stats"
+        ]
+      },
+      {
+        "parameters": {
+          "quantile_range": [
+            25.0,
+            75.0
+          ]
+        },
+        "step_order": 7,
+        "operation_id": "seq_robust_scaler",
+        "capability_id": "robust_scaler",
+        "target_columns": [],
+        "execution_scope": "fold_only",
+        "decision_rationale": {
+          "risk": "Suboptimal for strictly Gaussian data.",
+          "reason": "Scale features using median and IQR to be robust to outliers.",
+          "evidence": [
+            "Materials descriptors often contain outliers."
+          ],
+          "fallback": "Switch to standard_scaler if needed.",
+          "expected_benefit": "Stable scaling for regularized and distance-based models."
+        },
+        "target_feature_groups": [
+          "matminer_site_stats"
+        ]
+      },
+      {
+        "parameters": {
+          "threshold": 0.95
+        },
+        "step_order": 8,
+        "operation_id": "seq_pearson_filter",
+        "capability_id": "pearson_correlation_filter",
+        "target_columns": [],
+        "execution_scope": "dataset_profile_only",
+        "decision_rationale": {
+          "risk": "Might drop interpretable features in favor of less interpretable ones.",
+          "reason": "Remove highly collinear features to improve model stability and interpretability.",
+          "evidence": [
+            "high_collinearity risk noted"
+          ],
+          "fallback": "Use hierarchical clustering to select representative features.",
+          "expected_benefit": "Reduced multicollinearity."
+        },
+        "target_feature_groups": [
+          "matminer_site_stats"
+        ]
+      },
+      {
+        "parameters": {},
+        "step_order": 9,
+        "operation_id": "seq_lineage_tracker",
+        "capability_id": "feature_name_lineage_tracker",
+        "target_columns": [],
+        "execution_scope": "dataset_profile_only",
+        "decision_rationale": {
+          "risk": "none",
+          "reason": "Track feature names through transformations for interpretability.",
+          "evidence": [
+            "interpretability priority"
+          ],
+          "fallback": "none",
+          "expected_benefit": "Traceable feature lineage."
+        },
+        "target_feature_groups": [
+          "all"
+        ]
+      },
+      {
+        "parameters": {},
+        "step_order": 10,
+        "operation_id": "seq_plan_snapshot",
+        "capability_id": "preprocessing_plan_snapshot",
+        "target_columns": [],
+        "execution_scope": "dataset_profile_only",
+        "decision_rationale": {
+          "risk": "none",
+          "reason": "Save preprocessing plan for reproducibility.",
+          "evidence": [
+            "artifact_reproducibility"
+          ],
+          "fallback": "none",
+          "expected_benefit": "Reproducible pipelines."
+        },
+        "target_feature_groups": [
+          "all"
+        ]
+      },
+      {
+        "parameters": {},
+        "step_order": 11,
+        "operation_id": "seq_removed_report",
+        "capability_id": "removed_feature_report",
+        "target_columns": [],
+        "execution_scope": "dataset_profile_only",
+        "decision_rationale": {
+          "risk": "none",
+          "reason": "Report removed features for audit.",
+          "evidence": [
+            "artifact_reproducibility"
+          ],
+          "fallback": "none",
+          "expected_benefit": "Transparency in feature selection."
+        },
+        "target_feature_groups": [
+          "all"
+        ]
+      },
+      {
+        "parameters": {},
+        "step_order": 12,
+        "operation_id": "seq_retained_report",
+        "capability_id": "retained_feature_report",
+        "target_columns": [],
+        "execution_scope": "dataset_profile_only",
+        "decision_rationale": {
+          "risk": "none",
+          "reason": "Report retained features for audit.",
+          "evidence": [
+            "artifact_reproducibility"
+          ],
+          "fallback": "none",
+          "expected_benefit": "Transparency in feature selection."
+        },
+        "target_feature_groups": [
+          "all"
+        ]
+      }
+    ],
+    "rejected_operations": [
+      {
+        "reason": "Dimensionality reduction not needed as n_features (64) is manageable and interpretability of site stats is prioritized.",
+        "evidence": [
+          "feature_count: 64",
+          "user_priority: interpretability"
+        ],
+        "capability_id": "pca_transform"
+      },
+      {
+        "reason": "Target-aware selection is disabled by default to prevent leakage and ensure unsupervised safety.",
+        "evidence": [
+          "target_aware_selection_allowed: false"
+        ],
+        "capability_id": "mutual_information_selector"
+      },
+      {
+        "reason": "Robust scaler preferred due to potential outliers in materials science descriptors.",
+        "evidence": [
+          "materials_science_best_practice",
+          "outlier_risk"
+        ],
+        "capability_id": "standard_scaler"
+      }
+    ],
+    "capability_groups_used": [
+      "leakage_detection",
+      "missingness_analysis",
+      "low_information_filtering",
+      "distribution_transformation",
+      "scaling_normalization",
+      "correlation_collinearity",
+      "interpretability_preservation",
+      "artifact_reproducibility"
+    ],
+    "feature_group_policies": [
+      {
+        "policy": "drop",
+        "operations": [],
+        "feature_group": "pymatgen_structure_parser"
+      },
+      {
+        "policy": "preserve",
+        "operations": [
+          {
+            "parameters": {
+              "threshold": 0.95
+            },
+            "operation_id": "op_near_constant_filter",
+            "capability_id": "near_constant_feature_filter",
+            "execution_scope": "dataset_profile_only",
+            "decision_rationale": {
+              "risk": "Might remove features with rare but important signals.",
+              "reason": "Remove near-constant features to reduce noise and dimensionality.",
+              "evidence": [
+                "24 near-constant features detected"
+              ],
+              "fallback": "Lower the threshold if too many features are removed.",
+              "expected_benefit": "Improved model stability and reduced overfitting."
+            }
+          },
+          {
+            "parameters": {
+              "max_method": "yeo_johnson",
+              "skewness_threshold": 1.0
+            },
+            "operation_id": "op_skewness_transform",
+            "capability_id": "auto_skewness_transform_selector",
+            "execution_scope": "fold_only",
+            "decision_rationale": {
+              "risk": "Transformation might reduce interpretability of raw physical descriptors.",
+              "reason": "Address high skewness in descriptor distributions to improve linear model performance and distance metrics.",
+              "evidence": [
+                "32 features with |skewness| > 2.0"
+              ],
+              "fallback": "Use log1p or quantile transform if Yeo-Johnson fails to converge.",
+              "expected_benefit": "More Gaussian-like distributions, better scaling and modeling."
+            }
+          },
+          {
+            "parameters": {
+              "quantile_range": [
+                25.0,
+                75.0
+              ]
+            },
+            "operation_id": "op_robust_scaling",
+            "capability_id": "robust_scaler",
+            "execution_scope": "fold_only",
+            "decision_rationale": {
+              "risk": "Slightly less optimal for strictly Gaussian features compared to StandardScaler.",
+              "reason": "Scale features robustly to handle outliers common in materials science descriptors.",
+              "evidence": [
+                "Descriptor-heavy data",
+                "Outliers expected in site stats"
+              ],
+              "fallback": "Switch to standard_scaler if data is confirmed Gaussian post-transformation.",
+              "expected_benefit": "Prevents outlier dominance in distance-based and regularized models."
+            }
+          }
+        ],
+        "feature_group": "matminer_site_stats"
+      }
+    ],
+    "warnings_for_downstream": [
+      "24 near-constant features were flagged for removal; verify if any represent critical rare structural motifs.",
+      "32 features exhibited high skewness; Yeo-Johnson transformation applied, which may alter the physical interpretability of raw descriptor values.",
+      "Raw structure object (_pymatgen_structure) dropped from tabular pipeline; ensure downstream models do not expect raw structure inputs unless using a specialized graph/3D model."
+    ],
+    "model_family_specific_notes": [
+      {
+        "rationale": "Linear models require normalized and symmetrically distributed features to perform optimally and avoid outlier dominance.",
+        "model_family": "linear",
+        "preprocessing_needs": [
+          "auto_skewness_transform_selector",
+          "robust_scaler"
+        ]
+      },
+      {
+        "rationale": "Tree-based models are invariant to scaling and monotonic transformations, but benefit from removal of near-constant features to reduce split noise.",
+        "model_family": "tree",
+        "preprocessing_needs": [
+          "near_constant_feature_filter"
+        ]
+      }
+    ]
+  },
+  "execution_report": {
+    "operation_results": [
+      {
+        "status": "success",
+        "warnings": [],
+        "operation_id": "seq_target_excluder",
+        "capability_id": "target_column_excluder",
+        "error_message": null,
+        "capability_group": "leakage_detection",
+        "removed_features": [],
+        "affected_features": [
+          "matminer_site_stats__mean AGNI eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+          "matminer_site_stats__mean AGNI eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+          "matminer_site_stats__mean AGNI eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+          "matminer_site_stats__mean AGNI eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+          "matminer_site_stats__mean AGNI eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+          "matminer_site_stats__mean AGNI eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+          "matminer_site_stats__mean AGNI eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.04e+01",
+          "matminer_site_stats__mean AGNI eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.60e+01"
+        ]
+      },
+      {
+        "status": "success",
+        "warnings": [],
+        "operation_id": "seq_id_dropper",
+        "capability_id": "id_column_dropper",
+        "error_message": null,
+        "capability_group": "leakage_detection",
+        "removed_features": [],
+        "affected_features": [
+          "matminer_site_stats__mean AGNI eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+          "matminer_site_stats__mean AGNI eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+          "matminer_site_stats__mean AGNI eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+          "matminer_site_stats__mean AGNI eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+          "matminer_site_stats__mean AGNI eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+          "matminer_site_stats__mean AGNI eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+          "matminer_site_stats__mean AGNI eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.04e+01",
+          "matminer_site_stats__mean AGNI eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.60e+01"
+        ]
+      },
+      {
+        "status": "success",
+        "warnings": [],
+        "operation_id": "seq_missingness_analyzer",
+        "capability_id": "missingness_profile_analyzer",
+        "error_message": null,
+        "capability_group": "missingness_analysis",
+        "removed_features": [],
+        "affected_features": [
+          "matminer_site_stats__mean AGNI eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+          "matminer_site_stats__mean AGNI eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+          "matminer_site_stats__mean AGNI eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+          "matminer_site_stats__mean AGNI eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+          "matminer_site_stats__mean AGNI eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+          "matminer_site_stats__mean AGNI eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+          "matminer_site_stats__mean AGNI eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.04e+01",
+          "matminer_site_stats__mean AGNI eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.60e+01"
+        ]
+      },
+      {
+        "status": "success",
+        "warnings": [],
+        "operation_id": "seq_constant_filter",
+        "capability_id": "constant_feature_filter",
+        "error_message": null,
+        "capability_group": "low_information_filtering",
+        "removed_features": [],
+        "affected_features": [
+          "matminer_site_stats__mean AGNI eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+          "matminer_site_stats__mean AGNI eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+          "matminer_site_stats__mean AGNI eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+          "matminer_site_stats__mean AGNI eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+          "matminer_site_stats__mean AGNI eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+          "matminer_site_stats__mean AGNI eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+          "matminer_site_stats__mean AGNI eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.04e+01",
+          "matminer_site_stats__mean AGNI eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.60e+01"
+        ]
+      },
+      {
+        "status": "success",
+        "warnings": [],
+        "operation_id": "seq_near_constant_filter",
+        "capability_id": "near_constant_feature_filter",
+        "error_message": null,
+        "capability_group": "low_information_filtering",
+        "removed_features": [],
+        "affected_features": [
+          "matminer_site_stats__mean AGNI eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+          "matminer_site_stats__mean AGNI eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+          "matminer_site_stats__mean AGNI eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+          "matminer_site_stats__mean AGNI eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+          "matminer_site_stats__mean AGNI eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+          "matminer_site_stats__mean AGNI eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+          "matminer_site_stats__mean AGNI eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.04e+01",
+          "matminer_site_stats__mean AGNI eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.60e+01"
+        ]
+      },
+      {
+        "status": "deferred_to_fold",
+        "warnings": [],
+        "operation_id": "seq_skewness_transform",
+        "capability_id": "auto_skewness_transform_selector",
+        "error_message": null,
+        "capability_group": "distribution_transformation",
+        "removed_features": [],
+        "affected_features": []
+      },
+      {
+        "status": "deferred_to_fold",
+        "warnings": [],
+        "operation_id": "seq_robust_scaler",
+        "capability_id": "robust_scaler",
+        "error_message": null,
+        "capability_group": "scaling_normalization",
+        "removed_features": [],
+        "affected_features": []
+      },
+      {
+        "status": "success",
+        "warnings": [
+          "Removed 26 highly correlated features"
+        ],
+        "operation_id": "seq_pearson_filter",
+        "capability_id": "pearson_correlation_filter",
+        "error_message": null,
+        "capability_group": "correlation_collinearity",
+        "removed_features": [
+          "matminer_site_stats__mean AGNI eta=2.89e+00",
+          "matminer_site_stats__mean AGNI eta=4.43e+00",
+          "matminer_site_stats__mean AGNI eta=6.80e+00",
+          "matminer_site_stats__mean AGNI eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.04e+01",
+          "matminer_site_stats__mean AGNI eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.60e+01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.60e+01"
+        ],
+        "affected_features": [
+          "matminer_site_stats__mean AGNI eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+          "matminer_site_stats__mean AGNI eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+          "matminer_site_stats__mean AGNI eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00"
+        ]
+      },
+      {
+        "status": "success",
+        "warnings": [],
+        "operation_id": "seq_lineage_tracker",
+        "capability_id": "feature_name_lineage_tracker",
+        "error_message": null,
+        "capability_group": "interpretability_preservation",
+        "removed_features": [],
+        "affected_features": [
+          "matminer_site_stats__mean AGNI eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+          "matminer_site_stats__mean AGNI eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+          "matminer_site_stats__mean AGNI eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+          "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+          "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+          "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+          "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+          "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+          "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+          "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00"
+        ]
+      },
+      {
+        "status": "success",
+        "warnings": [],
+        "operation_id": "seq_plan_snapshot",
+        "capability_id": "preprocessing_plan_snapshot",
+        "error_message": null,
+        "capability_group": "artifact_reproducibility",
+        "removed_features": [],
+        "affected_features": []
+      },
+      {
+        "status": "success",
+        "warnings": [],
+        "operation_id": "seq_removed_report",
+        "capability_id": "removed_feature_report",
+        "error_message": null,
+        "capability_group": "artifact_reproducibility",
+        "removed_features": [],
+        "affected_features": []
+      },
+      {
+        "status": "success",
+        "warnings": [],
+        "operation_id": "seq_retained_report",
+        "capability_id": "retained_feature_report",
+        "error_message": null,
+        "capability_group": "artifact_reproducibility",
+        "removed_features": [],
+        "affected_features": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,1345 @@
+{
+  "interpretability_analysis_id": "ia_479603b4",
+  "status": "analyzed",
+  "final_model_id": "xgboost",
+  "final_model_family": "XGBoost",
+  "methods_used": {
+    "methods": [
+      "native_importance",
+      "permutation_importance",
+      "shap"
+    ],
+    "statuses": {
+      "shap": "computed",
+      "native_importance": "computed",
+      "permutation_importance": "computed"
+    }
+  },
+  "global_feature_importance": {
+    "items": [
+      {
+        "direction": "positive",
+        "feature_name": "matminer_magpie__MagpieData avg_dev NdUnfilled",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 1,
+        "importance_value": 5375.048723973497,
+        "importance_method": "permutation_importance",
+        "interpretation_hint": "Permutation importance measures performance drop when feature is shuffled."
+      },
+      {
+        "direction": "positive",
+        "feature_name": "matminer_magpie__MagpieData avg_dev GSvolume_pa",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 2,
+        "importance_value": 806.0964579839725,
+        "importance_method": "permutation_importance",
+        "interpretation_hint": "Permutation importance measures performance drop when feature is shuffled."
+      },
+      {
+        "direction": "positive",
+        "feature_name": "matminer_magpie__MagpieData avg_dev NdValence",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 3,
+        "importance_value": 345.2657071867172,
+        "importance_method": "permutation_importance",
+        "interpretation_hint": "Permutation importance measures performance drop when feature is shuffled."
+      },
+      {
+        "direction": "positive",
+        "feature_name": "stoichiometric_entropy",
+        "feature_group": "other",
+        "importance_rank": 4,
+        "importance_value": 44.32772071303625,
+        "importance_method": "permutation_importance",
+        "interpretation_hint": "Permutation importance measures performance drop when feature is shuffled."
+      },
+      {
+        "direction": "positive",
+        "feature_name": "matminer_magpie__MagpieData avg_dev NUnfilled",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 5,
+        "importance_value": 6.963729844402406,
+        "importance_method": "permutation_importance",
+        "interpretation_hint": "Permutation importance measures performance drop when feature is shuffled."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev NUnfilled",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 6,
+        "importance_value": 0.20343606173992157,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData mean NsValence",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 7,
+        "importance_value": 0.07429688423871994,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev GSmagmom",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 8,
+        "importance_value": 0.06645313650369644,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "max_element_fraction",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 9,
+        "importance_value": 0.046847209334373474,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev NdUnfilled",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 10,
+        "importance_value": 0.04676292464137077,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev Row",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 11,
+        "importance_value": 0.041107386350631714,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData mean GSmagmom",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 12,
+        "importance_value": 0.03873032331466675,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "stoichiometric_entropy",
+        "feature_group": "other",
+        "importance_rank": 13,
+        "importance_value": 0.0356847420334816,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev NdValence",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 14,
+        "importance_value": 0.035161860287189484,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData mean Electronegativity",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 15,
+        "importance_value": 0.03344220668077469,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev GSvolume_pa",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 16,
+        "importance_value": 0.031610336154699326,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData mean MeltingT",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 17,
+        "importance_value": 0.031488049775362015,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev MendeleevNumber",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 18,
+        "importance_value": 0.025846431031823158,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData mean NdValence",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 19,
+        "importance_value": 0.02384476363658905,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_valence_orbital__frac s valence electrons",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 20,
+        "importance_value": 0.021646764129400253,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev CovalentRadius",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 21,
+        "importance_value": 0.021544620394706726,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData mean GSbandgap",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 22,
+        "importance_value": 0.021423131227493286,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev NValence",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 23,
+        "importance_value": 0.01835431531071663,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData mean MendeleevNumber",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 24,
+        "importance_value": 0.018166102468967438,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData mean SpaceGroupNumber",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 25,
+        "importance_value": 0.016082067042589188,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev Number",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 26,
+        "importance_value": 0.013368404470384121,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData avg_dev Electronegativity",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 27,
+        "importance_value": 0.013220841065049171,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData range MeltingT",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 28,
+        "importance_value": 0.012974396347999573,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData mean CovalentRadius",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 29,
+        "importance_value": 0.012750753201544285,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "min_element_fraction",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 30,
+        "importance_value": 0.012617628090083599,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      }
+    ]
+  },
+  "shap_summary": {
+    "warnings": [],
+    "explainer_type": "tree_explainer",
+    "shap_available": true,
+    "top_shap_features": [
+      {
+        "rank": 1,
+        "feature_name": "matminer_magpie__MagpieData avg_dev Number",
+        "mean_abs_shap": 21.908258879205597,
+        "direction_summary": "mean(|SHAP|) = 21.9083, positive_contribution"
+      },
+      {
+        "rank": 2,
+        "feature_name": "matminer_magpie__MagpieData avg_dev NdUnfilled",
+        "mean_abs_shap": 17.23025791294576,
+        "direction_summary": "mean(|SHAP|) = 17.2303, positive_contribution"
+      },
+      {
+        "rank": 3,
+        "feature_name": "matminer_magpie__MagpieData avg_dev NdValence",
+        "mean_abs_shap": 2.2683073452591875,
+        "direction_summary": "mean(|SHAP|) = 2.2683, positive_contribution"
+      },
+      {
+        "rank": 4,
+        "feature_name": "matminer_magpie__MagpieData avg_dev NValence",
+        "mean_abs_shap": 2.149680168688298,
+        "direction_summary": "mean(|SHAP|) = 2.1497, positive_contribution"
+      },
+      {
+        "rank": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev Row",
+        "mean_abs_shap": 2.1146409474253662,
+        "direction_summary": "mean(|SHAP|) = 2.1146, positive_contribution"
+      },
+      {
+        "rank": 6,
+        "feature_name": "matminer_magpie__MagpieData avg_dev MendeleevNumber",
+        "mean_abs_shap": 2.0148537952661503,
+        "direction_summary": "mean(|SHAP|) = 2.0149, positive_contribution"
+      },
+      {
+        "rank": 7,
+        "feature_name": "matminer_magpie__MagpieData avg_dev GSvolume_pa",
+        "mean_abs_shap": 1.3427650166600953,
+        "direction_summary": "mean(|SHAP|) = 1.3428, positive_contribution"
+      },
+      {
+        "rank": 8,
+        "feature_name": "stoichiometric_entropy",
+        "mean_abs_shap": 0.5027242097496999,
+        "direction_summary": "mean(|SHAP|) = 0.5027, positive_contribution"
+      },
+      {
+        "rank": 9,
+        "feature_name": "matminer_magpie__MagpieData mean NpValence",
+        "mean_abs_shap": 0.3144347037911407,
+        "direction_summary": "mean(|SHAP|) = 0.3144, positive_contribution"
+      },
+      {
+        "rank": 10,
+        "feature_name": "matminer_magpie__MagpieData avg_dev NUnfilled",
+        "mean_abs_shap": 0.1784572830200196,
+        "direction_summary": "mean(|SHAP|) = 0.1785, positive_contribution"
+      },
+      {
+        "rank": 11,
+        "feature_name": "matminer_magpie__MagpieData mean NpUnfilled",
+        "mean_abs_shap": 0.0303239975214004,
+        "direction_summary": "mean(|SHAP|) = 0.0303, positive_contribution"
+      },
+      {
+        "rank": 12,
+        "feature_name": "matminer_magpie__MagpieData minimum Number",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 13,
+        "feature_name": "matminer_magpie__MagpieData maximum Number",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 14,
+        "feature_name": "matminer_magpie__MagpieData mean Number",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 15,
+        "feature_name": "matminer_magpie__MagpieData minimum MendeleevNumber",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 16,
+        "feature_name": "matminer_magpie__MagpieData maximum MendeleevNumber",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 17,
+        "feature_name": "matminer_magpie__MagpieData range MendeleevNumber",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 18,
+        "feature_name": "matminer_magpie__MagpieData mean MendeleevNumber",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 19,
+        "feature_name": "matminer_magpie__MagpieData range MeltingT",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 20,
+        "feature_name": "matminer_magpie__MagpieData mean MeltingT",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 21,
+        "feature_name": "matminer_magpie__MagpieData range Row",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 22,
+        "feature_name": "matminer_magpie__MagpieData mean Row",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 23,
+        "feature_name": "matminer_magpie__MagpieData mean CovalentRadius",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 24,
+        "feature_name": "matminer_magpie__MagpieData avg_dev CovalentRadius",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 25,
+        "feature_name": "matminer_magpie__MagpieData mean Electronegativity",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 26,
+        "feature_name": "matminer_magpie__MagpieData avg_dev Electronegativity",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 27,
+        "feature_name": "matminer_magpie__MagpieData mean NsValence",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 28,
+        "feature_name": "matminer_magpie__MagpieData mean NdValence",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 29,
+        "feature_name": "matminer_magpie__MagpieData mean NfValence",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      },
+      {
+        "rank": 30,
+        "feature_name": "matminer_magpie__MagpieData mean GSvolume_pa",
+        "mean_abs_shap": 0.0,
+        "direction_summary": "mean(|SHAP|) = 0.0000, neutral"
+      }
+    ],
+    "n_samples_explained": 200,
+    "shap_artifact_paths": null
+  },
+  "permutation_importance": {
+    "items": [
+      {
+        "rank": 1,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev NdUnfilled",
+        "importance_std": 396.57310895758354,
+        "importance_mean": 5375.048723973497
+      },
+      {
+        "rank": 2,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev GSvolume_pa",
+        "importance_std": 127.35002862914263,
+        "importance_mean": 806.0964579839725
+      },
+      {
+        "rank": 3,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev NdValence",
+        "importance_std": 130.51283219837921,
+        "importance_mean": 345.2657071867172
+      },
+      {
+        "rank": 4,
+        "n_repeats": 5,
+        "feature_name": "stoichiometric_entropy",
+        "importance_std": 40.49439248766616,
+        "importance_mean": 44.32772071303625
+      },
+      {
+        "rank": 5,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev NUnfilled",
+        "importance_std": 48.29400571200602,
+        "importance_mean": 6.963729844402406
+      },
+      {
+        "rank": 6,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData minimum Number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 7,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData maximum Number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 8,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean Number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 9,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData minimum MendeleevNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 10,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData maximum MendeleevNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 11,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData range MendeleevNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 12,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean MendeleevNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 13,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData range MeltingT",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 14,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean MeltingT",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 15,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData range Row",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 16,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean Row",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 17,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean CovalentRadius",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 18,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev CovalentRadius",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 19,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean Electronegativity",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 20,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev Electronegativity",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 21,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean NsValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 22,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean NdValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 23,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean NfValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 24,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean GSvolume_pa",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 25,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean GSbandgap",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 26,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean GSmagmom",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 27,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev GSmagmom",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 28,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean SpaceGroupNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 29,
+        "n_repeats": 5,
+        "feature_name": "n_elements",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 30,
+        "n_repeats": 5,
+        "feature_name": "n_total_atoms",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 31,
+        "n_repeats": 5,
+        "feature_name": "mean_atomic_number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 32,
+        "n_repeats": 5,
+        "feature_name": "mean_electronegativity",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 33,
+        "n_repeats": 5,
+        "feature_name": "max_element_fraction",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 34,
+        "n_repeats": 5,
+        "feature_name": "min_element_fraction",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 35,
+        "n_repeats": 5,
+        "feature_name": "matminer_valence_orbital__frac s valence electrons",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 36,
+        "n_repeats": 5,
+        "feature_name": "matminer_valence_orbital__frac d valence electrons",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 37,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean NpUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": -3.133417742428719
+      },
+      {
+        "rank": 38,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData mean NpValence",
+        "importance_std": 23.840015965426296,
+        "importance_mean": -13.88169074926409
+      },
+      {
+        "rank": 39,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev NValence",
+        "importance_std": 52.646743922510524,
+        "importance_mean": -156.68060292935988
+      },
+      {
+        "rank": 40,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev Row",
+        "importance_std": 246.79595473491057,
+        "importance_mean": -263.5782132099499
+      },
+      {
+        "rank": 41,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev MendeleevNumber",
+        "importance_std": 157.35250222435107,
+        "importance_mean": -486.6114644203946
+      },
+      {
+        "rank": 42,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData avg_dev Number",
+        "importance_std": 657.2296685560589,
+        "importance_mean": -1045.2886858996528
+      }
+    ]
+  },
+  "partial_dependence": {
+    "pdp_1d": [
+      {
+        "pdp_values": [
+          1627.6466064453125,
+          1627.6466064453125
+        ],
+        "grid_values": [
+          6.0,
+          13.0
+        ],
+        "feature_name": "matminer_magpie__MagpieData minimum Number"
+      },
+      {
+        "pdp_values": [
+          1627.6466064453125,
+          1627.6466064453125
+        ],
+        "grid_values": [
+          42.0,
+          74.0
+        ],
+        "feature_name": "matminer_magpie__MagpieData maximum Number"
+      },
+      {
+        "pdp_values": [
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125
+        ],
+        "grid_values": [
+          25.472169227769026,
+          25.536305232965145,
+          25.60044123816126,
+          25.664577243357378,
+          25.728713248553497,
+          25.792849253749612,
+          25.85698525894573,
+          25.921121264141846,
+          25.985257269337964,
+          26.049393274534083,
+          26.113529279730198,
+          26.177665284926317,
+          26.241801290122435,
+          26.30593729531855,
+          26.37007330051467,
+          26.434209305710787,
+          26.498345310906902,
+          26.56248131610302,
+          26.626617321299136,
+          26.690753326495255
+        ],
+        "feature_name": "matminer_magpie__MagpieData mean Number"
+      },
+      {
+        "pdp_values": [
+          1666.0194091796875,
+          1666.0194091796875,
+          1666.038330078125,
+          1675.18994140625,
+          1643.84033203125,
+          1626.3656005859375,
+          1626.3656005859375,
+          1626.3656005859375,
+          1626.3656005859375,
+          1609.522216796875,
+          1609.522216796875,
+          1609.522216796875,
+          1609.522216796875,
+          1609.522216796875,
+          1609.522216796875,
+          1608.8812255859375,
+          1608.8812255859375,
+          1608.8812255859375,
+          1608.8812255859375,
+          1608.8812255859375
+        ],
+        "grid_values": [
+          0.7430962349537882,
+          0.7806561855180412,
+          0.8182161360822942,
+          0.8557760866465471,
+          0.8933360372108001,
+          0.9308959877750531,
+          0.9684559383393062,
+          1.0060158889035593,
+          1.0435758394678123,
+          1.0811357900320653,
+          1.1186957405963183,
+          1.1562556911605713,
+          1.1938156417248242,
+          1.2313755922890772,
+          1.2689355428533302,
+          1.3064954934175832,
+          1.3440554439818362,
+          1.3816153945460892,
+          1.4191753451103422,
+          1.4567352956745951
+        ],
+        "feature_name": "matminer_magpie__MagpieData avg_dev Number"
+      },
+      {
+        "pdp_values": [
+          1627.6466064453125,
+          1627.6466064453125
+        ],
+        "grid_values": [
+          43.0,
+          46.0
+        ],
+        "feature_name": "matminer_magpie__MagpieData minimum MendeleevNumber"
+      },
+      {
+        "pdp_values": [
+          1627.6466064453125,
+          1627.6466064453125
+        ],
+        "grid_values": [
+          78.0,
+          82.0
+        ],
+        "feature_name": "matminer_magpie__MagpieData maximum MendeleevNumber"
+      },
+      {
+        "pdp_values": [
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125
+        ],
+        "grid_values": [
+          32.0,
+          35.0,
+          36.0,
+          39.0
+        ],
+        "feature_name": "matminer_magpie__MagpieData range MendeleevNumber"
+      },
+      {
+        "pdp_values": [
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125
+        ],
+        "grid_values": [
+          54.52691301833397,
+          54.618129065364144,
+          54.70934511239432,
+          54.8005611594245,
+          54.89177720645467,
+          54.98299325348484,
+          55.074209300515015,
+          55.16542534754519,
+          55.25664139457537,
+          55.34785744160554,
+          55.439073488635714,
+          55.53028953566589,
+          55.62150558269607,
+          55.71272162972624,
+          55.80393767675641,
+          55.895153723786585,
+          55.98636977081676,
+          56.07758581784694,
+          56.16880186487711,
+          56.26001791190728
+        ],
+        "feature_name": "matminer_magpie__MagpieData mean MendeleevNumber"
+      },
+      {
+        "pdp_values": [
+          1624.3974609375,
+          1624.3974609375,
+          1630.399658203125,
+          1630.399658203125,
+          1630.399658203125,
+          1630.399658203125,
+          1630.399658203125,
+          1630.399658203125,
+          1630.399658203125,
+          1626.46337890625,
+          1626.46337890625,
+          1626.46337890625,
+          1626.46337890625,
+          1626.46337890625,
+          1626.46337890625,
+          1626.46337890625,
+          1626.46337890625,
+          1626.46337890625,
+          1626.46337890625,
+          1626.46337890625
+        ],
+        "grid_values": [
+          1.4304421186129006,
+          1.4859088294377212,
+          1.5413755402625418,
+          1.5968422510873623,
+          1.652308961912183,
+          1.7077756727370035,
+          1.763242383561824,
+          1.8187090943866444,
+          1.8741758052114652,
+          1.9296425160362856,
+          1.9851092268611064,
+          2.0405759376859267,
+          2.096042648510747,
+          2.151509359335568,
+          2.2069760701603887,
+          2.262442780985209,
+          2.3179094918100294,
+          2.37337620263485,
+          2.428842913459671,
+          2.4843096242844913
+        ],
+        "feature_name": "matminer_magpie__MagpieData avg_dev MendeleevNumber"
+      },
+      {
+        "pdp_values": [
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125,
+          1627.6466064453125
+        ],
+        "grid_values": [
+          1962.53,
+          2761.5299999999997,
+          2889.5299999999997,
+          3759.95
+        ],
+        "feature_name": "matminer_magpie__MagpieData range MeltingT"
+      }
+    ],
+    "pdp_2d": [
+      {
+        "grid_1": 6.0,
+        "grid_2": 13.0,
+        "feature_1": "matminer_magpie__MagpieData minimum Number",
+        "feature_2": "matminer_magpie__MagpieData maximum Number",
+        "pdp_matrix": [
+          [
+            1627.6466064453125,
+            1627.6466064453125
+          ],
+          [
+            1627.6466064453125,
+            1627.6466064453125
+          ]
+        ]
+      },
+      {
+        "grid_1": 6.0,
+        "grid_2": 13.0,
+        "feature_1": "matminer_magpie__MagpieData minimum Number",
+        "feature_2": "matminer_magpie__MagpieData mean Number",
+        "pdp_matrix": [
+          [
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125
+          ],
+          [
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125,
+            1627.6466064453125
+          ]
+        ]
+      }
+    ]
+  },
+  "cross_method_consensus": {
+    "consensus_features": [
+      "matminer_magpie__MagpieData avg_dev NUnfilled",
+      "matminer_magpie__MagpieData avg_dev NdUnfilled",
+      "matminer_magpie__MagpieData avg_dev NdValence",
+      "stoichiometric_entropy"
+    ],
+    "divergent_features": [
+      {
+        "rank_std": 16.7,
+        "feature_name": "matminer_magpie__MagpieData avg_dev Number",
+        "method_ranks": {
+          "shap": 1,
+          "native_importance": 21,
+          "permutation_importance": 42
+        }
+      },
+      {
+        "rank_std": 16.3,
+        "feature_name": "matminer_magpie__MagpieData avg_dev Row",
+        "method_ranks": {
+          "shap": 5,
+          "native_importance": 6,
+          "permutation_importance": 40
+        }
+      },
+      {
+        "rank_std": 15.1,
+        "feature_name": "matminer_magpie__MagpieData avg_dev MendeleevNumber",
+        "method_ranks": {
+          "shap": 6,
+          "native_importance": 13,
+          "permutation_importance": 41
+        }
+      },
+      {
+        "rank_std": 14.8,
+        "feature_name": "matminer_magpie__MagpieData minimum Number",
+        "method_ranks": {
+          "shap": 12,
+          "native_importance": 40,
+          "permutation_importance": 6
+        }
+      },
+      {
+        "rank_std": 14.5,
+        "feature_name": "max_element_fraction",
+        "method_ranks": {
+          "shap": null,
+          "native_importance": 4,
+          "permutation_importance": 33
+        }
+      },
+      {
+        "rank_std": 14.4,
+        "feature_name": "matminer_magpie__MagpieData avg_dev NValence",
+        "method_ranks": {
+          "shap": 4,
+          "native_importance": 18,
+          "permutation_importance": 39
+        }
+      },
+      {
+        "rank_std": 13.4,
+        "feature_name": "matminer_magpie__MagpieData maximum Number",
+        "method_ranks": {
+          "shap": 13,
+          "native_importance": 38,
+          "permutation_importance": 7
+        }
+      },
+      {
+        "rank_std": 13.0,
+        "feature_name": "matminer_magpie__MagpieData minimum MendeleevNumber",
+        "method_ranks": {
+          "shap": 15,
+          "native_importance": 39,
+          "permutation_importance": 9
+        }
+      },
+      {
+        "rank_std": 12.0,
+        "feature_name": "matminer_magpie__MagpieData avg_dev GSmagmom",
+        "method_ranks": {
+          "shap": null,
+          "native_importance": 3,
+          "permutation_importance": 27
+        }
+      },
+      {
+        "rank_std": 11.9,
+        "feature_name": "matminer_magpie__MagpieData mean NpValence",
+        "method_ranks": {
+          "shap": 9,
+          "native_importance": 26,
+          "permutation_importance": 38
+        }
+      }
+    ],
+    "overall_agreement_score": 0.1483,
+    "rank_correlation_matrix": {
+      "shap": {
+        "shap": 1.0,
+        "native_importance": 0.2667,
+        "permutation_importance": 0.1849
+      },
+      "native_importance": {
+        "shap": 0.2667,
+        "native_importance": 1.0,
+        "permutation_importance": -0.0066
+      },
+      "permutation_importance": {
+        "shap": 0.1849,
+        "native_importance": -0.0066,
+        "permutation_importance": 1.0
+      }
+    }
+  },
+  "material_insight_summary": {
+    "limitations": [
+      "The dataset is small (312 samples), leading to high fold variance (MAE std ±17.0) and limiting the model's ability to generalize to out-of-distribution compositions.",
+      "Several top features are highly correlated (e.g., mean MendeleevNumber and avg_dev NdUnfilled at 0.92), making it difficult to isolate the exact physical mechanism the model is using due to multicollinearity.",
+      "The model exhibits systematic errors in specific segments and produces large outlier errors (>400 MPa) for samples with high SHAP contributions from avg_dev Number, indicating poor extrapolation for highly diverse or unusual compositions.",
+      "Composition-only features cannot capture microstructural details (e.g., grain size, phase fractions, heat treatment history) which are primary drivers of yield strength in steels, inherently capping the model's predictive accuracy (R² = 0.72)."
+    ],
+    "confidence_level": "medium",
+    "domain_hypotheses": [
+      "Hypothesis: The model uses the deviation in unfilled d-orbitals (avg_dev NdUnfilled) as a proxy for the presence and concentration of transition metal alloying elements (like Cr, Mo, V, Mn), which are critical for precipitation hardening and solid solution strengthening in steels.",
+      "Hypothesis: The strong negative PDP trend for avg_dev Number and positive trend for avg_dev MendeleevNumber suggests the model associates yield strength with the specific periodic table distance between the base iron matrix and the interstitial or substitutional alloying elements.",
+      "Hypothesis: High stoichiometric entropy is associated with higher yield strength, reflecting the model's learned association between complex, multi-element alloy compositions (e.g., maraging steels or HSLA steels) and enhanced mechanical properties compared to simple binary Fe-C alloys."
+    ],
+    "top_material_patterns": [
+      {
+        "caution": "There is a very high correlation (0.92) between mean MendeleevNumber and avg_dev NdUnfilled, suggesting potential feature redundancy or that the model is using one as a proxy for the other.",
+        "pattern": "Heterogeneity in d-orbital electron configuration is strongly associated with yield strength variations.",
+        "evidence_strength": "strong",
+        "supporting_features": [
+          "matminer_magpie__MagpieData avg_dev NdUnfilled",
+          "matminer_magpie__MagpieData avg_dev NdValence"
+        ],
+        "possible_material_meaning": "Variations in the number of unfilled d-orbitals and d-valence electrons among constituent elements may act as a model proxy for solid solution strengthening or the formation of complex intermetallic phases and carbides in steels."
+      },
+      {
+        "caution": "The mean and average deviation of GSvolume_pa are highly correlated (0.89), so the model might be conflating the average atomic size of the alloy with the actual size mismatch.",
+        "pattern": "Atomic size and volume mismatch influences predicted yield strength.",
+        "evidence_strength": "moderate",
+        "supporting_features": [
+          "matminer_magpie__MagpieData avg_dev GSvolume_pa",
+          "matminer_magpie__MagpieData avg_dev CovalentRadius"
+        ],
+        "possible_material_meaning": "Differences in atomic volume and covalent radius between alloying elements and the base iron matrix likely capture lattice strain effects, which impede dislocation motion and increase yield strength."
+      },
+      {
+        "caution": "While avg_dev Number is the top SHAP feature, it is divergent in cross-method consensus. High error samples show unusually high SHAP contributions for this feature, indicating the model may over-extrapolate for highly diverse compositions.",
+        "pattern": "Overall elemental diversity and periodic table position spread acts as a complexity indicator.",
+        "evidence_strength": "moderate",
+        "supporting_features": [
+          "matminer_magpie__MagpieData avg_dev Number",
+          "matminer_magpie__MagpieData avg_dev Row",
+          "matminer_magpie__MagpieData avg_dev MendeleevNumber"
+        ],
+        "possible_material_meaning": "The spread of atomic numbers and periodic table rows among constituents may distinguish simple carbon steels from complex high-strength low-alloy (HSLA) or tool steels, capturing the degree of chemical complexity."
+      }
+    ],
+    "feature_groups_interpretation": [
+      {
+        "summary": "Features representing the deviation or spread of elemental properties (e.g., unfilled d-orbitals, atomic number, volume) dominate both permutation importance and SHAP values. This suggests the model relies heavily on the chemical heterogeneity of the alloy to predict solid-solution strengthening and phase complexity.",
+        "feature_group": "Composition-based elemental property deviations (avg_dev)"
+      },
+      {
+        "summary": "Mean properties like electronegativity and s-valence electrons show the highest direct Pearson correlation with the target yield strength. This indicates that the baseline chemical nature of the alloy, such as overall bond strength and average electron configuration, sets the foundational strength level.",
+        "feature_group": "Composition-based elemental property means (mean)"
+      },
+      {
+        "summary": "Stoichiometric entropy appears in the cross-method consensus and top permutation importance. This suggests that the configurational entropy of the mixture, which relates to the number and proportion of alloying elements, is a meaningful predictor for distinguishing between dilute alloys and highly alloyed steels.",
+        "feature_group": "Stoichiometric and structural descriptors"
+      }
+    ]
+  },
+  "physics_constraint_check": {
+    "passed": true,
+    "constraints": []
+  },
+  "llm_summary": {
+    "limitations": [
+      "The dataset is small (312 samples), leading to high fold variance (MAE std ±17.0) and limiting the model's ability to generalize to out-of-distribution compositions.",
+      "Several top features are highly correlated (e.g., mean MendeleevNumber and avg_dev NdUnfilled at 0.92), making it difficult to isolate the exact physical mechanism the model is using due to multicollinearity.",
+      "The model exhibits systematic errors in specific segments and produces large outlier errors (>400 MPa) for samples with high SHAP contributions from avg_dev Number, indicating poor extrapolation for highly diverse or unusual compositions.",
+      "Composition-only features cannot capture microstructural details (e.g., grain size, phase fractions, heat treatment history) which are primary drivers of yield strength in steels, inherently capping the model's predictive accuracy (R² = 0.72)."
+    ],
+    "confidence_level": "medium",
+    "domain_hypotheses": [
+      "Hypothesis: The model uses the deviation in unfilled d-orbitals (avg_dev NdUnfilled) as a proxy for the presence and concentration of transition metal alloying elements (like Cr, Mo, V, Mn), which are critical for precipitation hardening and solid solution strengthening in steels.",
+      "Hypothesis: The strong negative PDP trend for avg_dev Number and positive trend for avg_dev MendeleevNumber suggests the model associates yield strength with the specific periodic table distance between the base iron matrix and the interstitial or substitutional alloying elements.",
+      "Hypothesis: High stoichiometric entropy is associated with higher yield strength, reflecting the model's learned association between complex, multi-element alloy compositions (e.g., maraging steels or HSLA steels) and enhanced mechanical properties compared to simple binary Fe-C alloys."
+    ],
+    "human_review_notes": [
+      "Review the high-error samples (absolute errors > 400 MPa) to determine if they represent data entry errors, unusual heat treatments not captured by composition, or genuinely out-of-distribution alloy chemistries.",
+      "Investigate the physical meaning of the high correlation (0.92) between mean MendeleevNumber and avg_dev NdUnfilled in the context of the specific steels present in the dataset to ensure the model isn't learning a dataset-specific artifact.",
+      "Verify if the 'flat' PDP trends for minimum/maximum Number and MendeleevNumber indicate that these features are effectively unused by the model despite being generated, and consider if feature selection could reduce dimensionality.",
+      "Check the 5 systematic error segments identified in the residual analysis to see if the model consistently underpredicts or overpredicts yield strength for specific classes of steels (e.g., ultra-high strength vs. mild steels)."
+    ],
+    "top_material_patterns": [
+      {
+        "caution": "There is a very high correlation (0.92) between mean MendeleevNumber and avg_dev NdUnfilled, suggesting potential feature redundancy or that the model is using one as a proxy for the other.",
+        "pattern": "Heterogeneity in d-orbital electron configuration is strongly associated with yield strength variations.",
+        "evidence_strength": "strong",
+        "supporting_features": [
+          "matminer_magpie__MagpieData avg_dev NdUnfilled",
+          "matminer_magpie__MagpieData avg_dev NdValence"
+        ],
+        "possible_material_meaning": "Variations in the number of unfilled d-orbitals and d-valence electrons among constituent elements may act as a model proxy for solid solution strengthening or the formation of complex intermetallic phases and carbides in steels."
+      },
+      {
+        "caution": "The mean and average deviation of GSvolume_pa are highly correlated (0.89), so the model might be conflating the average atomic size of the alloy with the actual size mismatch.",
+        "pattern": "Atomic size and volume mismatch influences predicted yield strength.",
+        "evidence_strength": "moderate",
+        "supporting_features": [
+          "matminer_magpie__MagpieData avg_dev GSvolume_pa",
+          "matminer_magpie__MagpieData avg_dev CovalentRadius"
+        ],
+        "possible_material_meaning": "Differences in atomic volume and covalent radius between alloying elements and the base iron matrix likely capture lattice strain effects, which impede dislocation motion and increase yield strength."
+      },
+      {
+        "caution": "While avg_dev Number is the top SHAP feature, it is divergent in cross-method consensus. High error samples show unusually high SHAP contributions for this feature, indicating the model may over-extrapolate for highly diverse compositions.",
+        "pattern": "Overall elemental diversity and periodic table position spread acts as a complexity indicator.",
+        "evidence_strength": "moderate",
+        "supporting_features": [
+          "matminer_magpie__MagpieData avg_dev Number",
+          "matminer_magpie__MagpieData avg_dev Row",
+          "matminer_magpie__MagpieData avg_dev MendeleevNumber"
+        ],
+        "possible_material_meaning": "The spread of atomic numbers and periodic table rows among constituents may distinguish simple carbon steels from complex high-strength low-alloy (HSLA) or tool steels, capturing the degree of chemical complexity."
+      }
+    ],
+    "feature_groups_interpretation": [
+      {
+        "summary": "Features representing the deviation or spread of elemental properties (e.g., unfilled d-orbitals, atomic number, volume) dominate both permutation importance and SHAP values. This suggests the model relies heavily on the chemical heterogeneity of the alloy to predict solid-solution strengthening and phase complexity.",
+        "feature_group": "Composition-based elemental property deviations (avg_dev)"
+      },
+      {
+        "summary": "Mean properties like electronegativity and s-valence electrons show the highest direct Pearson correlation with the target yield strength. This indicates that the baseline chemical nature of the alloy, such as overall bond strength and average electron configuration, sets the foundational strength level.",
+        "feature_group": "Composition-based elemental property means (mean)"
+      },
+      {
+        "summary": "Stoichiometric entropy appears in the cross-method consensus and top permutation importance. This suggests that the configurational entropy of the mixture, which relates to the number and proportion of alloying elements, is a meaningful predictor for distinguishing between dilute alloys and highly alloyed steels.",
+        "feature_group": "Stoichiometric and structural descriptors"
+      }
+    ]
+  }
+}

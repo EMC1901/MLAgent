@@ -1,0 +1,1982 @@
+{
+  "interpretability_analysis_id": "ia_d655b80a",
+  "status": "analyzed",
+  "final_model_id": "xgboost",
+  "final_model_family": "XGBoost",
+  "methods_used": {
+    "methods": [
+      "native_importance",
+      "permutation_importance",
+      "shap"
+    ],
+    "statuses": {
+      "shap": "computed",
+      "native_importance": "computed",
+      "permutation_importance": "computed"
+    }
+  },
+  "global_feature_importance": {
+    "items": [
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_maximum_GSvolume_pa",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 1,
+        "importance_value": 0.06380242109298706,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "min_atomic_number",
+        "feature_group": "statistical_descriptor",
+        "importance_rank": 2,
+        "importance_value": 0.055490609258413315,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_maximum_CovalentRadius",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 3,
+        "importance_value": 0.032641515135765076,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_CovalentRadius",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 4,
+        "importance_value": 0.029441960155963898,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "max_electronegativity",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 5,
+        "importance_value": 0.027294540777802467,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_mode_MeltingT",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 6,
+        "importance_value": 0.025171542540192604,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_range_NUnfilled",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 7,
+        "importance_value": 0.023988420143723488,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_mode_Electronegativity",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 8,
+        "importance_value": 0.022592801600694656,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_maximum_NUnfilled",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 9,
+        "importance_value": 0.02138109877705574,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_range_NValence",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 10,
+        "importance_value": 0.01971202716231346,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_range_GSvolume_pa",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 11,
+        "importance_value": 0.018677329644560814,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_maximum_NsUnfilled",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 12,
+        "importance_value": 0.016886064782738686,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_range_Row",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 13,
+        "importance_value": 0.016378719359636307,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "max_atomic_number",
+        "feature_group": "statistical_descriptor",
+        "importance_rank": 14,
+        "importance_value": 0.016081474721431732,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_maximum_GSmagmom",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 15,
+        "importance_value": 0.015613471157848835,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_maximum_GSbandgap",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 16,
+        "importance_value": 0.015610960312187672,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_mode_SpaceGroupNumber",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 17,
+        "importance_value": 0.015608946792781353,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_mode_CovalentRadius",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 18,
+        "importance_value": 0.015490064397454262,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_minimum_SpaceGroupNumber",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 19,
+        "importance_value": 0.014936885796487331,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_maximum_Column",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 20,
+        "importance_value": 0.014829876832664013,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_maximum_NdValence",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 21,
+        "importance_value": 0.01378969382494688,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_SpaceGroupNumber",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 22,
+        "importance_value": 0.012842032127082348,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_mode_GSvolume_pa",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 23,
+        "importance_value": 0.01252500619739294,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_maximum_MendeleevNumber",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 24,
+        "importance_value": 0.012117966078221798,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_range_NdValence",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 25,
+        "importance_value": 0.011865181848406792,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_mean_NsUnfilled",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 26,
+        "importance_value": 0.011393165215849876,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "n_elements",
+        "feature_group": "elemental_descriptor",
+        "importance_rank": 27,
+        "importance_value": 0.010705714114010334,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_mode_Column",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 28,
+        "importance_value": 0.010340169072151184,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_minimum_MendeleevNumber",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 29,
+        "importance_value": 0.0102720120921731,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      },
+      {
+        "direction": "unknown",
+        "feature_name": "matminer_magpie__MagpieData_mean_NfUnfilled",
+        "feature_group": "composition_descriptor",
+        "importance_rank": 30,
+        "importance_value": 0.010257191956043243,
+        "importance_method": "native_importance",
+        "interpretation_hint": "Native importance from tree-based model."
+      }
+    ]
+  },
+  "shap_summary": {
+    "warnings": [],
+    "explainer_type": "tree_explainer",
+    "shap_available": true,
+    "top_shap_features": [
+      {
+        "rank": 1,
+        "feature_name": "matminer_magpie__MagpieData_mean_GSmagmom",
+        "mean_abs_shap": 0.38669440792774573,
+        "direction_summary": "mean(|SHAP|) = 0.3867, positive_contribution"
+      },
+      {
+        "rank": 2,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_Column",
+        "mean_abs_shap": 0.17889715436442347,
+        "direction_summary": "mean(|SHAP|) = 0.1789, positive_contribution"
+      },
+      {
+        "rank": 3,
+        "feature_name": "stoichiometric_entropy",
+        "mean_abs_shap": 0.16062345485554258,
+        "direction_summary": "mean(|SHAP|) = 0.1606, positive_contribution"
+      },
+      {
+        "rank": 4,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_GSvolume_pa",
+        "mean_abs_shap": 0.14742298391428776,
+        "direction_summary": "mean(|SHAP|) = 0.1474, positive_contribution"
+      },
+      {
+        "rank": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_SpaceGroupNumber",
+        "mean_abs_shap": 0.12402659762015103,
+        "direction_summary": "mean(|SHAP|) = 0.1240, positive_contribution"
+      },
+      {
+        "rank": 6,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NValence",
+        "mean_abs_shap": 0.10814566046447145,
+        "direction_summary": "mean(|SHAP|) = 0.1081, positive_contribution"
+      },
+      {
+        "rank": 7,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NpUnfilled",
+        "mean_abs_shap": 0.08443680676978259,
+        "direction_summary": "mean(|SHAP|) = 0.0844, positive_contribution"
+      },
+      {
+        "rank": 8,
+        "feature_name": "matminer_valence_orbital__avg_f_valence_electrons",
+        "mean_abs_shap": 0.0800191900244681,
+        "direction_summary": "mean(|SHAP|) = 0.0800, positive_contribution"
+      },
+      {
+        "rank": 9,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NdValence",
+        "mean_abs_shap": 0.06649817782126481,
+        "direction_summary": "mean(|SHAP|) = 0.0665, positive_contribution"
+      },
+      {
+        "rank": 10,
+        "feature_name": "matminer_magpie__MagpieData_range_Electronegativity",
+        "mean_abs_shap": 0.059558147514471776,
+        "direction_summary": "mean(|SHAP|) = 0.0596, positive_contribution"
+      },
+      {
+        "rank": 11,
+        "feature_name": "max_element_fraction",
+        "mean_abs_shap": 0.058389402428362505,
+        "direction_summary": "mean(|SHAP|) = 0.0584, positive_contribution"
+      },
+      {
+        "rank": 12,
+        "feature_name": "matminer_valence_orbital__frac_d_valence_electrons",
+        "mean_abs_shap": 0.05210735758509253,
+        "direction_summary": "mean(|SHAP|) = 0.0521, positive_contribution"
+      },
+      {
+        "rank": 13,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NUnfilled",
+        "mean_abs_shap": 0.047189120725709646,
+        "direction_summary": "mean(|SHAP|) = 0.0472, positive_contribution"
+      },
+      {
+        "rank": 14,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_Row",
+        "mean_abs_shap": 0.04711666782544923,
+        "direction_summary": "mean(|SHAP|) = 0.0471, positive_contribution"
+      },
+      {
+        "rank": 15,
+        "feature_name": "matminer_magpie__MagpieData_mean_NdUnfilled",
+        "mean_abs_shap": 0.04690116630872358,
+        "direction_summary": "mean(|SHAP|) = 0.0469, positive_contribution"
+      },
+      {
+        "rank": 16,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NpValence",
+        "mean_abs_shap": 0.04514800891103806,
+        "direction_summary": "mean(|SHAP|) = 0.0451, positive_contribution"
+      },
+      {
+        "rank": 17,
+        "feature_name": "matminer_magpie__MagpieData_minimum_NUnfilled",
+        "mean_abs_shap": 0.044756281389039906,
+        "direction_summary": "mean(|SHAP|) = 0.0448, positive_contribution"
+      },
+      {
+        "rank": 18,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_Electronegativity",
+        "mean_abs_shap": 0.044225893228000496,
+        "direction_summary": "mean(|SHAP|) = 0.0442, positive_contribution"
+      },
+      {
+        "rank": 19,
+        "feature_name": "matminer_magpie__MagpieData_mean_NpUnfilled",
+        "mean_abs_shap": 0.04219596264789579,
+        "direction_summary": "mean(|SHAP|) = 0.0422, positive_contribution"
+      },
+      {
+        "rank": 20,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NsUnfilled",
+        "mean_abs_shap": 0.041939682596875326,
+        "direction_summary": "mean(|SHAP|) = 0.0419, positive_contribution"
+      },
+      {
+        "rank": 21,
+        "feature_name": "matminer_valence_orbital__frac_s_valence_electrons",
+        "mean_abs_shap": 0.041882601374827175,
+        "direction_summary": "mean(|SHAP|) = 0.0419, positive_contribution"
+      },
+      {
+        "rank": 22,
+        "feature_name": "matminer_valence_orbital__avg_p_valence_electrons",
+        "mean_abs_shap": 0.039961163709960244,
+        "direction_summary": "mean(|SHAP|) = 0.0400, positive_contribution"
+      },
+      {
+        "rank": 23,
+        "feature_name": "matminer_magpie__MagpieData_minimum_NdUnfilled",
+        "mean_abs_shap": 0.03541266247588212,
+        "direction_summary": "mean(|SHAP|) = 0.0354, positive_contribution"
+      },
+      {
+        "rank": 24,
+        "feature_name": "matminer_valence_orbital__frac_p_valence_electrons",
+        "mean_abs_shap": 0.026603364965503,
+        "direction_summary": "mean(|SHAP|) = 0.0266, positive_contribution"
+      },
+      {
+        "rank": 25,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NdUnfilled",
+        "mean_abs_shap": 0.02607859852921681,
+        "direction_summary": "mean(|SHAP|) = 0.0261, positive_contribution"
+      },
+      {
+        "rank": 26,
+        "feature_name": "mean_electronegativity",
+        "mean_abs_shap": 0.025129944997094613,
+        "direction_summary": "mean(|SHAP|) = 0.0251, positive_contribution"
+      },
+      {
+        "rank": 27,
+        "feature_name": "min_element_fraction",
+        "mean_abs_shap": 0.02066157294103398,
+        "direction_summary": "mean(|SHAP|) = 0.0207, positive_contribution"
+      },
+      {
+        "rank": 28,
+        "feature_name": "matminer_magpie__MagpieData_range_NUnfilled",
+        "mean_abs_shap": 0.019487204687553474,
+        "direction_summary": "mean(|SHAP|) = 0.0195, positive_contribution"
+      },
+      {
+        "rank": 29,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NsValence",
+        "mean_abs_shap": 0.016125889004627234,
+        "direction_summary": "mean(|SHAP|) = 0.0161, positive_contribution"
+      },
+      {
+        "rank": 30,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_MendeleevNumber",
+        "mean_abs_shap": 0.014283518587384606,
+        "direction_summary": "mean(|SHAP|) = 0.0143, positive_contribution"
+      }
+    ],
+    "n_samples_explained": 200,
+    "shap_artifact_paths": null
+  },
+  "permutation_importance": {
+    "items": [
+      {
+        "rank": 1,
+        "n_repeats": 5,
+        "feature_name": "n_elements",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 2,
+        "n_repeats": 5,
+        "feature_name": "n_total_atoms",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 3,
+        "n_repeats": 5,
+        "feature_name": "mean_atomic_number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 4,
+        "n_repeats": 5,
+        "feature_name": "max_atomic_number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 5,
+        "n_repeats": 5,
+        "feature_name": "min_atomic_number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 6,
+        "n_repeats": 5,
+        "feature_name": "mean_electronegativity",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 7,
+        "n_repeats": 5,
+        "feature_name": "max_electronegativity",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 8,
+        "n_repeats": 5,
+        "feature_name": "min_electronegativity",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 9,
+        "n_repeats": 5,
+        "feature_name": "stoichiometric_entropy",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 10,
+        "n_repeats": 5,
+        "feature_name": "max_element_fraction",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 11,
+        "n_repeats": 5,
+        "feature_name": "min_element_fraction",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 12,
+        "n_repeats": 5,
+        "feature_name": "matminer_valence_orbital__avg_s_valence_electrons",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 13,
+        "n_repeats": 5,
+        "feature_name": "matminer_valence_orbital__avg_p_valence_electrons",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 14,
+        "n_repeats": 5,
+        "feature_name": "matminer_valence_orbital__avg_d_valence_electrons",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 15,
+        "n_repeats": 5,
+        "feature_name": "matminer_valence_orbital__avg_f_valence_electrons",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 16,
+        "n_repeats": 5,
+        "feature_name": "matminer_valence_orbital__frac_s_valence_electrons",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 17,
+        "n_repeats": 5,
+        "feature_name": "matminer_valence_orbital__frac_p_valence_electrons",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 18,
+        "n_repeats": 5,
+        "feature_name": "matminer_valence_orbital__frac_d_valence_electrons",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 19,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_Number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 20,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_Number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 21,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_Number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 22,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_Number",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 23,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_MendeleevNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 24,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_MendeleevNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 25,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_MendeleevNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 26,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_MendeleevNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 27,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_MendeleevNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 28,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_MendeleevNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 29,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_MeltingT",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 30,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_MeltingT",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 31,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_MeltingT",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 32,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_MeltingT",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 33,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_MeltingT",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 34,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_MeltingT",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 35,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_Column",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 36,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_Column",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 37,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_Column",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 38,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_Column",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 39,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_Column",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 40,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_Column",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 41,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_Row",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 42,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_Row",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 43,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_CovalentRadius",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 44,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_CovalentRadius",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 45,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_CovalentRadius",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 46,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_CovalentRadius",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 47,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_CovalentRadius",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 48,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_CovalentRadius",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 49,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_Electronegativity",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 50,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_Electronegativity",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 51,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_Electronegativity",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 52,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_Electronegativity",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 53,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_NsValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 54,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NsValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 55,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_NsValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 56,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_NpValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 57,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NpValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 58,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_NpValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 59,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_NdValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 60,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_NdValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 61,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_NdValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 62,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NdValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 63,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_NdValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 64,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_NfValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 65,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NfValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 66,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_NValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 67,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_NValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 68,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_NValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 69,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_NValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 70,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 71,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_NValence",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 72,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_NsUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 73,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_NsUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 74,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NsUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 75,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_NsUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 76,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_NpUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 77,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_NpUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 78,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NpUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 79,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_NdUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 80,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_NdUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 81,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_NdUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 82,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NdUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 83,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_NdUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 84,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_NfUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 85,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_NfUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 86,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NfUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 87,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_NUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 88,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_NUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 89,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_NUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 90,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_NUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 91,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_NUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 92,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_NUnfilled",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 93,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_GSvolume_pa",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 94,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_GSvolume_pa",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 95,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_range_GSvolume_pa",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 96,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_GSvolume_pa",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 97,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_GSvolume_pa",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 98,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_GSvolume_pa",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 99,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_GSbandgap",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 100,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_GSbandgap",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 101,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_GSmagmom",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 102,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_GSmagmom",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 103,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_GSmagmom",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 104,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_SpaceGroupNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 105,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_SpaceGroupNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 106,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mean_SpaceGroupNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 107,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_SpaceGroupNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      },
+      {
+        "rank": 108,
+        "n_repeats": 5,
+        "feature_name": "matminer_magpie__MagpieData_mode_SpaceGroupNumber",
+        "importance_std": 0.0,
+        "importance_mean": 0.0
+      }
+    ]
+  },
+  "partial_dependence": {
+    "pdp_1d": [
+      {
+        "pdp_values": [
+          0.9962692856788635,
+          0.9962692856788635
+        ],
+        "grid_values": [
+          2.0,
+          3.0
+        ],
+        "feature_name": "n_elements"
+      },
+      {
+        "pdp_values": [
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635
+        ],
+        "grid_values": [
+          8.0,
+          12.842105263157894,
+          17.684210526315788,
+          22.526315789473685,
+          27.36842105263158,
+          32.21052631578947,
+          37.05263157894737,
+          41.89473684210526,
+          46.73684210526316,
+          51.578947368421055,
+          56.421052631578945,
+          61.26315789473684,
+          66.10526315789474,
+          70.94736842105263,
+          75.78947368421052,
+          80.63157894736842,
+          85.47368421052632,
+          90.3157894736842,
+          95.15789473684211,
+          100.0
+        ],
+        "feature_name": "n_total_atoms"
+      },
+      {
+        "pdp_values": [
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635
+        ],
+        "grid_values": [
+          15.136666666666667,
+          16.42684210526316,
+          17.71701754385965,
+          19.00719298245614,
+          20.29736842105263,
+          21.587543859649124,
+          22.877719298245616,
+          24.167894736842108,
+          25.4580701754386,
+          26.748245614035092,
+          28.03842105263158,
+          29.328596491228073,
+          30.618771929824565,
+          31.908947368421057,
+          33.199122807017545,
+          34.48929824561404,
+          35.77947368421053,
+          37.06964912280702,
+          38.359824561403514,
+          39.650000000000006
+        ],
+        "feature_name": "mean_atomic_number"
+      },
+      {
+        "pdp_values": [
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635
+        ],
+        "grid_values": [
+          24.0,
+          26.557368421052633,
+          29.114736842105263,
+          31.672105263157896,
+          34.229473684210525,
+          36.78684210526316,
+          39.34421052631579,
+          41.90157894736842,
+          44.45894736842105,
+          47.01631578947369,
+          49.57368421052632,
+          52.13105263157895,
+          54.68842105263158,
+          57.24578947368421,
+          59.80315789473684,
+          62.36052631578948,
+          64.9178947368421,
+          67.47526315789474,
+          70.03263157894737,
+          72.59
+        ],
+        "feature_name": "max_atomic_number"
+      },
+      {
+        "pdp_values": [
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635
+        ],
+        "grid_values": [
+          4.0,
+          5.0,
+          6.0,
+          12.0,
+          13.0,
+          14.0,
+          15.0,
+          20.0,
+          22.0,
+          23.0,
+          24.0,
+          26.0,
+          27.0,
+          28.0,
+          29.0
+        ],
+        "feature_name": "min_atomic_number"
+      },
+      {
+        "pdp_values": [
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591,
+          0.9962624907493591
+        ],
+        "grid_values": [
+          1.4447,
+          1.4834,
+          1.5221,
+          1.5608000000000002,
+          1.5995000000000001,
+          1.6382,
+          1.6769,
+          1.7156000000000002,
+          1.7543000000000002,
+          1.7930000000000001,
+          1.8317,
+          1.8704,
+          1.9091,
+          1.9478000000000002,
+          1.9865000000000002,
+          2.0252000000000003,
+          2.0639000000000003,
+          2.1026000000000002,
+          2.1413,
+          2.18
+        ],
+        "feature_name": "mean_electronegativity"
+      },
+      {
+        "pdp_values": [
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635
+        ],
+        "grid_values": [
+          1.31,
+          1.57,
+          1.61,
+          1.65,
+          1.83,
+          1.88,
+          1.9,
+          1.91,
+          1.93,
+          2.01,
+          2.04,
+          2.16,
+          2.19,
+          2.2,
+          2.28,
+          2.54,
+          2.55
+        ],
+        "feature_name": "max_electronegativity"
+      },
+      {
+        "pdp_values": [
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635,
+          0.9962692856788635
+        ],
+        "grid_values": [
+          1.1,
+          1.1421052631578947,
+          1.1842105263157896,
+          1.2263157894736842,
+          1.2684210526315791,
+          1.3105263157894738,
+          1.3526315789473684,
+          1.3947368421052633,
+          1.436842105263158,
+          1.4789473684210526,
+          1.5210526315789474,
+          1.563157894736842,
+          1.6052631578947367,
+          1.6473684210526316,
+          1.6894736842105262,
+          1.7315789473684209,
+          1.7736842105263158,
+          1.8157894736842106,
+          1.8578947368421053,
+          1.9
+        ],
+        "feature_name": "min_electronegativity"
+      },
+      {
+        "pdp_values": [
+          0.9942601919174194,
+          0.9940367341041565,
+          0.9959264993667603,
+          0.9959264993667603,
+          0.9959357976913452,
+          0.9956225752830505,
+          0.9956225752830505,
+          0.9956225752830505,
+          0.9958283305168152,
+          0.9958283305168152,
+          0.9960863590240479,
+          0.9965648055076599,
+          0.996599018573761,
+          0.9966330528259277,
+          0.9966330528259277,
+          0.9963101148605347,
+          0.9962179064750671,
+          0.9972564578056335,
+          0.9971582889556885,
+          0.9971582889556885
+        ],
+        "grid_values": [
+          0.3257853348684827,
+          0.36332884420443623,
+          0.40087235354038975,
+          0.43841586287634327,
+          0.4759593722122968,
+          0.5135028815482503,
+          0.5510463908842038,
+          0.5885899002201573,
+          0.6261334095561109,
+          0.6636769188920644,
+          0.7012204282280179,
+          0.7387639375639714,
+          0.7763074468999249,
+          0.8138509562358784,
+          0.851394465571832,
+          0.8889379749077855,
+          0.926481484243739,
+          0.9640249935796925,
+          1.001568502915646,
+          1.0391120122515995
+        ],
+        "feature_name": "stoichiometric_entropy"
+      },
+      {
+        "pdp_values": [
+          0.9957139492034912,
+          0.9957139492034912,
+          0.9957139492034912,
+          0.9959495663642883,
+          0.9959495663642883,
+          0.9959495663642883,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275,
+          0.9964048862457275
+        ],
+        "grid_values": [
+          0.45764000000000005,
+          0.48144842105263164,
+          0.5052568421052632,
+          0.5290652631578948,
+          0.5528736842105264,
+          0.576682105263158,
+          0.6004905263157896,
+          0.6242989473684211,
+          0.6481073684210528,
+          0.6719157894736842,
+          0.695724210526316,
+          0.7195326315789474,
+          0.743341052631579,
+          0.7671494736842106,
+          0.7909578947368422,
+          0.8147663157894738,
+          0.8385747368421054,
+          0.862383157894737,
+          0.8861915789473686,
+          0.9100000000000001
+        ],
+        "feature_name": "max_element_fraction"
+      }
+    ],
+    "pdp_2d": [
+      {
+        "grid_1": 2.0,
+        "grid_2": 3.0,
+        "feature_1": "n_elements",
+        "feature_2": "n_total_atoms",
+        "pdp_matrix": [
+          [
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635
+          ],
+          [
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635
+          ]
+        ]
+      },
+      {
+        "grid_1": 2.0,
+        "grid_2": 3.0,
+        "feature_1": "n_elements",
+        "feature_2": "mean_atomic_number",
+        "pdp_matrix": [
+          [
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635
+          ],
+          [
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635,
+            0.9962692856788635
+          ]
+        ]
+      }
+    ]
+  },
+  "cross_method_consensus": {
+    "consensus_features": [],
+    "divergent_features": [
+      {
+        "rank_std": 46.5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_GSvolume_pa",
+        "method_ranks": {
+          "shap": null,
+          "native_importance": 1,
+          "permutation_importance": 94
+        }
+      },
+      {
+        "rank_std": 45.5,
+        "feature_name": "matminer_magpie__MagpieData_mode_SpaceGroupNumber",
+        "method_ranks": {
+          "shap": null,
+          "native_importance": 17,
+          "permutation_importance": 108
+        }
+      },
+      {
+        "rank_std": 44.6,
+        "feature_name": "matminer_magpie__MagpieData_avg_dev_SpaceGroupNumber",
+        "method_ranks": {
+          "shap": 5,
+          "native_importance": 22,
+          "permutation_importance": 107
+        }
+      },
+      {
+        "rank_std": 43.0,
+        "feature_name": "matminer_magpie__MagpieData_maximum_GSmagmom",
+        "method_ranks": {
+          "shap": null,
+          "native_importance": 15,
+          "permutation_importance": 101
+        }
+      },
+      {
+        "rank_std": 42.5,
+        "feature_name": "matminer_magpie__MagpieData_minimum_SpaceGroupNumber",
+        "method_ranks": {
+          "shap": null,
+          "native_importance": 19,
+          "permutation_importance": 104
+        }
+      },
+      {
+        "rank_std": 42.0,
+        "feature_name": "matminer_magpie__MagpieData_range_GSvolume_pa",
+        "method_ranks": {
+          "shap": null,
+          "native_importance": 11,
+          "permutation_importance": 95
+        }
+      },
+      {
+        "rank_std": 41.5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_GSbandgap",
+        "method_ranks": {
+          "shap": null,
+          "native_importance": 16,
+          "permutation_importance": 99
+        }
+      },
+      {
+        "rank_std": 41.4,
+        "feature_name": "matminer_magpie__MagpieData_mean_GSmagmom",
+        "method_ranks": {
+          "shap": 1,
+          "native_importance": 44,
+          "permutation_importance": 102
+        }
+      },
+      {
+        "rank_std": 39.5,
+        "feature_name": "matminer_magpie__MagpieData_maximum_NUnfilled",
+        "method_ranks": {
+          "shap": null,
+          "native_importance": 9,
+          "permutation_importance": 88
+        }
+      },
+      {
+        "rank_std": 38.7,
+        "feature_name": "stoichiometric_entropy",
+        "method_ranks": {
+          "shap": 3,
+          "native_importance": 88,
+          "permutation_importance": 9
+        }
+      }
+    ],
+    "overall_agreement_score": -0.0546,
+    "rank_correlation_matrix": {
+      "shap": {
+        "shap": 1.0,
+        "native_importance": 0.0607,
+        "permutation_importance": -0.2013
+      },
+      "native_importance": {
+        "shap": 0.0607,
+        "native_importance": 1.0,
+        "permutation_importance": -0.0233
+      },
+      "permutation_importance": {
+        "shap": -0.2013,
+        "native_importance": -0.0233,
+        "permutation_importance": 1.0
+      }
+    }
+  },
+  "material_insight_summary": {
+    "limitations": [
+      "The cross-method consensus score is negative (-0.0546), indicating significant disagreement between native feature importance (tree split gain) and SHAP values (marginal contribution), which reduces confidence in a unified global feature ranking.",
+      "Partial dependence plots for most basic elemental features (e.g., atomic number, electronegativity) are flat, suggesting the model relies almost entirely on complex, high-order interactions rather than interpretable main effects.",
+      "High-error samples (misclassifications) are strongly associated with unusually high SHAP contributions from mean ground state magnetic moment, indicating potential overfitting or spurious correlations for specific magnetic alloys.",
+      "Stoichiometric entropy and max element fraction are highly negatively correlated (-0.934), meaning their individual physical effects cannot be cleanly separated or isolated in the current feature space."
+    ],
+    "confidence_level": "medium",
+    "domain_hypotheses": [
+      "Hypothesis: The model's reliance on the average deviation of covalent radius and ground state volume suggests it has implicitly learned the atomic size mismatch criterion (e.g., Inoue's rules) for bulk metallic glass formation.",
+      "Hypothesis: The non-monotonic partial dependence of stoichiometric entropy indicates that while higher configurational entropy generally favors glass formation, there may be an optimal threshold or interaction effect beyond which phase separation or crystallization becomes favorable.",
+      "Hypothesis: The high importance of unfilled orbital features (NUnfilled, NpUnfilled, NdValence) suggests the model associates specific d- and p-electron hybridization characteristics with the deep eutectic behavior and bonding directionality necessary for glass-forming ability."
+    ],
+    "top_material_patterns": [
+      {
+        "caution": "This is a model-based association; while it aligns with domain knowledge, the model captures statistical correlations in the training data rather than explicitly simulating physical packing frustration.",
+        "pattern": "Atomic size mismatch and volume variation",
+        "evidence_strength": "strong",
+        "supporting_features": [
+          "matminer_magpie__MagpieData_maximum_GSvolume_pa",
+          "matminer_magpie__MagpieData_avg_dev_CovalentRadius",
+          "matminer_magpie__MagpieData_avg_dev_GSvolume_pa"
+        ],
+        "possible_material_meaning": "The model associates large differences in atomic radii and ground state volumes with glass-forming ability. This aligns with empirical rules for bulk metallic glasses, which require significant atomic size mismatch to frustrate crystalline packing and promote amorphous phase formation."
+      },
+      {
+        "caution": "Stoichiometric entropy and max_element_fraction are highly negatively correlated (-0.934), meaning the model may be using them redundantly. The partial dependence for max_element_fraction shows an increasing trend, which may reflect complex interactions rather than a simple main effect.",
+        "pattern": "Configurational entropy and compositional complexity",
+        "evidence_strength": "moderate",
+        "supporting_features": [
+          "stoichiometric_entropy",
+          "max_element_fraction",
+          "matminer_magpie__MagpieData_avg_dev_Column",
+          "matminer_magpie__MagpieData_avg_dev_NValence"
+        ],
+        "possible_material_meaning": "Higher stoichiometric entropy and variations in column/valence properties are associated with glass formation. This suggests the model leverages the degree of multi-element mixing and chemical complexity, which can stabilize the amorphous phase through high configurational entropy."
+      },
+      {
+        "caution": "Mean ground state magnetic moment is the top SHAP feature but shows high divergence in cross-method consensus. It is also strongly linked to high-error samples, suggesting potential over-reliance on this feature for edge cases or magnetic alloys.",
+        "pattern": "Magnetic and electronic structure variations",
+        "evidence_strength": "moderate",
+        "supporting_features": [
+          "matminer_magpie__MagpieData_mean_GSmagmom",
+          "matminer_magpie__MagpieData_range_NUnfilled",
+          "matminer_magpie__MagpieData_avg_dev_NpUnfilled",
+          "matminer_valence_orbital__avg_f_valence_electrons"
+        ],
+        "possible_material_meaning": "The model heavily relies on ground state magnetic moments and unfilled electron orbitals to distinguish glass formers. This may reflect the role of d-band, p-band, and f-band electrons in metallic bonding, hybridization, and the electronic density of states required for glass stability."
+      }
+    ],
+    "feature_groups_interpretation": [
+      {
+        "summary": "Features like stoichiometric entropy and max element fraction capture the degree of multi-element mixing. The model uses these to identify compositional complexity, though their high mutual correlation means they provide overlapping information to the classifier.",
+        "feature_group": "Composition and Stoichiometry"
+      },
+      {
+        "summary": "Ground state volume, covalent radius, and atomic number features dominate the native tree-split importance. The model leverages atomic size mismatch and volume differences to identify compositions that geometrically frustrate crystallization.",
+        "feature_group": "Elemental Properties and Atomic Size"
+      },
+      {
+        "summary": "Features related to valence electrons, unfilled orbitals, and ground state magnetic moments are highly influential in SHAP marginal contributions. They likely capture complex metallic bonding characteristics, though they exhibit high divergence between importance methods and are associated with misclassifications.",
+        "feature_group": "Electronic and Magnetic Properties"
+      }
+    ]
+  },
+  "physics_constraint_check": {
+    "passed": true,
+    "constraints": []
+  },
+  "llm_summary": {
+    "limitations": [
+      "The cross-method consensus score is negative (-0.0546), indicating significant disagreement between native feature importance (tree split gain) and SHAP values (marginal contribution), which reduces confidence in a unified global feature ranking.",
+      "Partial dependence plots for most basic elemental features (e.g., atomic number, electronegativity) are flat, suggesting the model relies almost entirely on complex, high-order interactions rather than interpretable main effects.",
+      "High-error samples (misclassifications) are strongly associated with unusually high SHAP contributions from mean ground state magnetic moment, indicating potential overfitting or spurious correlations for specific magnetic alloys.",
+      "Stoichiometric entropy and max element fraction are highly negatively correlated (-0.934), meaning their individual physical effects cannot be cleanly separated or isolated in the current feature space."
+    ],
+    "confidence_level": "medium",
+    "domain_hypotheses": [
+      "Hypothesis: The model's reliance on the average deviation of covalent radius and ground state volume suggests it has implicitly learned the atomic size mismatch criterion (e.g., Inoue's rules) for bulk metallic glass formation.",
+      "Hypothesis: The non-monotonic partial dependence of stoichiometric entropy indicates that while higher configurational entropy generally favors glass formation, there may be an optimal threshold or interaction effect beyond which phase separation or crystallization becomes favorable.",
+      "Hypothesis: The high importance of unfilled orbital features (NUnfilled, NpUnfilled, NdValence) suggests the model associates specific d- and p-electron hybridization characteristics with the deep eutectic behavior and bonding directionality necessary for glass-forming ability."
+    ],
+    "human_review_notes": [
+      "Review the physical validity of the ground state magnetic moment (GSmagmom) feature for non-magnetic metallic glasses, as its high SHAP contribution in misclassified samples warrants investigation for potential dataset bias.",
+      "Investigate the flat partial dependence trends for basic elemental properties to ensure the model is not ignoring fundamental chemical trends in favor of noisy, high-dimensional interactions.",
+      "Verify the labels of the high-error samples (absolute error = 1.0) to determine if they represent genuinely ambiguous compositions, labeling errors in the Matbench dataset, or out-of-distribution alloys.",
+      "Check for redundant information between highly correlated features like stoichiometric entropy and max_element_fraction to understand how feature correlation impacts the isolation of individual physical effects in the model."
+    ],
+    "top_material_patterns": [
+      {
+        "caution": "This is a model-based association; while it aligns with domain knowledge, the model captures statistical correlations in the training data rather than explicitly simulating physical packing frustration.",
+        "pattern": "Atomic size mismatch and volume variation",
+        "evidence_strength": "strong",
+        "supporting_features": [
+          "matminer_magpie__MagpieData_maximum_GSvolume_pa",
+          "matminer_magpie__MagpieData_avg_dev_CovalentRadius",
+          "matminer_magpie__MagpieData_avg_dev_GSvolume_pa"
+        ],
+        "possible_material_meaning": "The model associates large differences in atomic radii and ground state volumes with glass-forming ability. This aligns with empirical rules for bulk metallic glasses, which require significant atomic size mismatch to frustrate crystalline packing and promote amorphous phase formation."
+      },
+      {
+        "caution": "Stoichiometric entropy and max_element_fraction are highly negatively correlated (-0.934), meaning the model may be using them redundantly. The partial dependence for max_element_fraction shows an increasing trend, which may reflect complex interactions rather than a simple main effect.",
+        "pattern": "Configurational entropy and compositional complexity",
+        "evidence_strength": "moderate",
+        "supporting_features": [
+          "stoichiometric_entropy",
+          "max_element_fraction",
+          "matminer_magpie__MagpieData_avg_dev_Column",
+          "matminer_magpie__MagpieData_avg_dev_NValence"
+        ],
+        "possible_material_meaning": "Higher stoichiometric entropy and variations in column/valence properties are associated with glass formation. This suggests the model leverages the degree of multi-element mixing and chemical complexity, which can stabilize the amorphous phase through high configurational entropy."
+      },
+      {
+        "caution": "Mean ground state magnetic moment is the top SHAP feature but shows high divergence in cross-method consensus. It is also strongly linked to high-error samples, suggesting potential over-reliance on this feature for edge cases or magnetic alloys.",
+        "pattern": "Magnetic and electronic structure variations",
+        "evidence_strength": "moderate",
+        "supporting_features": [
+          "matminer_magpie__MagpieData_mean_GSmagmom",
+          "matminer_magpie__MagpieData_range_NUnfilled",
+          "matminer_magpie__MagpieData_avg_dev_NpUnfilled",
+          "matminer_valence_orbital__avg_f_valence_electrons"
+        ],
+        "possible_material_meaning": "The model heavily relies on ground state magnetic moments and unfilled electron orbitals to distinguish glass formers. This may reflect the role of d-band, p-band, and f-band electrons in metallic bonding, hybridization, and the electronic density of states required for glass stability."
+      }
+    ],
+    "feature_groups_interpretation": [
+      {
+        "summary": "Features like stoichiometric entropy and max element fraction capture the degree of multi-element mixing. The model uses these to identify compositional complexity, though their high mutual correlation means they provide overlapping information to the classifier.",
+        "feature_group": "Composition and Stoichiometry"
+      },
+      {
+        "summary": "Ground state volume, covalent radius, and atomic number features dominate the native tree-split importance. The model leverages atomic size mismatch and volume differences to identify compositions that geometrically frustrate crystallization.",
+        "feature_group": "Elemental Properties and Atomic Size"
+      },
+      {
+        "summary": "Features related to valence electrons, unfilled orbitals, and ground state magnetic moments are highly influential in SHAP marginal contributions. They likely capture complex metallic bonding characteristics, though they exhibit high divergence between importance methods and are associated with misclassifications.",
+        "feature_group": "Electronic and Magnetic Properties"
+      }
+    ]
+  }
+}

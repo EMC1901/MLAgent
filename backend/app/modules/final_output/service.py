@@ -29,6 +29,7 @@ from app.modules.final_output.final_summary_builder import (
     build_final_summaries,
     build_summary_dicts,
 )
+from app.modules.final_output.paper_evidence_builder import build_paper_evidence_package
 from app.modules.final_output.output_package_builder import (
     build_output_package,
     build_download_links,
@@ -53,6 +54,7 @@ _TOPIC_FILES = [
     ("08_training_evaluation_results", "training_evaluation_results"),
     ("09_interpretability_analysis", "interpretability_analysis"),
     ("10_final_output_package", "final_output_package"),
+    ("11_paper_evidence_package", "paper_evidence_package"),
 ]
 
 
@@ -87,7 +89,7 @@ class FinalOutputService:
                 in (FinalOutputStatus.GENERATED, FinalOutputStatus.GENERATED_WITH_WARNING)
             ):
                 existing_topics = (existing.final_output_json or {}).get("topic_files")
-                if existing_topics and len(existing_topics) >= 9:
+                if existing_topics and len(existing_topics) >= len(_TOPIC_FILES):
                     _diag("Step 1b: Early return — existing output id=%s (has %d topic files)",
                           existing.id, len(existing_topics))
                     return self.get_final_output(session, existing.id)
@@ -159,6 +161,26 @@ class FinalOutputService:
         try:
             os.makedirs(artifact_dir, exist_ok=True)
             _diag("Step 8: artifact_dir created: %s", artifact_dir)
+            if workflow_trace.workflow_trace_artifacts is None:
+                workflow_trace.workflow_trace_artifacts = {}
+            try:
+                workflow_trace.workflow_trace_artifacts["paper_evidence_package"] = (
+                    build_paper_evidence_package(
+                        session=session,
+                        task_id=task_id,
+                        workflow_trace=workflow_trace,
+                    )
+                )
+            except Exception as e:
+                logger.warning("Paper evidence package build failed: %s", str(e))
+                warnings_list.append(f"Paper evidence package: {str(e)}")
+                workflow_trace.workflow_trace_artifacts["paper_evidence_package"] = {
+                    "document_type": "paper_evidence_package",
+                    "task_id": task_id,
+                    "status": "failed",
+                    "error": str(e),
+                }
+
             for filename, topic_key in _TOPIC_FILES:
                 data = (workflow_trace.workflow_trace_artifacts or {}).get(topic_key)
                 if data is None:
@@ -254,7 +276,7 @@ class FinalOutputService:
 
         # Step 13: Determine ready_for_delivery
         ready_for_delivery = bool(
-            len(topic_file_list) >= 9
+            len(topic_file_list) >= len(_TOPIC_FILES)
             and artifact_manifest.model_artifact_path
         )
         _diag("Step 13: ready_for_delivery=%s topic_files=%d model_artifact=%s",
@@ -404,6 +426,7 @@ class FinalOutputService:
             "05_candidate_model_plan.json", "06_hpo_plan.json",
             "07_pipeline_specs.json", "08_training_evaluation_results.json",
             "09_interpretability_analysis.json", "10_final_output_package.json",
+            "11_paper_evidence_package.json",
             "workflow_trace.json", "reproducibility_summary.json",
         ]
         _keep_dirs = ["package"]

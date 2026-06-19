@@ -1,0 +1,2316 @@
+{
+  "pipeline_generation_id": "pg_a6b75514",
+  "status": "generated",
+  "n_pipeline_specs": 8,
+  "n_baseline_specs": 1,
+  "n_hpo_specs": 7,
+  "ready_for_execution": true,
+  "pipeline_specs_detail": {
+    "status": "generated",
+    "task_id": "task_ddc2afb0",
+    "warnings": [],
+    "created_at": "2026-06-09T12:44:44.203661",
+    "trial_plan": {
+      "hpo_enabled": true,
+      "search_method": "optuna_tpe",
+      "trial_plan_id": "tp_c3a85757",
+      "fallback_policy": {
+        "enabled": true,
+        "description": "If HPO fails, fallback to fixed-parameter model.",
+        "fallback_model_id": "random_search"
+      },
+      "max_total_trials": 50,
+      "trial_allocation": [
+        {
+          "role": "baseline",
+          "model_id": "dummy_mean",
+          "max_trials": 1,
+          "pipeline_spec_id": "ps_dummy_mean_3f8ed4"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "xgboost",
+          "max_trials": 12,
+          "pipeline_spec_id": "ps_xgboost_0eefc9"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "lightgbm",
+          "max_trials": 12,
+          "pipeline_spec_id": "ps_lightgbm_432ae3"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "gradient_boosting",
+          "max_trials": 7,
+          "pipeline_spec_id": "ps_gradient_boosting_56bed0"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "random_forest",
+          "max_trials": 7,
+          "pipeline_spec_id": "ps_random_forest_3d7780"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "extra_trees",
+          "max_trials": 5,
+          "pipeline_spec_id": "ps_extra_trees_d21e37"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "ridge",
+          "max_trials": 2,
+          "pipeline_spec_id": "ps_ridge_75eca1"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "lasso",
+          "max_trials": 5,
+          "pipeline_spec_id": "ps_lasso_99d19a"
+        }
+      ],
+      "max_parallel_trials": 1,
+      "baseline_trial_policy": {
+        "single_run": true,
+        "description": "Baseline models run once without HPO."
+      },
+      "early_stopping_policy": {
+        "enabled": false,
+        "patience": 10,
+        "min_delta": 0.001
+      },
+      "candidate_trial_policy": {
+        "description": "Candidate models expand trials according to HPO search method.",
+        "expand_by_search_space": true
+      }
+    },
+    "updated_at": "2026-06-09T12:44:44.203661",
+    "n_hpo_specs": 7,
+    "error_message": null,
+    "pipeline_specs": [
+      {
+        "model_id": "dummy_mean",
+        "priority": "medium",
+        "warnings": [],
+        "hpo_enabled": false,
+        "fixed_params": {},
+        "model_family": "dummy_mean",
+        "search_space": null,
+        "pipeline_role": "baseline",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_dummy_mean_3f8ed4",
+        "search_space_ref": null,
+        "component_bindings": {
+          "model_id": "dummy_mean",
+          "model_family": "dummy_mean",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+        "model_display_name": "Dummy Mean Predictor",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+      },
+      {
+        "model_id": "xgboost",
+        "priority": "high",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "xgboost",
+        "search_space": {
+          "model_id": "xgboost",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 0.01,
+              "high": 0.3,
+              "name": "learning_rate",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 10.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "6",
+              "override_rationale": "With 38 features and 10,987 samples, the model can support deeper trees to capture complex interactions without severe overfitting, provided regularization is tuned."
+            },
+            {
+              "low": 0.5,
+              "high": 1.0,
+              "name": "subsample",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            },
+            {
+              "low": 0.5,
+              "high": 1.0,
+              "name": "colsample_bytree",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "xgboost_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_xgboost_0eefc9",
+        "search_space_ref": "xgboost_default_regression",
+        "component_bindings": {
+          "model_id": "xgboost",
+          "model_family": "xgboost",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+        "model_display_name": "XGBoost",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+      },
+      {
+        "model_id": "lightgbm",
+        "priority": "high",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "lightgbm",
+        "search_space": {
+          "model_id": "lightgbm",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 0.01,
+              "high": 0.3,
+              "name": "learning_rate",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": 8.0,
+              "high": 63.0,
+              "name": "num_leaves",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "31",
+              "override_rationale": "LightGBM's leaf-wise growth can handle up to 63 leaves safely given the large sample size, allowing for more expressive trees."
+            },
+            {
+              "low": 3.0,
+              "high": 12.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "-1",
+              "override_rationale": null
+            },
+            {
+              "low": 0.5,
+              "high": 1.0,
+              "name": "subsample",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "lightgbm_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_lightgbm_432ae3",
+        "search_space_ref": "lightgbm_default_regression",
+        "component_bindings": {
+          "model_id": "lightgbm",
+          "model_family": "lightgbm",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+        "model_display_name": "LightGBM",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+      },
+      {
+        "model_id": "gradient_boosting",
+        "priority": "high",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "gradient_boosting",
+        "search_space": {
+          "model_id": "gradient_boosting",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 0.01,
+              "high": 0.3,
+              "name": "learning_rate",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 10.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "3",
+              "override_rationale": null
+            },
+            {
+              "low": 0.5,
+              "high": 1.0,
+              "name": "subsample",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "gradient_boosting_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_gradient_boosting_56bed0",
+        "search_space_ref": "gradient_boosting_default_regression",
+        "component_bindings": {
+          "model_id": "gradient_boosting",
+          "model_family": "gradient_boosting",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+        "model_display_name": "Gradient Boosting",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+      },
+      {
+        "model_id": "random_forest",
+        "priority": "high",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "random_forest",
+        "search_space": {
+          "model_id": "random_forest",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 3.0,
+              "high": 20.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "None",
+              "override_rationale": "38 features may require deeper splits to isolate specific structural property regimes; increasing the high bound prevents underfitting."
+            },
+            {
+              "low": 2.0,
+              "high": 20.0,
+              "name": "min_samples_split",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "2",
+              "override_rationale": null
+            },
+            {
+              "low": 1.0,
+              "high": 10.0,
+              "name": "min_samples_leaf",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "1",
+              "override_rationale": null
+            },
+            {
+              "low": null,
+              "high": null,
+              "name": "max_features",
+              "choices": [
+                "sqrt",
+                "log2",
+                0.5,
+                0.8,
+                1.0
+              ],
+              "sampling": "choice",
+              "param_type": "categorical",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "random_forest_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_random_forest_3d7780",
+        "search_space_ref": "random_forest_default_regression",
+        "component_bindings": {
+          "model_id": "random_forest",
+          "model_family": "random_forest",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+        "model_display_name": "Random Forest",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+      },
+      {
+        "model_id": "extra_trees",
+        "priority": "medium",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "extra_trees",
+        "search_space": {
+          "model_id": "extra_trees",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 3.0,
+              "high": 30.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "None",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 20.0,
+              "name": "min_samples_split",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "2",
+              "override_rationale": null
+            },
+            {
+              "low": 1.0,
+              "high": 10.0,
+              "name": "min_samples_leaf",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "1",
+              "override_rationale": null
+            },
+            {
+              "low": null,
+              "high": null,
+              "name": "max_features",
+              "choices": [
+                "sqrt",
+                "log2",
+                0.5,
+                0.8,
+                1.0
+              ],
+              "sampling": "choice",
+              "param_type": "categorical",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "extra_trees_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_extra_trees_d21e37",
+        "search_space_ref": "extra_trees_default_regression",
+        "component_bindings": {
+          "model_id": "extra_trees",
+          "model_family": "extra_trees",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+        "model_display_name": "Extra Trees",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+      },
+      {
+        "model_id": "ridge",
+        "priority": "high",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "ridge",
+        "search_space": {
+          "model_id": "ridge",
+          "parameters": [
+            {
+              "low": 0.001,
+              "high": 1000.0,
+              "name": "alpha",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "ridge_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_ridge_75eca1",
+        "search_space_ref": "ridge_default_regression",
+        "component_bindings": {
+          "model_id": "ridge",
+          "model_family": "ridge",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+        "model_display_name": "Ridge Regression",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+      },
+      {
+        "model_id": "lasso",
+        "priority": "medium",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "lasso",
+        "search_space": {
+          "model_id": "lasso",
+          "parameters": [
+            {
+              "low": 0.0001,
+              "high": 100.0,
+              "name": "alpha",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "lasso_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_lasso_99d19a",
+        "search_space_ref": "lasso_default_regression",
+        "component_bindings": {
+          "model_id": "lasso",
+          "model_family": "lasso",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+        "model_display_name": "Lasso Regression",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+      }
+    ],
+    "execution_input": {
+      "task_id": "task_ddc2afb0",
+      "task_type": "regression",
+      "trial_plan": {
+        "hpo_enabled": true,
+        "search_method": "optuna_tpe",
+        "trial_plan_id": "tp_c3a85757",
+        "fallback_policy": {
+          "enabled": true,
+          "description": "If HPO fails, fallback to fixed-parameter model.",
+          "fallback_model_id": "random_search"
+        },
+        "max_total_trials": 50,
+        "trial_allocation": [
+          {
+            "role": "baseline",
+            "model_id": "dummy_mean",
+            "max_trials": 1,
+            "pipeline_spec_id": "ps_dummy_mean_3f8ed4"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "xgboost",
+            "max_trials": 12,
+            "pipeline_spec_id": "ps_xgboost_0eefc9"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "lightgbm",
+            "max_trials": 12,
+            "pipeline_spec_id": "ps_lightgbm_432ae3"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "gradient_boosting",
+            "max_trials": 7,
+            "pipeline_spec_id": "ps_gradient_boosting_56bed0"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "random_forest",
+            "max_trials": 7,
+            "pipeline_spec_id": "ps_random_forest_3d7780"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "extra_trees",
+            "max_trials": 5,
+            "pipeline_spec_id": "ps_extra_trees_d21e37"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "ridge",
+            "max_trials": 2,
+            "pipeline_spec_id": "ps_ridge_75eca1"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "lasso",
+            "max_trials": 5,
+            "pipeline_spec_id": "ps_lasso_99d19a"
+          }
+        ],
+        "max_parallel_trials": 1,
+        "baseline_trial_policy": {
+          "single_run": true,
+          "description": "Baseline models run once without HPO."
+        },
+        "early_stopping_policy": {
+          "enabled": false,
+          "patience": 10,
+          "min_delta": 0.001
+        },
+        "candidate_trial_policy": {
+          "description": "Candidate models expand trials according to HPO search method.",
+          "expand_by_search_space": true
+        }
+      },
+      "target_column": "log10(K_VRH)",
+      "pipeline_specs": [
+        {
+          "model_id": "dummy_mean",
+          "priority": "medium",
+          "warnings": [],
+          "hpo_enabled": false,
+          "fixed_params": {},
+          "model_family": "dummy_mean",
+          "search_space": null,
+          "pipeline_role": "baseline",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_dummy_mean_3f8ed4",
+          "search_space_ref": null,
+          "component_bindings": {
+            "model_id": "dummy_mean",
+            "model_family": "dummy_mean",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Dummy Mean Predictor",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "xgboost",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "xgboost",
+          "search_space": {
+            "model_id": "xgboost",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 10.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "6",
+                "override_rationale": "With 38 features and 10,987 samples, the model can support deeper trees to capture complex interactions without severe overfitting, provided regularization is tuned."
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "colsample_bytree",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "xgboost_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_xgboost_0eefc9",
+          "search_space_ref": "xgboost_default_regression",
+          "component_bindings": {
+            "model_id": "xgboost",
+            "model_family": "xgboost",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "XGBoost",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "lightgbm",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "lightgbm",
+          "search_space": {
+            "model_id": "lightgbm",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 8.0,
+                "high": 63.0,
+                "name": "num_leaves",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "31",
+                "override_rationale": "LightGBM's leaf-wise growth can handle up to 63 leaves safely given the large sample size, allowing for more expressive trees."
+              },
+              {
+                "low": 3.0,
+                "high": 12.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "-1",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "lightgbm_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_lightgbm_432ae3",
+          "search_space_ref": "lightgbm_default_regression",
+          "component_bindings": {
+            "model_id": "lightgbm",
+            "model_family": "lightgbm",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "LightGBM",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "gradient_boosting",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "gradient_boosting",
+          "search_space": {
+            "model_id": "gradient_boosting",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 10.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "3",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "gradient_boosting_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_gradient_boosting_56bed0",
+          "search_space_ref": "gradient_boosting_default_regression",
+          "component_bindings": {
+            "model_id": "gradient_boosting",
+            "model_family": "gradient_boosting",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Gradient Boosting",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "random_forest",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "random_forest",
+          "search_space": {
+            "model_id": "random_forest",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 3.0,
+                "high": 20.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "None",
+                "override_rationale": "38 features may require deeper splits to isolate specific structural property regimes; increasing the high bound prevents underfitting."
+              },
+              {
+                "low": 2.0,
+                "high": 20.0,
+                "name": "min_samples_split",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "2",
+                "override_rationale": null
+              },
+              {
+                "low": 1.0,
+                "high": 10.0,
+                "name": "min_samples_leaf",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "max_features",
+                "choices": [
+                  "sqrt",
+                  "log2",
+                  0.5,
+                  0.8,
+                  1.0
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "random_forest_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_random_forest_3d7780",
+          "search_space_ref": "random_forest_default_regression",
+          "component_bindings": {
+            "model_id": "random_forest",
+            "model_family": "random_forest",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Random Forest",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "extra_trees",
+          "priority": "medium",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "extra_trees",
+          "search_space": {
+            "model_id": "extra_trees",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 3.0,
+                "high": 30.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "None",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 20.0,
+                "name": "min_samples_split",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "2",
+                "override_rationale": null
+              },
+              {
+                "low": 1.0,
+                "high": 10.0,
+                "name": "min_samples_leaf",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "max_features",
+                "choices": [
+                  "sqrt",
+                  "log2",
+                  0.5,
+                  0.8,
+                  1.0
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "extra_trees_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_extra_trees_d21e37",
+          "search_space_ref": "extra_trees_default_regression",
+          "component_bindings": {
+            "model_id": "extra_trees",
+            "model_family": "extra_trees",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Extra Trees",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "ridge",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "ridge",
+          "search_space": {
+            "model_id": "ridge",
+            "parameters": [
+              {
+                "low": 0.001,
+                "high": 1000.0,
+                "name": "alpha",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "ridge_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_ridge_75eca1",
+          "search_space_ref": "ridge_default_regression",
+          "component_bindings": {
+            "model_id": "ridge",
+            "model_family": "ridge",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Ridge Regression",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "lasso",
+          "priority": "medium",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "lasso",
+          "search_space": {
+            "model_id": "lasso",
+            "parameters": [
+              {
+                "low": 0.0001,
+                "high": 100.0,
+                "name": "alpha",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "lasso_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_lasso_99d19a",
+          "search_space_ref": "lasso_default_regression",
+          "component_bindings": {
+            "model_id": "lasso",
+            "model_family": "lasso",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Lasso Regression",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        }
+      ],
+      "evaluation_plan": {
+        "scorer_id": null,
+        "primary_metric": "MAE",
+        "metric_direction": "minimize",
+        "secondary_metrics": [
+          "RMSE",
+          "R2"
+        ]
+      },
+      "feature_columns": [
+        "matminer_site_stats__mean AGNI eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+        "matminer_site_stats__mean AGNI eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+        "matminer_site_stats__mean AGNI eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+        "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+        "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+        "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+        "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+        "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+        "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+        "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+        "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+        "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+        "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+        "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+        "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+        "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+        "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00"
+      ],
+      "validation_plan": {
+        "shuffle": true,
+        "n_splits": 5,
+        "random_state": 42,
+        "split_strategy": "k_fold_cross_validation",
+        "benchmark_split": false,
+        "stratification_required": false
+      },
+      "pipeline_bundle_id": "bundle_9983b7e5",
+      "ready_for_execution": true,
+      "execution_constraints": {
+        "max_memory_mb": 4096,
+        "allow_dynamic_code": false,
+        "max_runtime_seconds": 3600,
+        "allow_unregistered_components": false
+      },
+      "pipeline_generation_id": "pg_a6b75514",
+      "fold_pipeline_spec_path": "/app/artifacts/model_ready\\fmp_765fc406\\fold_pipeline_spec.json",
+      "model_ready_matrix_path": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+      "preprocessor_artifact_path": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+    },
+    "generation_mode": "system_template_with_llm_review",
+    "pipeline_bundle": {
+      "task_id": "task_ddc2afb0",
+      "hpo_plan": {
+        "enabled": true,
+        "budget_level": "high",
+        "search_method": "optuna_tpe",
+        "early_stopping": false,
+        "fallback_method": "random_search",
+        "max_total_trials": 50,
+        "trial_allocation": [
+          {
+            "model_id": "dummy_mean",
+            "max_trials": 0,
+            "allocation_rationale": "Baseline model — fixed defaults, no HPO needed."
+          },
+          {
+            "model_id": "xgboost",
+            "max_trials": 12,
+            "allocation_rationale": "XGBoost has a large, complex search space with many interacting regularization and tree-building parameters. With 10,987 samples, it can support deep trees and needs sufficient trials to converge on the optimal MAE."
+          },
+          {
+            "model_id": "lightgbm",
+            "max_trials": 12,
+            "allocation_rationale": "LightGBM's leaf-wise growth and numerous hyperparameters (num_leaves, min_data_in_leaf) require extensive exploration. It is highly sensitive to HPO and a top contender for this dataset size."
+          },
+          {
+            "model_id": "gradient_boosting",
+            "max_trials": 7,
+            "allocation_rationale": "Sklearn's GradientBoosting has a smaller search space than XGBoost/LightGBM but still needs tuning for learning_rate and max_depth. 15 trials is sufficient to find a strong baseline ensemble."
+          },
+          {
+            "model_id": "random_forest",
+            "max_trials": 7,
+            "allocation_rationale": "Random Forest is less sensitive to hyperparameters than boosting models, but tuning max_depth and min_samples_split on 38 features still requires moderate exploration to prevent overfitting."
+          },
+          {
+            "model_id": "extra_trees",
+            "max_trials": 5,
+            "allocation_rationale": "Extra Trees introduces additional randomness and is generally less sensitive to HPO than Random Forest. 10 trials is enough to explore its key variance-reduction parameters."
+          },
+          {
+            "model_id": "ridge",
+            "max_trials": 2,
+            "allocation_rationale": "Ridge regression only requires tuning the alpha regularization parameter. 5 trials is more than enough to cover the log-scale search space."
+          },
+          {
+            "model_id": "lasso",
+            "max_trials": 5,
+            "allocation_rationale": "Similar to Ridge, Lasso only needs alpha tuning. 5 trials will efficiently find the optimal sparsity-inducing penalty."
+          }
+        ],
+        "max_parallel_trials": 1
+      },
+      "bundle_id": "bundle_9983b7e5",
+      "task_type": "regression",
+      "created_by": "pipeline_generation_module",
+      "target_column": "log10(K_VRH)",
+      "pipeline_specs": [
+        {
+          "model_id": "dummy_mean",
+          "priority": "medium",
+          "warnings": [],
+          "hpo_enabled": false,
+          "fixed_params": {},
+          "model_family": "dummy_mean",
+          "search_space": null,
+          "pipeline_role": "baseline",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_dummy_mean_3f8ed4",
+          "search_space_ref": null,
+          "component_bindings": {
+            "model_id": "dummy_mean",
+            "model_family": "dummy_mean",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Dummy Mean Predictor",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "xgboost",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "xgboost",
+          "search_space": {
+            "model_id": "xgboost",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 10.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "6",
+                "override_rationale": "With 38 features and 10,987 samples, the model can support deeper trees to capture complex interactions without severe overfitting, provided regularization is tuned."
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "colsample_bytree",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "xgboost_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_xgboost_0eefc9",
+          "search_space_ref": "xgboost_default_regression",
+          "component_bindings": {
+            "model_id": "xgboost",
+            "model_family": "xgboost",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "XGBoost",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "lightgbm",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "lightgbm",
+          "search_space": {
+            "model_id": "lightgbm",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 8.0,
+                "high": 63.0,
+                "name": "num_leaves",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "31",
+                "override_rationale": "LightGBM's leaf-wise growth can handle up to 63 leaves safely given the large sample size, allowing for more expressive trees."
+              },
+              {
+                "low": 3.0,
+                "high": 12.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "-1",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "lightgbm_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_lightgbm_432ae3",
+          "search_space_ref": "lightgbm_default_regression",
+          "component_bindings": {
+            "model_id": "lightgbm",
+            "model_family": "lightgbm",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "LightGBM",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "gradient_boosting",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "gradient_boosting",
+          "search_space": {
+            "model_id": "gradient_boosting",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 10.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "3",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "gradient_boosting_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_gradient_boosting_56bed0",
+          "search_space_ref": "gradient_boosting_default_regression",
+          "component_bindings": {
+            "model_id": "gradient_boosting",
+            "model_family": "gradient_boosting",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Gradient Boosting",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "random_forest",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "random_forest",
+          "search_space": {
+            "model_id": "random_forest",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 3.0,
+                "high": 20.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "None",
+                "override_rationale": "38 features may require deeper splits to isolate specific structural property regimes; increasing the high bound prevents underfitting."
+              },
+              {
+                "low": 2.0,
+                "high": 20.0,
+                "name": "min_samples_split",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "2",
+                "override_rationale": null
+              },
+              {
+                "low": 1.0,
+                "high": 10.0,
+                "name": "min_samples_leaf",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "max_features",
+                "choices": [
+                  "sqrt",
+                  "log2",
+                  0.5,
+                  0.8,
+                  1.0
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "random_forest_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_random_forest_3d7780",
+          "search_space_ref": "random_forest_default_regression",
+          "component_bindings": {
+            "model_id": "random_forest",
+            "model_family": "random_forest",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Random Forest",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "extra_trees",
+          "priority": "medium",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "extra_trees",
+          "search_space": {
+            "model_id": "extra_trees",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 3.0,
+                "high": 30.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "None",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 20.0,
+                "name": "min_samples_split",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "2",
+                "override_rationale": null
+              },
+              {
+                "low": 1.0,
+                "high": 10.0,
+                "name": "min_samples_leaf",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "max_features",
+                "choices": [
+                  "sqrt",
+                  "log2",
+                  0.5,
+                  0.8,
+                  1.0
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "extra_trees_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_extra_trees_d21e37",
+          "search_space_ref": "extra_trees_default_regression",
+          "component_bindings": {
+            "model_id": "extra_trees",
+            "model_family": "extra_trees",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Extra Trees",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "ridge",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "ridge",
+          "search_space": {
+            "model_id": "ridge",
+            "parameters": [
+              {
+                "low": 0.001,
+                "high": 1000.0,
+                "name": "alpha",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "ridge_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_ridge_75eca1",
+          "search_space_ref": "ridge_default_regression",
+          "component_bindings": {
+            "model_id": "ridge",
+            "model_family": "ridge",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Ridge Regression",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        },
+        {
+          "model_id": "lasso",
+          "priority": "medium",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "lasso",
+          "search_space": {
+            "model_id": "lasso",
+            "parameters": [
+              {
+                "low": 0.0001,
+                "high": 100.0,
+                "name": "alpha",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "lasso_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_lasso_99d19a",
+          "search_space_ref": "lasso_default_regression",
+          "component_bindings": {
+            "model_id": "lasso",
+            "model_family": "lasso",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+          "model_display_name": "Lasso Regression",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+        }
+      ],
+      "primary_metric": "MAE",
+      "evaluation_plan": {
+        "scorer_id": null,
+        "primary_metric": "MAE",
+        "metric_direction": "minimize",
+        "secondary_metrics": [
+          "RMSE",
+          "R2"
+        ]
+      },
+      "feature_columns": [
+        "matminer_site_stats__mean AGNI eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+        "matminer_site_stats__mean AGNI eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+        "matminer_site_stats__mean AGNI eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+        "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+        "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+        "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+        "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+        "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+        "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+        "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+        "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+        "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+        "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+        "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+        "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+        "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+        "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00"
+      ],
+      "validation_plan": {
+        "shuffle": true,
+        "n_splits": 5,
+        "random_state": 42,
+        "split_strategy": "k_fold_cross_validation",
+        "benchmark_split": false,
+        "stratification_required": false
+      },
+      "execution_policy": {
+        "mode": "sequential",
+        "stop_on_failure": true
+      },
+      "metric_direction": "minimize",
+      "model_ready_matrix_path": "/app/artifacts/model_ready\\fmp_765fc406\\model_ready_features.parquet",
+      "model_search_context_id": "msc_e78c63c5",
+      "preprocessor_artifact_path": "/app/artifacts/model_ready\\fmp_765fc406\\preprocessor.joblib"
+    },
+    "n_baseline_specs": 1,
+    "n_pipeline_specs": 8,
+    "artifact_manifest": {
+      "n_features": 38,
+      "is_complete": true,
+      "metadata_path": null,
+      "target_column": "log10(K_VRH)",
+      "feature_columns": [
+        "matminer_site_stats__mean AGNI eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI eta=8.00e-01",
+        "matminer_site_stats__mean AGNI eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI eta=1.23e+00",
+        "matminer_site_stats__mean AGNI eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI eta=2.89e+00",
+        "matminer_site_stats__std_dev AGNI eta=4.43e+00",
+        "matminer_site_stats__std_dev AGNI eta=6.80e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI dir=x eta=8.00e-01",
+        "matminer_site_stats__mean AGNI dir=x eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI dir=x eta=1.23e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=x eta=1.88e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=2.89e+00",
+        "matminer_site_stats__std_dev AGNI dir=x eta=2.89e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=4.43e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=6.80e+00",
+        "matminer_site_stats__mean AGNI dir=x eta=1.04e+01",
+        "matminer_site_stats__mean AGNI dir=x eta=1.60e+01",
+        "matminer_site_stats__mean AGNI dir=y eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI dir=y eta=8.00e-01",
+        "matminer_site_stats__mean AGNI dir=y eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI dir=y eta=1.23e+00",
+        "matminer_site_stats__mean AGNI dir=y eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=y eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=y eta=2.89e+00",
+        "matminer_site_stats__mean AGNI dir=y eta=6.80e+00",
+        "matminer_site_stats__mean AGNI dir=y eta=1.04e+01",
+        "matminer_site_stats__mean AGNI dir=y eta=1.60e+01",
+        "matminer_site_stats__mean AGNI dir=z eta=8.00e-01",
+        "matminer_site_stats__std_dev AGNI dir=z eta=8.00e-01",
+        "matminer_site_stats__mean AGNI dir=z eta=1.23e+00",
+        "matminer_site_stats__std_dev AGNI dir=z eta=1.23e+00",
+        "matminer_site_stats__mean AGNI dir=z eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=z eta=1.88e+00",
+        "matminer_site_stats__std_dev AGNI dir=z eta=2.89e+00"
+      ],
+      "model_ready_exists": true,
+      "preprocessor_exists": true,
+      "model_ready_matrix_path": "\\app\\artifacts\\model_ready\\fmp_765fc406\\model_ready_features.parquet",
+      "preprocessor_artifact_path": "\\app\\artifacts\\model_ready\\fmp_765fc406\\preprocessor.joblib"
+    },
+    "llm_advisory_review": {
+      "enabled": true,
+      "checklist": [
+        {
+          "status": "pass",
+          "comment": "All selected models and the MAE metric are appropriate for a regression task.",
+          "dimension": "model_task_compatibility"
+        },
+        {
+          "status": "pass",
+          "comment": "A dummy_mean baseline is included to establish a minimum performance threshold.",
+          "dimension": "baseline_coverage"
+        },
+        {
+          "status": "warning",
+          "comment": "50 max total trials across 7 HPO-enabled models may be too low for Optuna TPE to adequately explore complex tree-based model spaces.",
+          "dimension": "hpo_budget_reasonableness"
+        },
+        {
+          "status": "pass",
+          "comment": "K-fold cross-validation is well-suited for a dataset of approximately 11,000 samples.",
+          "dimension": "validation_strategy_suitability"
+        },
+        {
+          "status": "pass",
+          "comment": "MAE is consistently defined as both the primary and evaluation metric.",
+          "dimension": "metric_consistency"
+        },
+        {
+          "status": "pass",
+          "comment": "Cross-validation and HPO will help mitigate overfitting; dataset size is sufficient for the chosen models.",
+          "dimension": "overfitting_risk"
+        },
+        {
+          "status": "pass",
+          "comment": "Training 50 trials on roughly 11k samples and 38 features is computationally lightweight.",
+          "dimension": "resource_cost_risk"
+        },
+        {
+          "status": "pass",
+          "comment": "Standard HPO and CV methods are selected; assuming random seeds are managed in the execution environment.",
+          "dimension": "reproducibility_readiness"
+        }
+      ],
+      "risk_level": "low",
+      "review_status": "advisory_completed",
+      "blocking_issues": [],
+      "raw_llm_summary": {},
+      "confidence_level": "high",
+      "execution_impact": "non_blocking",
+      "resource_warnings": [],
+      "non_blocking_risks": [
+        {
+          "message": "A maximum of 50 total trials shared among 7 HPO-enabled models limits the search space exploration for Optuna TPE, potentially leading to suboptimal hyperparameter configurations for complex models like XGBoost and LightGBM.",
+          "category": "hpo_budget",
+          "severity": "low",
+          "suggested_action": "Consider increasing the total trial budget (e.g., to 100-200) or implementing a successive halving strategy to allocate trials more efficiently across models."
+        }
+      ],
+      "normalization_notes": [],
+      "future_improvement_suggestions": [
+        "Consider adding a standard Linear Regression without HPO as an additional interpretable baseline alongside dummy_mean.",
+        "Plan for post-hoc interpretability analysis (e.g., SHAP values or feature importance plots) for the winning tree-based model to provide business context."
+      ]
+    },
+    "ready_for_execution": true,
+    "safety_check_result": {
+      "checks": {
+        "paths_safe": true,
+        "no_script_content": true,
+        "no_direct_code_strings": true,
+        "pipeline_specs_no_code": true
+      },
+      "errors": [],
+      "is_safe": true,
+      "warnings": []
+    },
+    "pipeline_generation_id": "pg_a6b75514",
+    "model_search_context_id": "msc_e78c63c5",
+    "component_binding_result": {
+      "errors": [],
+      "bindings": [
+        {
+          "model_id": "dummy_mean",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "dummy_mean",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "xgboost",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "xgboost",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "lightgbm",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "lightgbm",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "gradient_boosting",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "gradient_boosting",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "random_forest",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "random_forest",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "extra_trees",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "extra_trees",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "ridge",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "ridge",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "lasso",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "lasso",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        }
+      ],
+      "all_valid": true
+    },
+    "feature_preprocessing_id": "fmp_765fc406",
+    "pipeline_validation_result": {
+      "errors": [],
+      "is_valid": true,
+      "warnings": [],
+      "trial_valid": true,
+      "artifact_valid": true,
+      "registry_valid": true,
+      "structure_valid": true,
+      "data_fields_valid": true,
+      "search_space_valid": true,
+      "task_type_compatible": true,
+      "execution_input_valid": true
+    }
+  }
+}

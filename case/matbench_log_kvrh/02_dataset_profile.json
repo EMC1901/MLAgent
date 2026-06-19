@@ -1,0 +1,207 @@
+{
+  "dataset_profile_id": "profile_8af60c9b",
+  "status": "profiled_with_warning",
+  "source_type": "uploaded_file",
+  "n_samples": 10987,
+  "n_columns": 2,
+  "target_column": "log10(K_VRH)",
+  "quality_level": "good",
+  "is_usable_for_ml": true,
+  "profile_detail": {
+    "status": "profiled_with_warning",
+    "preview": {
+      "rows": [
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.10744499, 0.0, -1.51280847], [-0.5571808, 4.06947833, -1.51280847], [-0.00707463, -0.00810927, 6.31328315]], 'a': 4.377178750380185, 'b': 4.377178747678917, 'c': 6.3132923219761885, 'alpha': 110.2833882315794, 'beta': 110.28338822517716, 'gamma': 90.0000000555636, 'volume': 105.42674933638602}, 'sites': [{'species': [{'element': 'Ca', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Ca', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ge', 'occu': 1}], 'abc': [0.38949211, 0.38949211, 0.77898422], 'xyz': [1.3772888652882023, 1.5787127079852568, 3.7394940242295496], 'label': 'Ge', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ge', 'occu': 1}], 'abc': [0.61050789, 0.61050789, 0.22101578], 'xyz': [2.165900694711798, 2.4826563520147436, -0.45182781422954976], 'label': 'Ge', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ag', 'occu': 1}], 'abc': [0.75, 0.25, 0.5], 'xyz': [2.9377512275, 1.0133149475, 1.6438331050000001], 'label': 'Ag', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ag', 'occu': 1}], 'abc': [0.25, 0.75, 0.5], 'xyz': [0.6054383325000001, 3.0480541125, 1.6438331050000001], 'label': 'Ag', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.707570176
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.3923949, 0.0, -1.67384558], [-0.63786592, 4.34583249, -1.67384558], [0.01131047, 0.01309177, 6.62971913]], 'a': 4.700520394938367, 'b': 4.700520395522456, 'c': 6.629741704158715, 'alpha': 110.76295857590853, 'beta': 110.7629586283953, 'gamma': 89.99999996941686, 'volume': 126.74464557157518}, 'sites': [{'species': [{'element': 'Mg', 'occu': 1}], 'abc': [0.75, 0.25, 0.5], 'xyz': [3.1404849300000004, 1.0930040075, 1.6410139849999998], 'label': 'Mg', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Mg', 'occu': 1}], 'abc': [0.25, 0.75, 0.5], 'xyz': [0.62535452, 3.2659202525000004, 1.6410139849999998], 'label': 'Mg', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ge', 'occu': 1}], 'abc': [0.61621583, 0.61621583, 0.23243165], 'xyz': [2.3162291028741295, 2.6810137165688377, -0.5219437303205987], 'label': 'Ge', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ge', 'occu': 1}], 'abc': [0.38378417, 0.38378417, 0.76756835], 'xyz': [1.4496103471258712, 1.677910543431163, 3.8039717003205986], 'label': 'Ge', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ba', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Ba', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.633468456
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[3.90722079, 0.0, -1.51300281], [-0.58588384, 3.86304471, -1.51300281], [-0.00404394, -0.00470351, 5.79111635]], 'a': 4.189934582410102, 'b': 4.1899345828425565, 'c': 5.791119672023223, 'alpha': 111.20802418581177, 'beta': 111.20802412760555, 'gamma': 90.00000005582578, 'volume': 87.35415929614823}, 'sites': [{'species': [{'element': 'Si', 'occu': 1}], 'abc': [0.6231953, 0.6231953, 0.2463906], 'xyz': [2.068845188153371, 2.406272406310857, -0.45891584801127583], 'label': 'Si', 'properties': {}}, {'species': [{'element': 'Si', 'occu': 1}], 'abc': [0.3768047, 0.3768047, 0.7536094], 'xyz': [1.248447821846629, 1.452068793689143, 3.2240265780112756], 'label': 'Si', 'properties': {}}, {'species': [{'element': 'Cu', 'occu': 1}], 'abc': [0.75, 0.25, 0.5], 'xyz': [2.7819226625000004, 0.9634094225000001, 1.3825553650000002], 'label': 'Cu', 'properties': {}}, {'species': [{'element': 'Cu', 'occu': 1}], 'abc': [0.25, 0.75, 0.5], 'xyz': [0.5353703475, 2.8949317775, 1.3825553650000002], 'label': 'Cu', 'properties': {}}, {'species': [{'element': 'Sr', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Sr', 'properties': {}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.908485019
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.12856163, 0.0, 0.0], [0.0, 4.12856163, 0.0], [0.0, 0.0, 4.12856163]], 'a': 4.12856163, 'b': 4.12856163, 'c': 4.12856163, 'alpha': 90.0, 'beta': 90.0, 'gamma': 90.0, 'volume': 70.37142023103846}, 'sites': [{'species': [{'element': 'Pd', 'occu': 1}], 'abc': [0.5, 0.0, 0.5], 'xyz': [2.064280815, 0.0, 2.064280815], 'label': 'Pd', 'properties': {'magmom': -0.0}}, {'species': [{'element': 'Pd', 'occu': 1}], 'abc': [0.0, 0.5, 0.5], 'xyz': [0.0, 2.064280815, 2.064280815], 'label': 'Pd', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Pd', 'occu': 1}], 'abc': [0.5, 0.5, 0.0], 'xyz': [2.064280815, 2.064280815, 0.0], 'label': 'Pd', 'properties': {'magmom': -0.0}}, {'species': [{'element': 'Dy', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Dy', 'properties': {'magmom': -0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 2.117271296
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.35381093, 0.0, -1.68353618], [-0.65099154, 4.30486697, -1.68353618], [-0.01251539, -0.01455028, 6.43912042]], 'a': 4.667972116835796, 'b': 4.6679721168744726, 'c': 6.439149022106563, 'alpha': 111.2518474833488, 'beta': 111.25184755513598, 'gamma': 90.00000003371107, 'volume': 120.47240813882078}, 'sites': [{'species': [{'element': 'Mg', 'occu': 1}], 'abc': [0.75, 0.25, 0.5], 'xyz': [3.0963526175, 1.0689416025, 1.53602403], 'label': 'Mg', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Mg', 'occu': 1}], 'abc': [0.25, 0.75, 0.5], 'xyz': [0.5939513825, 3.2213750875000002, 1.53602403], 'label': 'Mg', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Si', 'occu': 1}], 'abc': [0.61225225, 0.61225225, 0.22450449], 'xyz': [2.2642497416220264, 2.6323978851424252, -0.615886182382124], 'label': 'Si', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Si', 'occu': 1}], 'abc': [0.38774775, 0.38774775, 0.77549551], 'xyz': [1.4260542583779736, 1.6579188048575746, 3.6879342423821244], 'label': 'Si', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ba', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Ba', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.69019608
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[2.82410522, 0.0, 0.0], [0.0, 2.82410522, 0.0], [0.0, 0.0, 4.06471199]], 'a': 2.82410522, 'b': 2.82410522, 'c': 4.06471199, 'alpha': 90.0, 'beta': 90.0, 'gamma': 90.0, 'volume': 32.418396199610754}, 'sites': [{'species': [{'element': 'Al', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Al', 'properties': {'magmom': 0.001}}, {'species': [{'element': 'Ti', 'occu': 1}], 'abc': [0.5, 0.5, 0.5], 'xyz': [1.41205261, 1.41205261, 2.032355995], 'label': 'Ti', 'properties': {'magmom': -0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 2.06069784
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[3.48101204, 0.0, 0.0], [0.0, 3.48101204, 0.0], [0.0, 0.0, 3.48101204]], 'a': 3.48101204, 'b': 3.48101204, 'c': 3.48101204, 'alpha': 90.0, 'beta': 90.0, 'gamma': 90.0, 'volume': 42.180971321593155}, 'sites': [{'species': [{'element': 'Pd', 'occu': 1}], 'abc': [0.5, 0.5, 0.5], 'xyz': [1.74050602, 1.74050602, 1.74050602], 'label': 'Pd', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Er', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Er', 'properties': {'magmom': -0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.995635195
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.2119145, 0.0, 0.0], [-2.10595725, 3.64762496, 0.0], [0.0, 0.0, 5.75016544]], 'a': 4.2119145, 'b': 4.211914503838197, 'c': 5.75016544, 'alpha': 90.0, 'beta': 90.0, 'gamma': 119.99999996985538, 'volume': 88.34257737748803}, 'sites': [{'species': [{'element': 'Pd', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Pd', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Pd', 'occu': 1}], 'abc': [0.0, 0.0, 0.5], 'xyz': [0.0, 0.0, 2.87508272], 'label': 'Pd', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Te', 'occu': 1}], 'abc': [0.33333333, 0.66666667, 0.25], 'xyz': [-2.1059572752335498e-08, 2.431749985492083, 1.43754136], 'label': 'Te', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Te', 'occu': 1}], 'abc': [0.66666667, 0.33333333, 0.75], 'xyz': [2.1059572710595726, 1.2158749745079167, 4.31262408], 'label': 'Te', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.991226076
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[6.42392755, 0.0, 0.0], [-3.21196378, 5.56328445, 0.0], [0.0, 0.0, 3.49832569]], 'a': 6.42392755, 'b': 6.423927552178939, 'c': 3.49832569, 'alpha': 90.0, 'beta': 90.0, 'gamma': 120.00000004027423, 'volume': 125.02364014504614}, 'sites': [{'species': [{'element': 'Si', 'occu': 1}], 'abc': [0.0, 0.0, 0.5], 'xyz': [0.0, 0.0, 1.749162845], 'label': 'Si', 'properties': {'magmom': 0.001}}, {'species': [{'element': 'Si', 'occu': 1}], 'abc': [0.66666667, 0.33333333, 0.0], 'xyz': [3.2119638054529718, 1.8544281314557185, 0.0], 'label': 'Si', 'properties': {'magmom': 0.001}}, {'species': [{'element': 'Si', 'occu': 1}], 'abc': [0.33333333, 0.66666667, 0.0], 'xyz': [-3.545297122542479e-08, 3.708856318544282, 0.0], 'label': 'Si', 'properties': {'magmom': 0.001}}, {'species': [{'element': 'Mn', 'occu': 1}], 'abc': [0.24476119, 0.0, 0.0], 'xyz': [1.5723281516117844, 0.0, 0.0], 'label': 'Mn', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Mn', 'occu': 1}], 'abc': [0.75523881, 0.75523881, 0.0], 'xyz': [2.425799695417914, 4.201608327709505, 0.0], 'label': 'Mn', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Mn', 'occu': 1}], 'abc': [0.0, 0.24476119, 0.0], 'xyz': [-0.7861640770296981, 1.3616761222904956, 0.0], 'label': 'Mn', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Nb', 'occu': 1}], 'abc': [0.0, 0.58878053, 0.5], 'xyz': [-1.8911417367292034, 3.2755535670117584, 1.749162845], 'label': 'Nb', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Nb', 'occu': 1}], 'abc': [0.41121947, 0.41121947, 0.5], 'xyz': [1.3208220391586019, 2.2877308829882415, 1.749162845], 'label': 'Nb', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Nb', 'occu': 1}], 'abc': [0.58878053, 0.0, 0.5], 'xyz': [3.7822834675706014, 0.0, 1.749162845], 'label': 'Nb', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 2.320146286
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.78041148, -0.0165014, 0.0], [-1.91579309, 4.37976518, 0.0], [0.0, 0.0, 6.6121841]], 'a': 4.780439960329776, 'b': 4.780439958375398, 'c': 6.6121841, 'alpha': 90.0, 'beta': 90.0, 'gamma': 113.82326596265712, 'volume': 138.23079304944977}, 'sites': [{'species': [{'element': 'O', 'occu': 1}], 'abc': [0.22424375, 0.30638881, 0.75], 'xyz': [0.48499983176692707, 1.3382107057633859, 4.959138075], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.77575625, 0.69361119, 0.25], 'xyz': [2.379618558233073, 3.0250530742366144, 1.653046025], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.30638881, 0.22424375, 0.25], 'xyz': [1.0350599579418513, 0.9770791237732909, 1.653046025], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.69361119, 0.77575625, 0.75], 'xyz': [1.8295584320581488, 3.386184656226709, 4.959138075], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.24741976, 0.75258024, 0.93475668], 'xyz': [-0.2590197623796968, 3.2920419578803792, 6.180783256864788], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.75258024, 0.24741976, 0.43475668], 'xyz': [3.123638152379697, 1.0712218221196208, 2.8746912068647883], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.75258024, 0.24741976, 0.06524332], 'xyz': [3.123638152379697, 1.0712218221196208, 0.431400843135212], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.24741976, 0.75258024, 0.56524332], 'xyz': [-0.2590197623796968, 3.2920419578803792, 3.737492893135212], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Mg', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Mg', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Mg', 'occu': 1}], 'abc': [0.0, 0.0, 0.5], 'xyz': [0.0, 0.0, 3.30609205], 'label': 'Mg', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'S', 'occu': 1}], 'abc': [0.34840915, 0.65159085, 0.75], 'xyz': [0.41722585245981536, 2.8480656776887927, 4.959138075], 'label': 'S', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'S', 'occu': 1}], 'abc': [0.65159085, 0.34840915, 0.25], 'xyz': [2.4473925375401846, 1.5151981023112069, 1.653046025], 'label': 'S', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.84509804
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.22258507, 0.0, 0.0], [0.0, 4.22258507, 0.0], [0.0, 0.0, 4.22258507]], 'a': 4.22258507, 'b': 4.22258507, 'c': 4.22258507, 'alpha': 90.0, 'beta': 90.0, 'gamma': 90.0, 'volume': 75.28964050058917}, 'sites': [{'species': [{'element': 'Al', 'occu': 1}], 'abc': [0.0, 0.5, 0.5], 'xyz': [0.0, 2.111292535, 2.111292535], 'label': 'Al', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Al', 'occu': 1}], 'abc': [0.5, 0.5, 0.0], 'xyz': [2.111292535, 2.111292535, 0.0], 'label': 'Al', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Al', 'occu': 1}], 'abc': [0.5, 0.0, 0.5], 'xyz': [2.111292535, 0.0, 2.111292535], 'label': 'Al', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Tm', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Tm', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.886490725
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[7.73687132, 0.0, 0.0], [-3.86843566, 6.70032711, 0.0], [0.0, 0.0, 7.098638]], 'a': 7.73687132, 'b': 7.73687132092557, 'c': 7.098638, 'alpha': 90.0, 'beta': 90.0, 'gamma': 119.99999999604263, 'volume': 367.9903319365361}, 'sites': [{'species': [{'element': 'N', 'occu': 1}], 'abc': [0.0, 0.0, 0.5], 'xyz': [0.0, 0.0, 3.549319], 'label': 'N', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'N', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'N', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ba', 'occu': 1}], 'abc': [0.0, 0.72774448, 0.75], 'xyz': [-2.8152326978001567, 4.876126068496853, 5.3239785], 'label': 'Ba', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ba', 'occu': 1}], 'abc': [0.0, 0.27225552, 0.25], 'xyz': [-1.053202962199843, 1.824201041503147, 1.7746595], 'label': 'Ba', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ba', 'occu': 1}], 'abc': [0.72774448, 0.72774448, 0.25], 'xyz': [2.8152326978001567, 4.876126068496853, 1.7746595], 'label': 'Ba', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ba', 'occu': 1}], 'abc': [0.72774448, 0.0, 0.75], 'xyz': [5.6304653956003134, 0.0, 5.3239785], 'label': 'Ba', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ba', 'occu': 1}], 'abc': [0.27225552, 0.27225552, 0.75], 'xyz': [1.053202962199843, 1.824201041503147, 5.3239785], 'label': 'Ba', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ba', 'occu': 1}], 'abc': [0.27225552, 0.0, 0.25], 'xyz': [2.106405924399686, 0.0, 1.7746595], 'label': 'Ba', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.113943352
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[7.52436384, 0.0, 0.0], [-3.76218192, 6.51629023, 0.0], [0.0, 0.0, 6.03370958]], 'a': 7.52436384, 'b': 7.524363837612343, 'c': 6.03370958, 'alpha': 90.0, 'beta': 90.0, 'gamma': 120.00000001049699, 'volume': 295.838443811799}, 'sites': [{'species': [{'element': 'Se', 'occu': 1}], 'abc': [0.83020892, 0.16979108, 0.20940922], 'xyz': [5.60800904594018, 1.1064079557451485, 1.2635144168543277], 'label': 'Se', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Se', 'occu': 1}], 'abc': [0.83020892, 0.66041783, 0.20940922], 'xyz': [3.76218195762182, 4.303474253346801, 1.2635144168543277], 'label': 'Se', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Se', 'occu': 1}], 'abc': [0.33958217, 0.16979108, 0.20940922], 'xyz': [1.9163548693034593, 1.1064079557451485, 1.2635144168543277], 'label': 'Se', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Se', 'occu': 1}], 'abc': [0.66041783, 0.83020892, 0.79059078], 'xyz': [1.8458270506965402, 5.409882274254851, 4.770195163145672], 'label': 'Se', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Se', 'occu': 1}], 'abc': [0.16979108, 0.83020892, 0.79059078], 'xyz': [-1.8458271259401795, 5.409882274254851, 4.770195163145672], 'label': 'Se', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Se', 'occu': 1}], 'abc': [0.16979108, 0.33958217, 0.79059078], 'xyz': [-3.762181921551644e-08, 2.212815976653199, 4.770195163145672], 'label': 'Se', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Pd', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Pd', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Pd', 'occu': 1}], 'abc': [0.0, 0.5, 0.0], 'xyz': [-1.88109096, 3.258145115, 0.0], 'label': 'Pd', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Pd', 'occu': 1}], 'abc': [0.5, 0.0, 0.0], 'xyz': [3.76218192, 0.0, 0.0], 'label': 'Pd', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Pd', 'occu': 1}], 'abc': [0.5, 0.5, 0.0], 'xyz': [1.88109096, 3.258145115, 0.0], 'label': 'Pd', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Tl', 'occu': 1}], 'abc': [0.66666667, 0.33333333, 0.64387185], 'xyz': [3.762181957621819, 2.1720967216123657, 3.8849357496373234], 'label': 'Tl', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Tl', 'occu': 1}], 'abc': [0.33333333, 0.66666667, 0.35612815], 'xyz': [-3.7621819437561044e-08, 4.344193508387634, 2.1487738303626767], 'label': 'Tl', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.322219295
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[5.00926666, 0.0, 0.0], [-2.50463333, 4.33815218, 0.0], [0.0, 0.0, 3.02504046]], 'a': 5.00926666, 'b': 5.009266658362843, 'c': 3.02504046, 'alpha': 90.0, 'beta': 90.0, 'gamma': 120.0000000108113, 'volume': 65.73703650555831}, 'sites': [{'species': [{'element': 'B', 'occu': 1}], 'abc': [0.33333333, 0.66666667, 0.0], 'xyz': [-2.5046333451683722e-08, 2.8921014677938404, 0.0], 'label': 'B', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'B', 'occu': 1}], 'abc': [0.66666667, 0.33333333, 0.0], 'xyz': [2.5046333550463333, 1.4460507122061592, 0.0], 'label': 'B', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Co', 'occu': 1}], 'abc': [0.5, 0.0, 0.5], 'xyz': [2.50463333, 0.0, 1.51252023], 'label': 'Co', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Co', 'occu': 1}], 'abc': [0.0, 0.5, 0.5], 'xyz': [-1.252316665, 2.16907609, 1.51252023], 'label': 'Co', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Co', 'occu': 1}], 'abc': [0.5, 0.5, 0.5], 'xyz': [1.252316665, 2.16907609, 1.51252023], 'label': 'Co', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Tb', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Tb', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 2.320146286
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[3.49751148, -0.00272566, 5.64031769], [1.60477222, 3.10761969, 5.64031769], [-0.00447908, -0.00272566, 6.63669723]], 'a': 6.63669930206885, 'b': 6.6366993046156875, 'c': 6.636699301163927, 'alpha': 31.84135397931205, 'beta': 31.841353911010003, 'gamma': 31.84135394264162, 'volume': 72.27053993356496}, 'sites': [{'species': [{'element': 'O', 'occu': 1}], 'abc': [0.89394856, 0.89394856, 0.89394856], 'xyz': [4.557175099210347, 2.773178947239047, 16.017173685750542], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.10605144, 0.10605144, 0.10605144], 'xyz': [0.5406295207896529, 0.32898942276095283, 1.900158924249458], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Ca', 'occu': 1}], 'abc': [0.5, 0.5, 0.5], 'xyz': [2.54890231, 1.5510841850000001, 8.958666305], 'label': 'Ca', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Hg', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Hg', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.812913357
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.07784659, 0.0, 0.0], [0.0, 4.07784659, 0.0], [0.0, 0.0, 4.07784659]], 'a': 4.07784659, 'b': 4.07784659, 'c': 4.07784659, 'alpha': 90.0, 'beta': 90.0, 'gamma': 90.0, 'volume': 67.80982917635971}, 'sites': [{'species': [{'element': 'Lu', 'occu': 1}], 'abc': [0.0, 0.0, 0.0], 'xyz': [0.0, 0.0, 0.0], 'label': 'Lu', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Pt', 'occu': 1}], 'abc': [0.0, 0.5, 0.5], 'xyz': [0.0, 2.038923295, 2.038923295], 'label': 'Pt', 'properties': {'magmom': -0.0}}, {'species': [{'element': 'Pt', 'occu': 1}], 'abc': [0.5, 0.5, 0.0], 'xyz': [2.038923295, 2.038923295, 0.0], 'label': 'Pt', 'properties': {'magmom': -0.0}}, {'species': [{'element': 'Pt', 'occu': 1}], 'abc': [0.5, 0.0, 0.5], 'xyz': [2.038923295, 0.0, 2.038923295], 'label': 'Pt', 'properties': {'magmom': -0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 2.264817823
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.5759722, 0.0, -1.69645799], [0.0, 6.13360484, 0.0], [-0.14067927, 0.0, 6.64030662]], 'a': 4.880316719948376, 'b': 6.13360484, 'c': 6.64179664432927, 'alpha': 90.0, 'beta': 111.55500772924448, 'gamma': 90.0, 'volume': 184.91102422832287}, 'sites': [{'species': [{'element': 'O', 'occu': 1}], 'abc': [0.89093392, 0.50463635, 0.78186784], 'xyz': [3.9668962529893474, 3.095239958799934, 3.6804102267710794], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.10906608, 0.49536365, 0.21813216], 'xyz': [0.46839667701065274, 3.038364881200066, 1.2634384032289199], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.89093392, 0.99536365, 0.78186784], 'xyz': [3.9668962529893474, 6.1051673012000665, 3.6804102267710794], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.10906608, 0.00463635, 0.21813216], 'xyz': [0.46839667701065274, 0.028437538799934003, 1.2634384032289199], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Rb', 'occu': 1}], 'abc': [0.3020656, 0.75, 0.60413121], 'xyz': [1.2972550505693032, 4.60020363, 3.4991748724874663], 'label': 'Rb', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Rb', 'occu': 1}], 'abc': [0.6979344, 0.25, 0.39586879], 'xyz': [3.1380378794306965, 1.53340121, 1.4446737575125337], 'label': 'Rb', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Au', 'occu': 1}], 'abc': [0.99755621, 0.25, 0.99511242], 'xyz': [4.424797796083829, 1.53340121, 4.915539387241602], 'label': 'Au', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Au', 'occu': 1}], 'abc': [0.00244379, 0.75, 0.00488758], 'xyz': [0.0104951339161714, 4.60020363, 0.028309242758397496], 'label': 'Au', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.447158031
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.58496711, 0.0, -1.82330639], [0.0, 5.50584038, 0.0], [-0.08761223, 0.0, 6.45612041]], 'a': 4.93420404843543, 'b': 5.50584038, 'c': 6.456714849771835, 'alpha': 90.0, 'beta': 112.46373855123507, 'gamma': 90.0, 'volume': 162.09940560144992}, 'sites': [{'species': [{'element': 'O', 'occu': 1}], 'abc': [0.89685933, 0.50407412, 0.79371867], 'xyz': [4.042531067675302, 2.7753516444089654, 3.4890939578649354], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.10314067, 0.49592588, 0.20628133], 'xyz': [0.4548238123246978, 2.7304887355910346, 1.143720062135064], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.89685933, 0.99592588, 0.79371867], 'xyz': [4.042531067675302, 5.483408925591035, 3.4890939578649354], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'O', 'occu': 1}], 'abc': [0.10314067, 0.00407412, 0.20628133], 'xyz': [0.4548238123246978, 0.0224314544089656, 1.143720062135064], 'label': 'O', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Cu', 'occu': 1}], 'abc': [0.99783744, 0.25, 0.99567488], 'xyz': [4.4878185469348155, 1.376460095, 4.608833533959059], 'label': 'Cu', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Cu', 'occu': 1}], 'abc': [0.00216256, 0.75, 0.00432512], 'xyz': [0.009536333065184, 4.129380285, 0.023980486040940798], 'label': 'Cu', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Rb', 'occu': 1}], 'abc': [0.30939916, 0.75, 0.61879833], 'xyz': [1.3643706708500518, 4.129380285, 3.4309070624982825], 'label': 'Rb', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Rb', 'occu': 1}], 'abc': [0.69060084, 0.25, 0.38120167], 'xyz': [3.132984209149948, 1.376460095, 1.2019069575017172], 'label': 'Rb', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.505149978
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[-4.58915586, -4.58915586, 4.58915586], [-4.58915586, 4.58915586, -4.58915586], [4.58915586, -4.58915586, -4.58915586]], 'a': 7.948651113372446, 'b': 7.948651113372446, 'c': 7.948651113372446, 'alpha': 109.47122063449069, 'beta': 109.47122063449069, 'gamma': 109.47122063449069, 'volume': 386.5969421348704}, 'sites': [{'species': [{'element': 'Fe', 'occu': 1}], 'abc': [0.5, 0.5, 0.5], 'xyz': [-2.29457793, -2.29457793, -2.29457793], 'label': 'Fe', 'properties': {'magmom': 1.004}}, {'species': [{'element': 'Fe', 'occu': 1}], 'abc': [0.5, 0.0, 0.0], 'xyz': [-2.29457793, -2.29457793, 2.29457793], 'label': 'Fe', 'properties': {'magmom': 1.034}}, {'species': [{'element': 'Fe', 'occu': 1}], 'abc': [0.0, 0.0, 0.5], 'xyz': [2.29457793, -2.29457793, -2.29457793], 'label': 'Fe', 'properties': {'magmom': 0.976}}, {'species': [{'element': 'Fe', 'occu': 1}], 'abc': [0.0, 0.5, 0.0], 'xyz': [-2.29457793, 2.29457793, -2.29457793], 'label': 'Fe', 'properties': {'magmom': 0.97}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.66908722, 0.84029251, 0.50937973], 'xyz': [-4.58915586, -1.551935213028218, -3.1233107327612175], 'label': 'Sb', 'properties': {'magmom': -0.014}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.84029251, 0.50937973, 0.66908722], 'xyz': [-3.1233107327612175, -4.58915586, -1.551935213028218], 'label': 'Sb', 'properties': {'magmom': -0.004}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.50937973, 0.66908722, 0.84029251], 'xyz': [-1.551935213028218, -3.1233107327612175, -4.58915586], 'label': 'Sb', 'properties': {'magmom': 0.002}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.66908722, 0.15970749, 0.82879471], 'xyz': [0.0, -6.141091073028218, -1.465845127238783], 'label': 'Sb', 'properties': {'magmom': -0.011}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.84029251, 0.17120529, 0.33091278], 'xyz': [-3.123310732761217, -4.589155860000001, 1.5519352130282187], 'label': 'Sb', 'properties': {'magmom': -0.007}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.15970749, 0.82879471, 0.66908722], 'xyz': [-1.4658451272387825, 0.0, -6.141091073028218], 'label': 'Sb', 'properties': {'magmom': -0.007}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.17120529, 0.33091278, 0.84029251], 'xyz': [1.5519352130282185, -3.1233107327612175, -4.589155860000001], 'label': 'Sb', 'properties': {'magmom': -0.003}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.15970749, 0.49062027, 0.33091278], 'xyz': [-1.4658451272387827, -2.220446049250313e-16, -3.0372206469717815], 'label': 'Sb', 'properties': {'magmom': -0.004}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.33091278, 0.15970749, 0.49062027], 'xyz': [-4.440892098500626e-16, -3.0372206469717815, -1.4658451272387827], 'label': 'Sb', 'properties': {'magmom': -0.014}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.49062027, 0.33091278, 0.15970749], 'xyz': [-3.0372206469717815, -1.4658451272387827, -2.220446049250313e-16], 'label': 'Sb', 'properties': {'magmom': 0.002}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.33091278, 0.84029251, 0.17120529], 'xyz': [-4.58915586, 1.551935213028219, -3.1233107327612175], 'label': 'Sb', 'properties': {'magmom': -0.011}}, {'species': [{'element': 'Sb', 'occu': 1}], 'abc': [0.82879471, 0.66908722, 0.15970749], 'xyz': [-6.141091073028218, -1.465845127238783, 0.0], 'label': 'Sb', 'properties': {'magmom': -0.003}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.913813852
+        },
+        {
+          "structure": "{'@module': 'pymatgen.core.structure', '@class': 'Structure', 'charge': None, 'lattice': {'matrix': [[4.96783696, 0.0, 2.1352986], [2.25044852, 6.49297677, 1.61082425], [-0.08957041, 0.19413515, 7.05494928]], 'a': 5.407301006260332, 'b': 7.0581881982076595, 'c': 7.058188199402563, 'alpha': 75.55964013117433, 'beta': 67.4771636422983, 'gamma': 67.47716368253052, 'volume': 228.1860035193357}, 'sites': [{'species': [{'element': 'Rb', 'occu': 1}], 'abc': [0.94761603, 0.30238397, 0.30238397], 'xyz': [5.361016839310366, 2.0220754502039227, 4.643834185318872], 'label': 'Rb', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Rb', 'occu': 1}], 'abc': [0.05238397, 0.69761603, 0.69761603], 'xyz': [1.7676982306896345, 4.665036469796078, 6.157237944681128], 'label': 'Rb', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Hg', 'occu': 1}], 'abc': [0.33532929, 0.10319316, 0.72614825], 'xyz': [1.8330507383553991, 0.8110016901388808, 6.005193281548884], 'label': 'Hg', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Hg', 'occu': 1}], 'abc': [0.66467071, 0.89680684, 0.27385175], 'xyz': [5.2956643316446, 5.87611022986112, 4.795878848451116], 'label': 'Hg', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Hg', 'occu': 1}], 'abc': [0.66467071, 0.27385175, 0.89680684], 'xyz': [3.8379376285047466, 1.9522147815782738, 8.18732424648602], 'label': 'Hg', 'properties': {'magmom': 0.0}}, {'species': [{'element': 'Hg', 'occu': 1}], 'abc': [0.33532929, 0.72614825, 0.10319316], 'xyz': [3.2907774414952526, 4.734897138421727, 2.6137478835139816], 'label': 'Hg', 'properties': {'magmom': 0.0}}], '@version': '2019.7.30'}",
+          "log10(K_VRH)": 1.041392685
+        }
+      ],
+      "columns": [
+        "structure",
+        "log10(K_VRH)"
+      ],
+      "total_rows": 10987,
+      "preview_rows": 20
+    },
+    "task_id": "task_ddc2afb0",
+    "created_at": "2026-06-08T20:33:41.350227",
+    "updated_at": "2026-06-08T20:33:41.350227",
+    "data_quality": {
+      "errors": [],
+      "warnings": [],
+      "duplicates": {
+        "duplicate_rows": 0,
+        "duplicate_input_samples": 0
+      },
+      "invalid_rows": {
+        "count": 0,
+        "examples": []
+      },
+      "missing_values": {
+        "total_missing": 0,
+        "columns_with_missing": []
+      }
+    },
+    "dataset_schema": {
+      "columns": [
+        {
+          "name": "structure",
+          "role": "input",
+          "dtype": "object",
+          "missing_count": 0,
+          "missing_ratio": 0.0
+        },
+        {
+          "name": "log10(K_VRH)",
+          "role": "target",
+          "dtype": "float64",
+          "missing_count": 0,
+          "missing_ratio": 0.0
+        }
+      ],
+      "n_columns": 2,
+      "n_samples": 10987,
+      "input_columns": [
+        "structure"
+      ],
+      "target_column": "log10(K_VRH)"
+    },
+    "dataset_source": {
+      "loader": "file",
+      "file_id": "file_42178553.csv",
+      "file_name": "file_42178553.csv",
+      "file_path": null,
+      "loaded_from": "file_42178553.csv",
+      "source_type": "uploaded_file",
+      "dataset_reference": "file_42178553.csv"
+    },
+    "modality_check": {
+      "messages": [],
+      "is_consistent": true,
+      "detected_input_modality": "structure",
+      "expected_input_modality": "structure"
+    },
+    "target_profile": {
+      "max": 2.759667845,
+      "min": 0.0,
+      "std": 0.3693309748751177,
+      "mean": 1.8804458592147084,
+      "dtype": "float64",
+      "median": 1.934498451,
+      "skewness": -1.0060937381409507,
+      "task_type": "regression",
+      "missing_count": 0,
+      "missing_ratio": 0.0,
+      "outlier_count": 211,
+      "target_column": "log10(K_VRH)"
+    },
+    "interpretation_id": "interp_5b4bc9e5",
+    "profiling_summary": {
+      "is_loadable": true,
+      "main_issues": [],
+      "quality_level": "good",
+      "is_usable_for_ml": true,
+      "sample_size_level": "large",
+      "recommended_next_step": "ready_for_workflow_planning"
+    },
+    "dataset_profile_id": "profile_8af60c9b",
+    "workflow_planning_input": {
+      "n_columns": 2,
+      "n_samples": 10987,
+      "task_type": "regression",
+      "input_columns": [
+        "structure"
+      ],
+      "quality_level": "good",
+      "target_column": "log10(K_VRH)",
+      "has_duplicates": false,
+      "input_modality": "structure",
+      "n_features_raw": 1,
+      "is_usable_for_ml": true,
+      "requires_cleaning": false,
+      "sample_size_level": "large",
+      "has_missing_values": false,
+      "target_distribution": {
+        "is_skewed": true,
+        "has_outliers": true
+      },
+      "requires_target_transformation_check": true
+    }
+  }
+}

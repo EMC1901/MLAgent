@@ -1,0 +1,213 @@
+{
+  "dataset_profile_id": "profile_91160a9d",
+  "status": "profiled",
+  "source_type": "uploaded_file",
+  "n_samples": 5680,
+  "n_columns": 2,
+  "target_column": "gfa",
+  "quality_level": "good",
+  "is_usable_for_ml": true,
+  "profile_detail": {
+    "status": "profiled",
+    "preview": {
+      "rows": [
+        {
+          "gfa": false,
+          "composition": "Al"
+        },
+        {
+          "gfa": true,
+          "composition": "Al(NiB)2"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Co21B19"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Co23B17"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Co27B13"
+        },
+        {
+          "gfa": false,
+          "composition": "Al10Co29B11"
+        },
+        {
+          "gfa": false,
+          "composition": "Al10Co31B9"
+        },
+        {
+          "gfa": false,
+          "composition": "Al10Co33B7"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Cr3Si7"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Fe23B17"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Fe27B13"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Fe31B9"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Fe33B7"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Ni23B17"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Ni27B13"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Ni29B11"
+        },
+        {
+          "gfa": true,
+          "composition": "Al10Ni31B9"
+        },
+        {
+          "gfa": false,
+          "composition": "Al10Ni33B7"
+        },
+        {
+          "gfa": false,
+          "composition": "Al10V3Ge7"
+        },
+        {
+          "gfa": true,
+          "composition": "Al11(CrSi2)3"
+        }
+      ],
+      "columns": [
+        "composition",
+        "gfa"
+      ],
+      "total_rows": 5680,
+      "preview_rows": 20
+    },
+    "task_id": "task_49c350f8",
+    "created_at": "2026-06-11T20:09:31.041301",
+    "updated_at": "2026-06-11T20:09:31.041301",
+    "data_quality": {
+      "errors": [],
+      "warnings": [],
+      "duplicates": {
+        "duplicate_rows": 0,
+        "duplicate_input_samples": 0
+      },
+      "invalid_rows": {
+        "count": 0,
+        "examples": []
+      },
+      "missing_values": {
+        "total_missing": 0,
+        "columns_with_missing": []
+      }
+    },
+    "dataset_schema": {
+      "columns": [
+        {
+          "name": "composition",
+          "role": "input",
+          "dtype": "object",
+          "missing_count": 0,
+          "missing_ratio": 0.0
+        },
+        {
+          "name": "gfa",
+          "role": "target",
+          "dtype": "bool",
+          "missing_count": 0,
+          "missing_ratio": 0.0
+        }
+      ],
+      "n_columns": 2,
+      "n_samples": 5680,
+      "input_columns": [
+        "composition"
+      ],
+      "target_column": "gfa"
+    },
+    "dataset_source": {
+      "loader": "file",
+      "file_id": "file_065de1ab.csv",
+      "file_name": "file_065de1ab.csv",
+      "file_path": null,
+      "loaded_from": "file_065de1ab.csv",
+      "source_type": "uploaded_file",
+      "dataset_reference": "file_065de1ab.csv"
+    },
+    "modality_check": {
+      "messages": [],
+      "is_consistent": true,
+      "detected_input_modality": "composition",
+      "expected_input_modality": "composition"
+    },
+    "target_profile": {
+      "dtype": "bool",
+      "task_type": "classification",
+      "class_count": 2,
+      "is_imbalanced": false,
+      "missing_count": 0,
+      "missing_ratio": 0.0,
+      "target_column": "gfa",
+      "class_distribution": [
+        {
+          "count": 4035,
+          "label": "True",
+          "ratio": 0.710387323943662
+        },
+        {
+          "count": 1645,
+          "label": "False",
+          "ratio": 0.289612676056338
+        }
+      ],
+      "majority_class_ratio": 0.710387323943662,
+      "minority_class_count": 1645
+    },
+    "interpretation_id": "interp_755f023a",
+    "profiling_summary": {
+      "is_loadable": true,
+      "main_issues": [],
+      "quality_level": "good",
+      "is_usable_for_ml": true,
+      "sample_size_level": "medium",
+      "recommended_next_step": "ready_for_workflow_planning"
+    },
+    "dataset_profile_id": "profile_91160a9d",
+    "workflow_planning_input": {
+      "n_columns": 2,
+      "n_samples": 5680,
+      "task_type": "classification",
+      "input_columns": [
+        "composition"
+      ],
+      "quality_level": "good",
+      "target_column": "gfa",
+      "has_duplicates": false,
+      "input_modality": "composition",
+      "n_features_raw": 1,
+      "is_usable_for_ml": true,
+      "requires_cleaning": false,
+      "sample_size_level": "medium",
+      "has_missing_values": false,
+      "target_distribution": null,
+      "requires_target_transformation_check": false
+    }
+  }
+}

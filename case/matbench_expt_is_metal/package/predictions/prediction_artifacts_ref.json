@@ -1,0 +1,9 @@
+{
+  "prediction_artifact_paths": [
+    "\\app\\artifacts\\training\\pe_d4f02ee7\\predictions\\trial_lightgbm_0010_09c99f_fold_0.parquet",
+    "\\app\\artifacts\\training\\pe_d4f02ee7\\predictions\\trial_lightgbm_0010_09c99f_fold_1.parquet",
+    "\\app\\artifacts\\training\\pe_d4f02ee7\\predictions\\trial_lightgbm_0010_09c99f_fold_2.parquet",
+    "\\app\\artifacts\\training\\pe_d4f02ee7\\predictions\\trial_lightgbm_0010_09c99f_fold_3.parquet",
+    "\\app\\artifacts\\training\\pe_d4f02ee7\\predictions\\trial_lightgbm_0010_09c99f_fold_4.parquet"
+  ]
+}

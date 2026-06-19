@@ -1,0 +1,207 @@
+{
+  "dataset_profile_id": "profile_b4dcaa9b",
+  "status": "profiled_with_warning",
+  "source_type": "uploaded_file",
+  "n_samples": 4604,
+  "n_columns": 2,
+  "target_column": "gap expt",
+  "quality_level": "good",
+  "is_usable_for_ml": true,
+  "profile_detail": {
+    "status": "profiled_with_warning",
+    "preview": {
+      "rows": [
+        {
+          "gap expt": 0.0,
+          "composition": "Ag(AuS)2"
+        },
+        {
+          "gap expt": 0.0,
+          "composition": "Ag(W3Br7)2"
+        },
+        {
+          "gap expt": 1.83,
+          "composition": "Ag0.5Ge1Pb1.75S4"
+        },
+        {
+          "gap expt": 1.51,
+          "composition": "Ag0.5Ge1Pb1.75Se4"
+        },
+        {
+          "gap expt": 0.0,
+          "composition": "Ag2BBr"
+        },
+        {
+          "gap expt": 0.0,
+          "composition": "Ag2BiO3"
+        },
+        {
+          "gap expt": 1.98,
+          "composition": "Ag2GeS3"
+        },
+        {
+          "gap expt": 0.9,
+          "composition": "Ag2GeSe3"
+        },
+        {
+          "gap expt": 2.47,
+          "composition": "Ag2HgI4"
+        },
+        {
+          "gap expt": 3.06,
+          "composition": "Ag2Mo(I2O7)2"
+        },
+        {
+          "gap expt": 0.0,
+          "composition": "Ag2P2PbO7"
+        },
+        {
+          "gap expt": 0.18,
+          "composition": "Ag2PdO2"
+        },
+        {
+          "gap expt": 0.0,
+          "composition": "Ag3AsO4"
+        },
+        {
+          "gap expt": 0.0,
+          "composition": "Ag3Pd"
+        },
+        {
+          "gap expt": 0.0,
+          "composition": "Ag3RuO4"
+        },
+        {
+          "gap expt": 1.4,
+          "composition": "Ag5IO6"
+        },
+        {
+          "gap expt": 0.0,
+          "composition": "Ag7(SI)2"
+        },
+        {
+          "gap expt": 1.0,
+          "composition": "Ag7AsS6"
+        },
+        {
+          "gap expt": 1.0,
+          "composition": "Ag7AsSe6"
+        },
+        {
+          "gap expt": 0.0,
+          "composition": "Ag7NO11"
+        }
+      ],
+      "columns": [
+        "composition",
+        "gap expt"
+      ],
+      "total_rows": 4604,
+      "preview_rows": 20
+    },
+    "task_id": "task_441dd90c",
+    "created_at": "2026-06-03T22:27:09.442737",
+    "updated_at": "2026-06-03T22:27:09.442737",
+    "data_quality": {
+      "errors": [],
+      "warnings": [],
+      "duplicates": {
+        "duplicate_rows": 0,
+        "duplicate_input_samples": 0
+      },
+      "invalid_rows": {
+        "count": 0,
+        "examples": []
+      },
+      "missing_values": {
+        "total_missing": 0,
+        "columns_with_missing": []
+      }
+    },
+    "dataset_schema": {
+      "columns": [
+        {
+          "name": "composition",
+          "role": "input",
+          "dtype": "object",
+          "missing_count": 0,
+          "missing_ratio": 0.0
+        },
+        {
+          "name": "gap expt",
+          "role": "target",
+          "dtype": "float64",
+          "missing_count": 0,
+          "missing_ratio": 0.0
+        }
+      ],
+      "n_columns": 2,
+      "n_samples": 4604,
+      "input_columns": [
+        "composition"
+      ],
+      "target_column": "gap expt"
+    },
+    "dataset_source": {
+      "loader": "file",
+      "file_id": "file_b7836c67.csv",
+      "file_name": "file_b7836c67.csv",
+      "file_path": null,
+      "loaded_from": "file_b7836c67.csv",
+      "source_type": "uploaded_file",
+      "dataset_reference": "file_b7836c67.csv"
+    },
+    "modality_check": {
+      "messages": [],
+      "is_consistent": true,
+      "detected_input_modality": "composition",
+      "expected_input_modality": "composition"
+    },
+    "target_profile": {
+      "max": 11.7,
+      "min": 0.0,
+      "std": 1.4450343278963889,
+      "mean": 0.9759513466550827,
+      "dtype": "float64",
+      "median": 0.0,
+      "skewness": 1.9330943027654697,
+      "task_type": "regression",
+      "missing_count": 0,
+      "missing_ratio": 0.0,
+      "outlier_count": 121,
+      "target_column": "gap expt"
+    },
+    "interpretation_id": "interp_6a8f0e9d",
+    "profiling_summary": {
+      "is_loadable": true,
+      "main_issues": [],
+      "quality_level": "good",
+      "is_usable_for_ml": true,
+      "sample_size_level": "medium",
+      "recommended_next_step": "ready_for_workflow_planning"
+    },
+    "dataset_profile_id": "profile_b4dcaa9b",
+    "workflow_planning_input": {
+      "n_columns": 2,
+      "n_samples": 4604,
+      "task_type": "regression",
+      "input_columns": [
+        "composition"
+      ],
+      "quality_level": "good",
+      "target_column": "gap expt",
+      "has_duplicates": false,
+      "input_modality": "composition",
+      "n_features_raw": 1,
+      "is_usable_for_ml": true,
+      "requires_cleaning": false,
+      "sample_size_level": "medium",
+      "has_missing_values": false,
+      "target_distribution": {
+        "is_skewed": true,
+        "has_outliers": true
+      },
+      "requires_target_transformation_check": true
+    }
+  }
+}

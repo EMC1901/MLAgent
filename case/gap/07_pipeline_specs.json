@@ -1,0 +1,1784 @@
+{
+  "pipeline_generation_id": "pg_ca19e0cc",
+  "status": "generated",
+  "n_pipeline_specs": 6,
+  "n_baseline_specs": 1,
+  "n_hpo_specs": 5,
+  "ready_for_execution": true,
+  "pipeline_specs_detail": {
+    "status": "generated",
+    "task_id": "task_441dd90c",
+    "warnings": [],
+    "created_at": "2026-06-03T22:45:52.022805",
+    "trial_plan": {
+      "hpo_enabled": true,
+      "search_method": "optuna_tpe",
+      "trial_plan_id": "tp_fdef7045",
+      "fallback_policy": {
+        "enabled": true,
+        "description": "If HPO fails, fallback to fixed-parameter model.",
+        "fallback_model_id": "random_search"
+      },
+      "max_total_trials": 30,
+      "trial_allocation": [
+        {
+          "role": "baseline",
+          "model_id": "ridge",
+          "max_trials": 1,
+          "pipeline_spec_id": "ps_ridge_3931dd"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "lasso",
+          "max_trials": 4,
+          "pipeline_spec_id": "ps_lasso_34121d"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "random_forest",
+          "max_trials": 6,
+          "pipeline_spec_id": "ps_random_forest_ae0fa7"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "gradient_boosting",
+          "max_trials": 6,
+          "pipeline_spec_id": "ps_gradient_boosting_ab6a47"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "xgboost",
+          "max_trials": 8,
+          "pipeline_spec_id": "ps_xgboost_4776d8"
+        },
+        {
+          "role": "hpo_candidate",
+          "model_id": "svr",
+          "max_trials": 6,
+          "pipeline_spec_id": "ps_svr_c40f9d"
+        }
+      ],
+      "max_parallel_trials": 1,
+      "baseline_trial_policy": {
+        "single_run": true,
+        "description": "Baseline models run once without HPO."
+      },
+      "early_stopping_policy": {
+        "enabled": false,
+        "patience": 10,
+        "min_delta": 0.001
+      },
+      "candidate_trial_policy": {
+        "description": "Candidate models expand trials according to HPO search method.",
+        "expand_by_search_space": true
+      }
+    },
+    "updated_at": "2026-06-03T22:45:52.022805",
+    "n_hpo_specs": 5,
+    "error_message": null,
+    "pipeline_specs": [
+      {
+        "model_id": "ridge",
+        "priority": "medium",
+        "warnings": [],
+        "hpo_enabled": false,
+        "fixed_params": {},
+        "model_family": "ridge",
+        "search_space": null,
+        "pipeline_role": "baseline",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_ridge_3931dd",
+        "search_space_ref": null,
+        "component_bindings": {
+          "model_id": "ridge",
+          "model_family": "ridge",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+        "model_display_name": "Ridge Regression",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+      },
+      {
+        "model_id": "lasso",
+        "priority": "high",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "lasso",
+        "search_space": {
+          "model_id": "lasso",
+          "parameters": [
+            {
+              "low": 0.0001,
+              "high": 100.0,
+              "name": "alpha",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "lasso_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_lasso_34121d",
+        "search_space_ref": "lasso_default_regression",
+        "component_bindings": {
+          "model_id": "lasso",
+          "model_family": "lasso",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+        "model_display_name": "Lasso Regression",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+      },
+      {
+        "model_id": "random_forest",
+        "priority": "high",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "random_forest",
+        "search_space": {
+          "model_id": "random_forest",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 3.0,
+              "high": 30.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "None",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 20.0,
+              "name": "min_samples_split",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "2",
+              "override_rationale": null
+            },
+            {
+              "low": 1.0,
+              "high": 10.0,
+              "name": "min_samples_leaf",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "1",
+              "override_rationale": null
+            },
+            {
+              "low": null,
+              "high": null,
+              "name": "max_features",
+              "choices": [
+                "sqrt",
+                "log2",
+                0.5,
+                0.8,
+                1.0
+              ],
+              "sampling": "choice",
+              "param_type": "categorical",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "random_forest_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_random_forest_ae0fa7",
+        "search_space_ref": "random_forest_default_regression",
+        "component_bindings": {
+          "model_id": "random_forest",
+          "model_family": "random_forest",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+        "model_display_name": "Random Forest",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+      },
+      {
+        "model_id": "gradient_boosting",
+        "priority": "high",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "gradient_boosting",
+        "search_space": {
+          "model_id": "gradient_boosting",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 0.01,
+              "high": 0.3,
+              "name": "learning_rate",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 10.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "3",
+              "override_rationale": null
+            },
+            {
+              "low": 0.5,
+              "high": 1.0,
+              "name": "subsample",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "gradient_boosting_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_gradient_boosting_ab6a47",
+        "search_space_ref": "gradient_boosting_default_regression",
+        "component_bindings": {
+          "model_id": "gradient_boosting",
+          "model_family": "gradient_boosting",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+        "model_display_name": "Gradient Boosting",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+      },
+      {
+        "model_id": "xgboost",
+        "priority": "high",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "xgboost",
+        "search_space": {
+          "model_id": "xgboost",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 0.01,
+              "high": 0.3,
+              "name": "learning_rate",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 12.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "6",
+              "override_rationale": null
+            },
+            {
+              "low": 0.5,
+              "high": 1.0,
+              "name": "subsample",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            },
+            {
+              "low": 0.5,
+              "high": 1.0,
+              "name": "colsample_bytree",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "xgboost_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_xgboost_4776d8",
+        "search_space_ref": "xgboost_default_regression",
+        "component_bindings": {
+          "model_id": "xgboost",
+          "model_family": "xgboost",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+        "model_display_name": "XGBoost",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+      },
+      {
+        "model_id": "svr",
+        "priority": "medium",
+        "warnings": [],
+        "hpo_enabled": true,
+        "fixed_params": {},
+        "model_family": "svr",
+        "search_space": {
+          "model_id": "svr",
+          "parameters": [
+            {
+              "low": 0.001,
+              "high": 1000.0,
+              "name": "C",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            },
+            {
+              "low": 0.001,
+              "high": 1.0,
+              "name": "epsilon",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": null,
+              "high": null,
+              "name": "kernel",
+              "choices": [
+                "linear",
+                "rbf",
+                "poly"
+              ],
+              "sampling": "choice",
+              "param_type": "categorical",
+              "default_value": "rbf",
+              "override_rationale": null
+            },
+            {
+              "low": 0.0001,
+              "high": 1.0,
+              "name": "gamma",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "scale",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "svr_default_regression"
+        },
+        "pipeline_role": "hpo_candidate",
+        "execution_ready": true,
+        "pipeline_spec_id": "ps_svr_c40f9d",
+        "search_space_ref": "svr_default_regression",
+        "component_bindings": {
+          "model_id": "svr",
+          "model_family": "svr",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "preprocessor_artifact_bound": true
+        },
+        "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+        "model_display_name": "Support Vector Regression",
+        "safety_constraints": {
+          "max_memory_mb": 4096,
+          "allow_dynamic_code": false,
+          "max_runtime_seconds": 3600,
+          "allow_network_access": false,
+          "allow_unregistered_components": false
+        },
+        "evaluation_plan_ref": "MAE",
+        "validation_plan_ref": "k_fold_cross_validation",
+        "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+      }
+    ],
+    "execution_input": {
+      "task_id": "task_441dd90c",
+      "task_type": "regression",
+      "trial_plan": {
+        "hpo_enabled": true,
+        "search_method": "optuna_tpe",
+        "trial_plan_id": "tp_fdef7045",
+        "fallback_policy": {
+          "enabled": true,
+          "description": "If HPO fails, fallback to fixed-parameter model.",
+          "fallback_model_id": "random_search"
+        },
+        "max_total_trials": 30,
+        "trial_allocation": [
+          {
+            "role": "baseline",
+            "model_id": "ridge",
+            "max_trials": 1,
+            "pipeline_spec_id": "ps_ridge_3931dd"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "lasso",
+            "max_trials": 4,
+            "pipeline_spec_id": "ps_lasso_34121d"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "random_forest",
+            "max_trials": 6,
+            "pipeline_spec_id": "ps_random_forest_ae0fa7"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "gradient_boosting",
+            "max_trials": 6,
+            "pipeline_spec_id": "ps_gradient_boosting_ab6a47"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "xgboost",
+            "max_trials": 8,
+            "pipeline_spec_id": "ps_xgboost_4776d8"
+          },
+          {
+            "role": "hpo_candidate",
+            "model_id": "svr",
+            "max_trials": 6,
+            "pipeline_spec_id": "ps_svr_c40f9d"
+          }
+        ],
+        "max_parallel_trials": 1,
+        "baseline_trial_policy": {
+          "single_run": true,
+          "description": "Baseline models run once without HPO."
+        },
+        "early_stopping_policy": {
+          "enabled": false,
+          "patience": 10,
+          "min_delta": 0.001
+        },
+        "candidate_trial_policy": {
+          "description": "Candidate models expand trials according to HPO search method.",
+          "expand_by_search_space": true
+        }
+      },
+      "target_column": "gap expt",
+      "pipeline_specs": [
+        {
+          "model_id": "ridge",
+          "priority": "medium",
+          "warnings": [],
+          "hpo_enabled": false,
+          "fixed_params": {},
+          "model_family": "ridge",
+          "search_space": null,
+          "pipeline_role": "baseline",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_ridge_3931dd",
+          "search_space_ref": null,
+          "component_bindings": {
+            "model_id": "ridge",
+            "model_family": "ridge",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "Ridge Regression",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        },
+        {
+          "model_id": "lasso",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "lasso",
+          "search_space": {
+            "model_id": "lasso",
+            "parameters": [
+              {
+                "low": 0.0001,
+                "high": 100.0,
+                "name": "alpha",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "lasso_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_lasso_34121d",
+          "search_space_ref": "lasso_default_regression",
+          "component_bindings": {
+            "model_id": "lasso",
+            "model_family": "lasso",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "Lasso Regression",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        },
+        {
+          "model_id": "random_forest",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "random_forest",
+          "search_space": {
+            "model_id": "random_forest",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 3.0,
+                "high": 30.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "None",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 20.0,
+                "name": "min_samples_split",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "2",
+                "override_rationale": null
+              },
+              {
+                "low": 1.0,
+                "high": 10.0,
+                "name": "min_samples_leaf",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "max_features",
+                "choices": [
+                  "sqrt",
+                  "log2",
+                  0.5,
+                  0.8,
+                  1.0
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "random_forest_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_random_forest_ae0fa7",
+          "search_space_ref": "random_forest_default_regression",
+          "component_bindings": {
+            "model_id": "random_forest",
+            "model_family": "random_forest",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "Random Forest",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        },
+        {
+          "model_id": "gradient_boosting",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "gradient_boosting",
+          "search_space": {
+            "model_id": "gradient_boosting",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 10.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "3",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "gradient_boosting_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_gradient_boosting_ab6a47",
+          "search_space_ref": "gradient_boosting_default_regression",
+          "component_bindings": {
+            "model_id": "gradient_boosting",
+            "model_family": "gradient_boosting",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "Gradient Boosting",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        },
+        {
+          "model_id": "xgboost",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "xgboost",
+          "search_space": {
+            "model_id": "xgboost",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 12.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "6",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "colsample_bytree",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "xgboost_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_xgboost_4776d8",
+          "search_space_ref": "xgboost_default_regression",
+          "component_bindings": {
+            "model_id": "xgboost",
+            "model_family": "xgboost",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "XGBoost",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        },
+        {
+          "model_id": "svr",
+          "priority": "medium",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "svr",
+          "search_space": {
+            "model_id": "svr",
+            "parameters": [
+              {
+                "low": 0.001,
+                "high": 1000.0,
+                "name": "C",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              },
+              {
+                "low": 0.001,
+                "high": 1.0,
+                "name": "epsilon",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "kernel",
+                "choices": [
+                  "linear",
+                  "rbf",
+                  "poly"
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "rbf",
+                "override_rationale": null
+              },
+              {
+                "low": 0.0001,
+                "high": 1.0,
+                "name": "gamma",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "scale",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "svr_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_svr_c40f9d",
+          "search_space_ref": "svr_default_regression",
+          "component_bindings": {
+            "model_id": "svr",
+            "model_family": "svr",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "Support Vector Regression",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        }
+      ],
+      "evaluation_plan": {
+        "scorer_id": null,
+        "primary_metric": "MAE",
+        "metric_direction": "minimize",
+        "secondary_metrics": [
+          "RMSE",
+          "R2"
+        ]
+      },
+      "feature_columns": [
+        "n_elements",
+        "n_total_atoms",
+        "mean_atomic_number",
+        "max_atomic_number",
+        "min_atomic_number",
+        "mean_electronegativity",
+        "max_electronegativity",
+        "min_electronegativity",
+        "stoichiometric_entropy",
+        "max_element_fraction",
+        "min_element_fraction",
+        "has_transition_metal",
+        "matminer_ion_property__compound possible",
+        "matminer_ion_property__max ionic char",
+        "matminer_ion_property__avg ionic char",
+        "matminer_band_center__band center",
+        "matminer_valence_orbital__avg s valence electrons",
+        "matminer_valence_orbital__avg p valence electrons",
+        "matminer_valence_orbital__avg d valence electrons",
+        "matminer_valence_orbital__avg f valence electrons",
+        "matminer_valence_orbital__frac s valence electrons",
+        "matminer_valence_orbital__frac p valence electrons",
+        "matminer_valence_orbital__frac d valence electrons",
+        "matminer_valence_orbital__frac f valence electrons"
+      ],
+      "validation_plan": {
+        "shuffle": true,
+        "n_splits": 5,
+        "random_state": 42,
+        "split_strategy": "k_fold_cross_validation",
+        "benchmark_split": false,
+        "stratification_required": false
+      },
+      "pipeline_bundle_id": "bundle_64497581",
+      "ready_for_execution": true,
+      "execution_constraints": {
+        "max_memory_mb": 4096,
+        "allow_dynamic_code": false,
+        "max_runtime_seconds": 3600,
+        "allow_unregistered_components": false
+      },
+      "pipeline_generation_id": "pg_ca19e0cc",
+      "fold_pipeline_spec_path": "/app/artifacts/model_ready\\fmp_69180d40\\fold_pipeline_spec.json",
+      "model_ready_matrix_path": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+      "preprocessor_artifact_path": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+    },
+    "generation_mode": "system_template_with_llm_review",
+    "pipeline_bundle": {
+      "task_id": "task_441dd90c",
+      "hpo_plan": {
+        "enabled": true,
+        "budget_level": "medium",
+        "search_method": "optuna_tpe",
+        "early_stopping": false,
+        "fallback_method": "random_search",
+        "max_total_trials": 30,
+        "trial_allocation": [
+          {
+            "model_id": "ridge",
+            "max_trials": 0,
+            "allocation_rationale": "Baseline model — fixed defaults, no HPO needed."
+          },
+          {
+            "model_id": "lasso",
+            "max_trials": 4,
+            "allocation_rationale": "Lasso has a small search space (primarily alpha). 4 trials are sufficient to explore a range of regularization strengths given the modest feature count (24) and large sample size (4604). More trials would yield diminishing returns."
+          },
+          {
+            "model_id": "random_forest",
+            "max_trials": 6,
+            "allocation_rationale": "Random forest has moderate complexity (n_estimators, max_depth, min_samples_split). With 4604 samples, 6 trials allow exploration of key parameters without excessive computational cost. It is less sensitive to hyperparameters than boosting."
+          },
+          {
+            "model_id": "gradient_boosting",
+            "max_trials": 6,
+            "allocation_rationale": "Gradient boosting (sklearn) has moderate sensitivity to learning_rate, n_estimators, and max_depth. 6 trials provide a fair search given that it shares the boosting concept with xgboost but is often slower to converge."
+          },
+          {
+            "model_id": "xgboost",
+            "max_trials": 8,
+            "allocation_rationale": "XGBoost is the most promising model for low MAE on this dataset, but it has the largest and most sensitive hyperparameter set (n_estimators, learning_rate, max_depth, subsample, colsample_bytree, regularization). 8 trials are allocated to thoroughly explore its search space within the 30-trial budget."
+          },
+          {
+            "model_id": "svr",
+            "max_trials": 6,
+            "allocation_rationale": "SVR with RBF kernel requires tuning of C and gamma, but training time per trial is higher due to quadratic complexity. 6 trials balance the need to find good parameters with the risk of excessive runtime. Its expected performance is lower than boosting, so it receives fewer trials than xgboost."
+          }
+        ],
+        "max_parallel_trials": 1
+      },
+      "bundle_id": "bundle_64497581",
+      "task_type": "regression",
+      "created_by": "pipeline_generation_module",
+      "target_column": "gap expt",
+      "pipeline_specs": [
+        {
+          "model_id": "ridge",
+          "priority": "medium",
+          "warnings": [],
+          "hpo_enabled": false,
+          "fixed_params": {},
+          "model_family": "ridge",
+          "search_space": null,
+          "pipeline_role": "baseline",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_ridge_3931dd",
+          "search_space_ref": null,
+          "component_bindings": {
+            "model_id": "ridge",
+            "model_family": "ridge",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "Ridge Regression",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        },
+        {
+          "model_id": "lasso",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "lasso",
+          "search_space": {
+            "model_id": "lasso",
+            "parameters": [
+              {
+                "low": 0.0001,
+                "high": 100.0,
+                "name": "alpha",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "lasso_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_lasso_34121d",
+          "search_space_ref": "lasso_default_regression",
+          "component_bindings": {
+            "model_id": "lasso",
+            "model_family": "lasso",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "Lasso Regression",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        },
+        {
+          "model_id": "random_forest",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "random_forest",
+          "search_space": {
+            "model_id": "random_forest",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 3.0,
+                "high": 30.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "None",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 20.0,
+                "name": "min_samples_split",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "2",
+                "override_rationale": null
+              },
+              {
+                "low": 1.0,
+                "high": 10.0,
+                "name": "min_samples_leaf",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "max_features",
+                "choices": [
+                  "sqrt",
+                  "log2",
+                  0.5,
+                  0.8,
+                  1.0
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "random_forest_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_random_forest_ae0fa7",
+          "search_space_ref": "random_forest_default_regression",
+          "component_bindings": {
+            "model_id": "random_forest",
+            "model_family": "random_forest",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "Random Forest",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        },
+        {
+          "model_id": "gradient_boosting",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "gradient_boosting",
+          "search_space": {
+            "model_id": "gradient_boosting",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 10.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "3",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "gradient_boosting_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_gradient_boosting_ab6a47",
+          "search_space_ref": "gradient_boosting_default_regression",
+          "component_bindings": {
+            "model_id": "gradient_boosting",
+            "model_family": "gradient_boosting",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "Gradient Boosting",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        },
+        {
+          "model_id": "xgboost",
+          "priority": "high",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "xgboost",
+          "search_space": {
+            "model_id": "xgboost",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 12.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "6",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "colsample_bytree",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "xgboost_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_xgboost_4776d8",
+          "search_space_ref": "xgboost_default_regression",
+          "component_bindings": {
+            "model_id": "xgboost",
+            "model_family": "xgboost",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "XGBoost",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        },
+        {
+          "model_id": "svr",
+          "priority": "medium",
+          "warnings": [],
+          "hpo_enabled": true,
+          "fixed_params": {},
+          "model_family": "svr",
+          "search_space": {
+            "model_id": "svr",
+            "parameters": [
+              {
+                "low": 0.001,
+                "high": 1000.0,
+                "name": "C",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              },
+              {
+                "low": 0.001,
+                "high": 1.0,
+                "name": "epsilon",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "kernel",
+                "choices": [
+                  "linear",
+                  "rbf",
+                  "poly"
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "rbf",
+                "override_rationale": null
+              },
+              {
+                "low": 0.0001,
+                "high": 1.0,
+                "name": "gamma",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "scale",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "svr_default_regression"
+          },
+          "pipeline_role": "hpo_candidate",
+          "execution_ready": true,
+          "pipeline_spec_id": "ps_svr_c40f9d",
+          "search_space_ref": "svr_default_regression",
+          "component_bindings": {
+            "model_id": "svr",
+            "model_family": "svr",
+            "model_registry_valid": true,
+            "model_ready_matrix_bound": true,
+            "preprocessor_artifact_bound": true
+          },
+          "input_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+          "model_display_name": "Support Vector Regression",
+          "safety_constraints": {
+            "max_memory_mb": 4096,
+            "allow_dynamic_code": false,
+            "max_runtime_seconds": 3600,
+            "allow_network_access": false,
+            "allow_unregistered_components": false
+          },
+          "evaluation_plan_ref": "MAE",
+          "validation_plan_ref": "k_fold_cross_validation",
+          "preprocessor_artifact_ref": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+        }
+      ],
+      "primary_metric": "MAE",
+      "evaluation_plan": {
+        "scorer_id": null,
+        "primary_metric": "MAE",
+        "metric_direction": "minimize",
+        "secondary_metrics": [
+          "RMSE",
+          "R2"
+        ]
+      },
+      "feature_columns": [
+        "n_elements",
+        "n_total_atoms",
+        "mean_atomic_number",
+        "max_atomic_number",
+        "min_atomic_number",
+        "mean_electronegativity",
+        "max_electronegativity",
+        "min_electronegativity",
+        "stoichiometric_entropy",
+        "max_element_fraction",
+        "min_element_fraction",
+        "has_transition_metal",
+        "matminer_ion_property__compound possible",
+        "matminer_ion_property__max ionic char",
+        "matminer_ion_property__avg ionic char",
+        "matminer_band_center__band center",
+        "matminer_valence_orbital__avg s valence electrons",
+        "matminer_valence_orbital__avg p valence electrons",
+        "matminer_valence_orbital__avg d valence electrons",
+        "matminer_valence_orbital__avg f valence electrons",
+        "matminer_valence_orbital__frac s valence electrons",
+        "matminer_valence_orbital__frac p valence electrons",
+        "matminer_valence_orbital__frac d valence electrons",
+        "matminer_valence_orbital__frac f valence electrons"
+      ],
+      "validation_plan": {
+        "shuffle": true,
+        "n_splits": 5,
+        "random_state": 42,
+        "split_strategy": "k_fold_cross_validation",
+        "benchmark_split": false,
+        "stratification_required": false
+      },
+      "execution_policy": {
+        "mode": "sequential",
+        "stop_on_failure": true
+      },
+      "metric_direction": "minimize",
+      "model_ready_matrix_path": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+      "model_search_context_id": "msc_11ff2a7c",
+      "preprocessor_artifact_path": "/app/artifacts/model_ready\\fmp_69180d40\\preprocessor.joblib"
+    },
+    "n_baseline_specs": 1,
+    "n_pipeline_specs": 6,
+    "artifact_manifest": {
+      "n_features": 24,
+      "is_complete": true,
+      "metadata_path": null,
+      "target_column": "gap expt",
+      "feature_columns": [
+        "n_elements",
+        "n_total_atoms",
+        "mean_atomic_number",
+        "max_atomic_number",
+        "min_atomic_number",
+        "mean_electronegativity",
+        "max_electronegativity",
+        "min_electronegativity",
+        "stoichiometric_entropy",
+        "max_element_fraction",
+        "min_element_fraction",
+        "has_transition_metal",
+        "matminer_ion_property__compound possible",
+        "matminer_ion_property__max ionic char",
+        "matminer_ion_property__avg ionic char",
+        "matminer_band_center__band center",
+        "matminer_valence_orbital__avg s valence electrons",
+        "matminer_valence_orbital__avg p valence electrons",
+        "matminer_valence_orbital__avg d valence electrons",
+        "matminer_valence_orbital__avg f valence electrons",
+        "matminer_valence_orbital__frac s valence electrons",
+        "matminer_valence_orbital__frac p valence electrons",
+        "matminer_valence_orbital__frac d valence electrons",
+        "matminer_valence_orbital__frac f valence electrons"
+      ],
+      "model_ready_exists": true,
+      "preprocessor_exists": true,
+      "model_ready_matrix_path": "\\app\\artifacts\\model_ready\\fmp_69180d40\\model_ready_features.parquet",
+      "preprocessor_artifact_path": "\\app\\artifacts\\model_ready\\fmp_69180d40\\preprocessor.joblib"
+    },
+    "llm_advisory_review": {
+      "enabled": true,
+      "checklist": [
+        {
+          "status": "pass",
+          "comment": "All selected models (ridge, lasso, random_forest, gradient_boosting, xgboost, svr) are appropriate for regression tasks.",
+          "dimension": "model_task_compatibility"
+        },
+        {
+          "status": "pass",
+          "comment": "Ridge serves as a linear baseline, which is acceptable. A trivial baseline (e.g., mean predictor) could be added for stronger reference.",
+          "dimension": "baseline_coverage"
+        },
+        {
+          "status": "warning",
+          "comment": "30 total trials across 5 HPO models (lasso, random_forest, gradient_boosting, xgboost, svr) averages only 6 trials each. This is likely insufficient for effective hyperparameter tuning, especially for ensemble models.",
+          "dimension": "hpo_budget_reasonableness"
+        },
+        {
+          "status": "pass",
+          "comment": "k-fold cross-validation is suitable for 4604 samples. The primary MAE metric is appropriate for regression.",
+          "dimension": "validation_strategy_suitability"
+        },
+        {
+          "status": "pass",
+          "comment": "Evaluation metric (MAE) and primary metric (MAE) are consistent and correctly applied for a regression task.",
+          "dimension": "metric_consistency"
+        },
+        {
+          "status": "warning",
+          "comment": "With a small HPO budget, the risk is more about inadequate tuning than severe overfitting. Some models may underfit or fail to reach optimal generalization if hyperparameters are not well explored.",
+          "dimension": "overfitting_risk"
+        },
+        {
+          "status": "pass",
+          "comment": "SVR may be computationally heavy, but with only ~6 trials and moderate data size, resource consumption is expected to be manageable.",
+          "dimension": "resource_cost_risk"
+        },
+        {
+          "status": "warning",
+          "comment": "No random seed is specified for model initialization, data splits, or HPO sampling. This can lead to non-deterministic results and hinder reproducibility.",
+          "dimension": "reproducibility_readiness"
+        }
+      ],
+      "risk_level": "medium",
+      "review_status": "advisory_completed",
+      "blocking_issues": [],
+      "raw_llm_summary": {},
+      "confidence_level": "medium",
+      "execution_impact": "non_blocking",
+      "resource_warnings": [],
+      "non_blocking_risks": [
+        {
+          "message": "Allocating only 30 total trials across 5 HPO-enabled models severely limits hyperparameter exploration, potentially yielding suboptimal model configurations.",
+          "category": "hpo_budget",
+          "severity": "medium",
+          "suggested_action": "Increase max_total_trials to at least 100-200 or use early stopping/pruning to allocate trials more efficiently. Consider prioritizing fewer models for HPO."
+        },
+        {
+          "message": "Absence of a fixed random_state across models, data splits, and HPO sampler may lead to non-reproducible results.",
+          "category": "reproducibility",
+          "severity": "medium",
+          "suggested_action": "Set a global random seed (e.g., random_state=42) for all stochastic components to ensure repeatable experiments."
+        }
+      ],
+      "normalization_notes": [],
+      "future_improvement_suggestions": [
+        "Add a trivial baseline (e.g., DummyRegressor predicting mean/median) to provide a lower-bound performance reference.",
+        "Specify the number of folds (k) in cross-validation to make the evaluation explicit (commonly 5 or 10).",
+        "Consider enabling early stopping for iterative models (gradient_boosting, xgboost) to reduce runtime and overfitting risk.",
+        "Document the HPO search spaces for each model to facilitate review and reproducibility."
+      ]
+    },
+    "ready_for_execution": true,
+    "safety_check_result": {
+      "checks": {
+        "paths_safe": true,
+        "no_script_content": true,
+        "no_direct_code_strings": true,
+        "pipeline_specs_no_code": true
+      },
+      "errors": [],
+      "is_safe": true,
+      "warnings": []
+    },
+    "pipeline_generation_id": "pg_ca19e0cc",
+    "model_search_context_id": "msc_11ff2a7c",
+    "component_binding_result": {
+      "errors": [],
+      "bindings": [
+        {
+          "model_id": "ridge",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "ridge",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "lasso",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "lasso",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "random_forest",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "random_forest",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "gradient_boosting",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "gradient_boosting",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "xgboost",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "xgboost",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        },
+        {
+          "model_id": "svr",
+          "hpo_method": "optuna_tpe",
+          "metric_valid": true,
+          "model_family": "svr",
+          "primary_metric": "MAE",
+          "hpo_registry_valid": true,
+          "validation_strategy": "k_fold_cross_validation",
+          "model_registry_valid": true,
+          "model_ready_matrix_bound": true,
+          "validation_strategy_valid": true,
+          "preprocessor_artifact_bound": true
+        }
+      ],
+      "all_valid": true
+    },
+    "feature_preprocessing_id": "fmp_69180d40",
+    "pipeline_validation_result": {
+      "errors": [],
+      "is_valid": true,
+      "warnings": [],
+      "trial_valid": true,
+      "artifact_valid": true,
+      "registry_valid": true,
+      "structure_valid": true,
+      "data_fields_valid": true,
+      "search_space_valid": true,
+      "task_type_compatible": true,
+      "execution_input_valid": true
+    }
+  }
+}

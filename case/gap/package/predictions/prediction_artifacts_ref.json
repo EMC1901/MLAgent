@@ -1,0 +1,9 @@
+{
+  "prediction_artifact_paths": [
+    "\\app\\artifacts\\training\\pe_6cffadf9\\predictions\\trial_xgboost_0001_24ce1a_fold_0.parquet",
+    "\\app\\artifacts\\training\\pe_6cffadf9\\predictions\\trial_xgboost_0001_24ce1a_fold_1.parquet",
+    "\\app\\artifacts\\training\\pe_6cffadf9\\predictions\\trial_xgboost_0001_24ce1a_fold_2.parquet",
+    "\\app\\artifacts\\training\\pe_6cffadf9\\predictions\\trial_xgboost_0001_24ce1a_fold_3.parquet",
+    "\\app\\artifacts\\training\\pe_6cffadf9\\predictions\\trial_xgboost_0001_24ce1a_fold_4.parquet"
+  ]
+}

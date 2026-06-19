@@ -1,0 +1,678 @@
+{
+  "workflow_plan_id": "plan_5628adcc",
+  "status": "planned_with_warning",
+  "task_type": "regression",
+  "primary_metric": "MAE",
+  "feature_type": "composition_descriptors",
+  "validation_strategy": "k_fold_cross_validation",
+  "hpo_enabled": true,
+  "interpretability_enabled": true,
+  "feature_strategy": {
+    "strategy_id": "comp_alloy_strength_v2",
+    "feature_type": "composition_descriptors",
+    "strategy_version": "2.0.0",
+    "fallback_strategy": {
+      "fallback_actions": [
+        "basic_composition"
+      ],
+      "trigger_conditions": [
+        "pymatgen fails to parse >10% of composition strings",
+        "matminer featurizers throw unhandled exceptions"
+      ]
+    },
+    "semantic_featurizers": [],
+    "executable_featurizers": [
+      "pymatgen_composition_parser",
+      "matminer_magpie",
+      "matminer_element_property",
+      "matminer_stoichiometry",
+      "matminer_valence_orbital"
+    ],
+    "recommended_featurizers": [
+      "matminer_magpie",
+      "matminer_valence_orbital"
+    ],
+    "feature_scaling_required": true,
+    "rejected_feature_actions": [
+      {
+        "reason": "Steels are metallic alloys where metallic bonding dominates; formal oxidation states are less physically meaningful than in ceramics or ionic compounds.",
+        "evidence": [
+          "Metallic bonding delocalizes electrons, making integer oxidation states a poor representation of the electronic structure."
+        ],
+        "capability_id": "composition_oxidation_states"
+      },
+      {
+        "reason": "Ionic compound features assume ionic bonding character, which is not applicable to metallic systems like steel.",
+        "evidence": [
+          "Steels are primarily iron-carbon alloys with metallic bonding, not ionic crystals."
+        ],
+        "capability_id": "composition_ionic_compound_features"
+      },
+      {
+        "reason": "Band center features are more relevant for semiconductors and catalysts, not for predicting mechanical properties of metallic alloys.",
+        "evidence": [
+          "Mechanical strength in metals is governed by dislocation mechanics and phase fractions, not band gap or band center energetics."
+        ],
+        "capability_id": "composition_band_center"
+      },
+      {
+        "reason": "No crystal structure data is available in the dataset.",
+        "evidence": [
+          "Dataset schema only contains 'composition' and 'yield strength' columns."
+        ],
+        "capability_id": "structure_basic_features"
+      }
+    ],
+    "selected_feature_actions": [
+      {
+        "priority": "required",
+        "action_id": "feat_magpie",
+        "parameters": {},
+        "capability_id": "composition_magpie_features",
+        "input_columns": [
+          "composition"
+        ],
+        "decision_rationale": {
+          "risk": "Generates 132 features, which requires aggressive downstream feature selection to prevent overfitting on 312 samples.",
+          "reason": "Magpie descriptors capture elemental property statistics weighted by composition, which are highly predictive for alloy properties and address the high drop-rate of generic features in iteration 1.",
+          "evidence": [
+            "Ward et al. 2016 demonstrated Magpie features' effectiveness for alloy property prediction",
+            "Iteration feedback explicitly requested domain-specific featurizers like Magpie to reduce noise"
+          ],
+          "fallback": "composition_elemental_statistics",
+          "expected_benefit": "Provides physically meaningful features that generalize better than generic descriptors, reducing the 73% drop rate seen in iteration 1.",
+          "material_science_basis": "Macroscopic properties of alloys are heavily influenced by the statistical distribution of elemental properties like atomic radius, electronegativity, and valence electrons."
+        },
+        "output_feature_group": "composition_magpie"
+      },
+      {
+        "priority": "recommended",
+        "action_id": "feat_elemental_stats",
+        "parameters": {},
+        "capability_id": "composition_elemental_statistics",
+        "input_columns": [
+          "composition"
+        ],
+        "decision_rationale": {
+          "risk": "High collinearity with Magpie features, requiring correlation-based filtering.",
+          "reason": "Complements Magpie with additional elemental property statistics from matminer's ElementProperty to ensure a broad coverage of physical descriptors.",
+          "evidence": [
+            "Standard matminer featurizer for composition-based regression",
+            "Provides diverse elemental statistics not fully covered by Magpie"
+          ],
+          "fallback": "basic_composition",
+          "expected_benefit": "Increases the pool of physically relevant features for the feature selection step to choose from.",
+          "material_science_basis": "Elemental properties such as melting point, density, and bulk modulus correlate with mechanical strength and phase stability in steels."
+        },
+        "output_feature_group": "composition_elemental_statistics"
+      },
+      {
+        "priority": "recommended",
+        "action_id": "feat_stoichiometry",
+        "parameters": {},
+        "capability_id": "composition_stoichiometry",
+        "input_columns": [
+          "composition"
+        ],
+        "decision_rationale": {
+          "risk": "Limited predictive power on its own for complex mechanical properties.",
+          "reason": "Captures basic compositional ratios and number of elements, which are fundamental to alloy design and provide low-dimensional, robust features.",
+          "evidence": [
+            "Low computational cost",
+            "Provides essential baseline compositional context"
+          ],
+          "fallback": "basic_composition",
+          "expected_benefit": "Adds low-dimensional, highly interpretable features that are robust to noise and improve the sample-to-feature ratio.",
+          "material_science_basis": "The number of constituent elements and their atomic fractions directly dictate the formation of solid solutions and intermetallic phases in steels."
+        },
+        "output_feature_group": "composition_stoichiometry"
+      },
+      {
+        "priority": "required",
+        "action_id": "feat_valence",
+        "parameters": {},
+        "capability_id": "composition_valence_orbital",
+        "input_columns": [
+          "composition"
+        ],
+        "decision_rationale": {
+          "risk": "May be less relevant for non-transition metal alloys, but steels are Fe-based transition metal alloys.",
+          "reason": "Valence electron concentration is a critical factor in determining the phase stability and strength of metallic alloys, directly addressing the need for domain-specific features.",
+          "evidence": [
+            "Valence electron count (VEC) is a known Hume-Rothery rule parameter for alloy phase prediction",
+            "Iteration feedback highlighted orbital features as a key improvement lever"
+          ],
+          "fallback": "composition_elemental_statistics",
+          "expected_benefit": "Provides highly specific, low-dimensional features (4 features) with strong physical grounding for steel strength.",
+          "material_science_basis": "The d-band electron concentration strongly influences the metallic bonding strength and dislocation mobility, directly affecting yield strength in transition metal alloys like steel."
+        },
+        "output_feature_group": "composition_valence_orbital"
+      }
+    ],
+    "input_modality_assessment": {
+      "rationale": "The dataset only contains chemical composition strings. No crystal structure or pre-computed descriptor columns are available.",
+      "usable_modalities": [
+        "composition"
+      ],
+      "detected_modalities": [
+        "composition"
+      ],
+      "unusable_modalities": [
+        "structure",
+        "descriptor"
+      ]
+    },
+    "feature_group_expectations": [
+      {
+        "feature_group": "composition_magpie",
+        "expected_signal": "High - captures weighted elemental statistics crucial for alloy strength.",
+        "known_limitations": "High dimensionality (132 features) requires aggressive selection."
+      },
+      {
+        "feature_group": "composition_valence_orbital",
+        "expected_signal": "High - VEC is a known predictor for phase stability and strength in steels.",
+        "known_limitations": "Only 4 features, may not capture complex multi-element interactions alone."
+      }
+    ],
+    "feature_selection_required": true,
+    "requires_structure_features": false,
+    "unsupported_future_featurizers": []
+  },
+  "model_strategy": {
+    "baseline_models": [
+      "ridge"
+    ],
+    "preferred_model_bias": "low_variance_high_bias",
+    "rejected_model_actions": [
+      {
+        "reason": "312 samples is far too few for neural networks to generalize without severe overfitting, regardless of regularization.",
+        "evidence": [
+          "Deep learning typically requires thousands of samples for tabular data regression."
+        ],
+        "model_family": "deep_neural_networks"
+      },
+      {
+        "reason": "Computational complexity scales cubically with sample size, and kernel selection for high-dimensional composition features is non-trivial and prone to overfitting.",
+        "evidence": [
+          "GP regression struggles with >50 features without aggressive dimensionality reduction."
+        ],
+        "model_family": "gaussian_processes"
+      },
+      {
+        "reason": "Less interpretable than tree models or linear models, and RBF kernel can easily overfit small datasets with many features.",
+        "evidence": [
+          "User priority includes interpretability, which SVMs lack compared to SHAP-analyzed tree models or linear coefficients."
+        ],
+        "model_family": "support_vector_machines"
+      }
+    ],
+    "selected_model_actions": [
+      {
+        "priority": "required",
+        "action_id": "model_xgboost_constrained",
+        "model_family": "xgboost",
+        "decision_rationale": {
+          "risk": "Even with constraints, may still overfit if feature selection is not aggressive enough.",
+          "reason": "Tree-based models capture non-linear composition-property relationships well, but must be strictly constrained to prevent overfitting on the small dataset (312 samples).",
+          "evidence": [
+            "XGBoost performed well in iteration 1 but showed high variance",
+            "Iteration feedback explicitly requested constraining max_depth to 2-4 and n_estimators to 50-150"
+          ],
+          "fallback": "elastic_net",
+          "expected_performance": "Good MAE with significantly reduced fold variance compared to iteration 1."
+        }
+      },
+      {
+        "priority": "recommended",
+        "action_id": "model_lightgbm_constrained",
+        "model_family": "lightgbm",
+        "decision_rationale": {
+          "risk": "Hyperparameter tuning space needs careful constraint to avoid deep trees.",
+          "reason": "Alternative gradient boosting framework that handles small datasets well with leaf-wise growth and strong L1/L2 regularization.",
+          "evidence": [
+            "Often faster and less prone to overfitting than XGBoost on small tabular data when properly regularized"
+          ],
+          "fallback": "random_forest",
+          "expected_performance": "Comparable to XGBoost, potentially better generalization with strong regularization."
+        }
+      },
+      {
+        "priority": "recommended",
+        "action_id": "model_elastic_net",
+        "model_family": "elastic_net",
+        "decision_rationale": {
+          "risk": "May underfit if the true composition-strength relationship is highly non-linear.",
+          "reason": "Linear model with L1/L2 regularization provides a strong, interpretable baseline that is highly resistant to overfitting on small datasets with reduced feature counts.",
+          "evidence": [
+            "High sample-to-feature ratio after aggressive feature selection will favor linear models",
+            "Provides interpretable coefficients for materials science insights"
+          ],
+          "fallback": "ridge",
+          "expected_performance": "Lower accuracy than optimized tree models, but highly stable across CV folds."
+        }
+      }
+    ],
+    "excluded_model_families": [
+      "deep_neural_networks",
+      "gaussian_processes"
+    ],
+    "candidate_model_families": [
+      "tree_based_ensemble",
+      "linear_regularized"
+    ],
+    "model_selection_rationale_summary": "To address the high fold variance and overfitting observed in iteration 1, tree-based models are constrained to lower complexity (shallow depths, fewer estimators, strong regularization). Linear regularized models are included as robust alternatives that benefit from the improved sample-to-feature ratio."
+  },
+  "preprocessing_intent": {
+    "intent_id": "preprocess_alloy_strength_v2",
+    "non_final_notes": "Final executable preprocessing decisions will be made by Feature Preprocessing after Feature Engineering output is available.",
+    "high_level_goals": [
+      "handle_missing_values",
+      "standardize_numeric_features",
+      "remove_highly_correlated_features",
+      "aggressive_feature_selection_to_improve_sample_to_feature_ratio"
+    ],
+    "risks_to_check_after_feature_engineering": [
+      "High collinearity between Magpie and ElementProperty features",
+      "Presence of constant or near-constant features due to limited elemental diversity in steels",
+      "Target variable skewness and outliers affecting model training"
+    ]
+  },
+  "workflow_rationale": {
+    "known_risks": [
+      "Yield strength is heavily dependent on processing history and microstructure, which are absent in this composition-only dataset, limiting the theoretical upper bound of model accuracy.",
+      "Even with constrained hyperparameters, tree-based models may still overfit if the selected features contain spurious correlations.",
+      "Target variable skewness and outliers (13 detected) may disproportionately affect MAE and RMSE if not properly handled via transformation."
+    ],
+    "key_assumptions": [
+      "The composition strings are valid chemical formulas that can be parsed by pymatgen.",
+      "Yield strength is primarily driven by composition-dependent factors (e.g., solid solution strengthening, phase fractions) that can be approximated by elemental statistics and valence electron counts.",
+      "Aggressive feature selection will retain the most physically relevant descriptors while discarding noise."
+    ],
+    "overall_reasoning_summary": "This iteration addresses the high cross-validation fold variance and model instability identified in iteration 1. The root cause was traced to suboptimal feature engineering (generic descriptors with high drop rates) and excessive model complexity (deep XGBoost trees on 312 samples). The revised strategy introduces domain-specific composition featurizers (Magpie, Valence Orbital) to generate physically meaningful features, enforces aggressive feature selection to improve the sample-to-feature ratio to ~13:1, and strictly constrains tree-based model hyperparameters (max_depth 2-4, n_estimators 50-150) to favor low-variance, high-bias models. Linear regularized models are also included as robust, interpretable alternatives."
+  },
+  "plan_detail": {
+    "status": "planned_with_warning",
+    "task_id": "task_15f3a389",
+    "created_at": "2026-06-08T15:50:24.128591",
+    "updated_at": "2026-06-08T15:50:24.128591",
+    "llm_request": {
+      "model": "qwen3.7-max-2026-05-20",
+      "provider": "dashscope",
+      "user_message": "## Task Context\n{\n  \"task_name\": \"matbench_steels_v4\",\n  \"task_description\": \"This task is based on the matbench_steels dataset from Matbench v0.1, aiming to develop machine learning models for predicting the yield strength of steels. The dataset contains 312 deduplicated experimental steel samples, where the input is the chemical composition of each steel and the prediction target is the experimentally measured yield strength, reported in MPa.\\n\\nSince the dataset does not include crystal structures, heat treatment conditions, processing parameters, or microstructural information, this task is formulated as a composition-only materials property regression problem. During modeling, the steel formulas are first parsed into elemental compositions, which are then transformed into numerical composition-based descriptors, such as elemental fractions, statistics of atomic properties, electronegativity, atomic radius, valence electron count, and related features.\\n\\nRegression models such as Random Forest, Gradient Boosting, and Support Vector Regression can then be used to learn the nonlinear relationship between chemical composition and yield strength. Model performance can be evaluated using cross-validation, with mean absolute error (MAE), root mean squared error (RMSE), and the coefficient of determination (R2) as evaluation metrics.\\n\\nThe main challenges of this task lie in the small sample size, limited input information, and the fact that steel strength is jointly influenced by composition, processing history, and microstructure. Therefore, special attention should be paid to model generalization, overfitting control, and the reliability of the predicted results.\",\n  \"material_system\": \"metal alloys\",\n  \"task_type\": \"regression\",\n  \"input_type\": \"composition\",\n  \"prediction_target\": \"yield strength\",\n  \"target_column\": \"yield strength\",\n  \"evaluation_metric\": \"MAE\",\n  \"user_priority\": [\n    \"accuracy\",\n    \"interpretability\"\n  ],\n  \"constraints\": [\n    \"The decisions made by AI should be grounded in materials science knowledge and accompanied by the rationale behind each decision.\"\n  ]\n}\n\n## Interpretation Context\n{\n  \"interpreted_task_type\": \"regression\",\n  \"interpreted_input_modality\": \"composition\",\n  \"interpreted_material_domain\": \"metal alloys\",\n  \"interpreted_prediction_target\": {\n    \"raw_target\": \"yield strength\",\n    \"target_unit\": \"MPa\",\n    \"target_category\": \"mechanical_property\",\n    \"normalized_target\": \"yield_strength\",\n    \"target_description\": \"Experimentally measured yield strength of steels\"\n  },\n  \"modeling_intent\": {\n    \"primary_goal\": \"property_prediction\",\n    \"secondary_goals\": [\n      \"interpretability_analysis\",\n      \"benchmark_comparison\"\n    ],\n    \"preferred_metric\": \"MAE\",\n    \"optimization_direction\": \"minimize_error\"\n  },\n  \"planning_hint\": {\n    \"task_family\": \"supervised_regression\",\n    \"input_representation\": \"composition-based descriptors (e.g., Magpie, elemental fractions, atomic properties)\",\n    \"suggested_metric_direction\": \"minimize\",\n    \"requires_feature_engineering\": true,\n    \"requires_model_interpretability\": true\n  },\n  \"constraint_interpretation\": {\n    \"hard_constraints\": [\n      \"Decisions must be grounded in materials science knowledge\",\n      \"Provide rationale for each decision\"\n    ],\n    \"soft_constraints\": [\n      \"Prioritize accuracy\",\n      \"Prioritize interpretability\",\n      \"Control overfitting due to small sample size\"\n    ],\n    \"potential_conflicts\": [\n      \"High accuracy models might reduce interpretability\",\n      \"Small dataset size limits complex model capacity and generalization\"\n    ]\n  },\n  \"recommended_defaults\": {\n    \"evaluation_metric\": \"MAE\",\n    \"validation_strategy\": \"k-fold cross-validation\",\n    \"baseline_requirement\": true\n  },\n  \"ambiguities\": [\n    {\n      \"field\": \"expected_input_columns\",\n      \"message\": \"Exact column name for composition in the specific matbench version is not explicitly stated (usually 'composition' or 'formula').\",\n      \"severity\": \"low\"\n    }\n  ],\n  \"warnings\": [\n    \"Small dataset size (312 samples) poses a high risk of overfitting, especially with high-dimensional composition descriptors.\",\n    \"Yield strength is heavily dependent on processing history and microstructure, which are absent in this composition-only dataset, limiting the theoretical upper bound of model accuracy.\"\n  ],\n  \"confidence_score\": 0.95\n}\n\n## Data Context\n{\n  \"dataset_source\": {\n    \"loader\": \"file\",\n    \"file_id\": \"file_a59d1dc3.csv\",\n    \"file_name\": \"file_a59d1dc3.csv\",\n    \"file_path\": null,\n    \"loaded_from\": \"file_a59d1dc3.csv\",\n    \"source_type\": \"uploaded_file\",\n    \"dataset_reference\": \"file_a59d1dc3.csv\"\n  },\n  \"dataset_schema\": {\n    \"columns\": [\n      {\n        \"name\": \"composition\",\n        \"role\": \"input\",\n        \"dtype\": \"object\",\n        \"missing_count\": 0,\n        \"missing_ratio\": 0.0\n      },\n      {\n        \"name\": \"yield strength\",\n        \"role\": \"target\",\n        \"dtype\": \"float64\",\n        \"missing_count\": 0,\n        \"missing_ratio\": 0.0\n      }\n    ],\n    \"n_columns\": 2,\n    \"n_samples\": 312,\n    \"input_columns\": [\n      \"composition\"\n    ],\n    \"target_column\": \"yield strength\"\n  },\n  \"modality_check\": {\n    \"messages\": [],\n    \"is_consistent\": true,\n    \"detected_input_modality\": \"composition\",\n    \"expected_input_modality\": \"composition\"\n  },\n  \"target_profile\": {\n    \"max\": 2510.3,\n    \"min\": 1005.9,\n    \"std\": 301.89416859686656,\n    \"mean\": 1420.9983974358975,\n    \"dtype\": \"float64\",\n    \"median\": 1344.2,\n    \"skewness\": 1.40354791764142,\n    \"task_type\": \"regression\",\n    \"missing_count\": 0,\n    \"missing_ratio\": 0.0,\n    \"outlier_count\": 13,\n    \"target_column\": \"yield strength\"\n  },\n  \"data_quality\": {\n    \"errors\": [],\n    \"warnings\": [],\n    \"duplicates\": {\n      \"duplicate_rows\": 0,\n      \"duplicate_input_samples\": 0\n    },\n    \"invalid_rows\": {\n      \"count\": 0,\n      \"examples\": []\n    },\n    \"missing_values\": {\n      \"total_missing\": 0,\n      \"columns_with_missing\": []\n    }\n  },\n  \"profiling_summary\": {\n    \"is_loadable\": true,\n    \"main_issues\": [],\n    \"quality_level\": \"good\",\n    \"is_usable_for_ml\": true,\n    \"sample_size_level\": \"small\",\n    \"recommended_next_step\": \"ready_for_workflow_planning\"\n  },\n  \"workflow_planning_input\": {\n    \"n_columns\": 2,\n    \"n_samples\": 312,\n    \"task_type\": \"regression\",\n    \"input_columns\": [\n      \"composition\"\n    ],\n    \"quality_level\": \"good\",\n    \"target_column\": \"yield strength\",\n    \"has_duplicates\": false,\n    \"input_modality\": \"composition\",\n    \"n_features_raw\": 1,\n    \"is_usable_for_ml\": true,\n    \"requires_cleaning\": false,\n    \"sample_size_level\": \"small\",\n    \"has_missing_values\": false,\n    \"target_distribution\": {\n      \"is_skewed\": true,\n      \"has_outliers\": true\n    },\n    \"requires_target_transformation_check\": true\n  }\n}\n\n## Feature Engineering Capability Registry\n### All Registered Capabilities (for reference)\n[\n  {\n    \"capability_id\": \"composition_elemental_statistics\",\n    \"display_name\": \"Elemental Property Statistics (composition-based)\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"featurizer_ids\": [\n      \"basic_composition\",\n      \"matminer_element_property\"\n    ]\n  },\n  {\n    \"capability_id\": \"composition_stoichiometry\",\n    \"display_name\": \"Stoichiometry Features (fractional compositions)\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"featurizer_ids\": [\n      \"basic_composition\",\n      \"matminer_stoichiometry\"\n    ]\n  },\n  {\n    \"capability_id\": \"composition_oxidation_states\",\n    \"display_name\": \"Oxidation State Features\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"featurizer_ids\": [\n      \"matminer_oxidation_states\"\n    ]\n  },\n  {\n    \"capability_id\": \"composition_ionic_compound_features\",\n    \"display_name\": \"Ionic Compound Features (electronegativity, ionic radii)\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"featurizer_ids\": [\n      \"matminer_ion_property\"\n    ]\n  },\n  {\n    \"capability_id\": \"composition_band_center\",\n    \"display_name\": \"Band Center Features\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"featurizer_ids\": [\n      \"matminer_band_center\"\n    ]\n  },\n  {\n    \"capability_id\": \"structure_basic_features\",\n    \"display_name\": \"Basic Structure Features (density, volume, lattice params)\",\n    \"status\": \"available\",\n    \"feature_family\": \"structure\",\n    \"featurizer_ids\": [\n      \"pymatgen_structure_parser\",\n      \"matminer_structure_basic\"\n    ]\n  },\n  {\n    \"capability_id\": \"structure_site_features\",\n    \"display_name\": \"Site Fingerprints (coordination, neighbor distances)\",\n    \"status\": \"available\",\n    \"feature_family\": \"structure\",\n    \"featurizer_ids\": [\n      \"matminer_site_stats\"\n    ]\n  },\n  {\n    \"capability_id\": \"structure_density_features\",\n    \"display_name\": \"Density and Packing Features\",\n    \"status\": \"available\",\n    \"feature_family\": \"structure\",\n    \"featurizer_ids\": [\n      \"matminer_structure_basic\"\n    ]\n  },\n  {\n    \"capability_id\": \"descriptor_numeric_basic\",\n    \"display_name\": \"Pre-computed Numeric Descriptors (basic pass-through)\",\n    \"status\": \"available\",\n    \"feature_family\": \"descriptor\",\n    \"featurizer_ids\": [\n      \"descriptor_passthrough\",\n      \"descriptor_cleaner\"\n    ]\n  },\n  {\n    \"capability_id\": \"descriptor_statistical_features\",\n    \"display_name\": \"Statistical Features from Descriptors (rolling stats, ratios)\",\n    \"status\": \"available\",\n    \"feature_family\": \"descriptor\",\n    \"featurizer_ids\": [\n      \"descriptor_statistical\"\n    ]\n  },\n  {\n    \"capability_id\": \"metadata_feature_extractor\",\n    \"display_name\": \"Metadata Column Extractor (experimental parameters)\",\n    \"status\": \"available\",\n    \"feature_family\": \"metadata\",\n    \"featurizer_ids\": [\n      \"metadata_feature_extractor\"\n    ]\n  },\n  {\n    \"capability_id\": \"composition_magpie_features\",\n    \"display_name\": \"Magpie Composition Features (matminer-based)\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"featurizer_ids\": [\n      \"matminer_magpie\"\n    ]\n  },\n  {\n    \"capability_id\": \"composition_valence_orbital\",\n    \"display_name\": \"Valence Orbital Composition Features\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"featurizer_ids\": [\n      \"matminer_valence_orbital\"\n    ]\n  }\n]\n\n### Available Capabilities for This Task\n[\n  {\n    \"capability_id\": \"composition_elemental_statistics\",\n    \"display_name\": \"Elemental Property Statistics (composition-based)\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [\n      \"formula\"\n    ],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"composition_elemental_statistics\"\n    ],\n    \"material_use_cases\": [\n      \"formation_energy\",\n      \"band_gap\",\n      \"elasticity\",\n      \"stability\"\n    ],\n    \"dependencies\": [\n      \"pymatgen\",\n      \"matminer\"\n    ],\n    \"estimated_cost\": \"medium\",\n    \"known_limitations\": [\n      \"Requires valid chemical formulas\",\n      \"Limited for multi-element compounds > 5 elements\"\n    ],\n    \"fallback_capability_ids\": [\n      \"descriptor_numeric_basic\"\n    ],\n    \"featurizer_ids\": [\n      \"basic_composition\",\n      \"matminer_element_property\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"composition_stoichiometry\",\n    \"display_name\": \"Stoichiometry Features (fractional compositions)\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [\n      \"formula\"\n    ],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"composition_stoichiometry\"\n    ],\n    \"material_use_cases\": [\n      \"formation_energy\",\n      \"thermodynamic_stability\",\n      \"phase_prediction\"\n    ],\n    \"dependencies\": [\n      \"pymatgen\",\n      \"matminer\"\n    ],\n    \"estimated_cost\": \"low\",\n    \"known_limitations\": [\n      \"Redundant for single-element systems\"\n    ],\n    \"fallback_capability_ids\": [\n      \"descriptor_numeric_basic\"\n    ],\n    \"featurizer_ids\": [\n      \"basic_composition\",\n      \"matminer_stoichiometry\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"composition_oxidation_states\",\n    \"display_name\": \"Oxidation State Features\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [\n      \"formula\"\n    ],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"composition_oxidation_states\"\n    ],\n    \"material_use_cases\": [\n      \"formation_energy\",\n      \"stability\",\n      \"redox_potential\"\n    ],\n    \"dependencies\": [\n      \"pymatgen\",\n      \"matminer\"\n    ],\n    \"estimated_cost\": \"medium\",\n    \"known_limitations\": [\n      \"Assumes common oxidation states\",\n      \"May miss exotic valence states\"\n    ],\n    \"fallback_capability_ids\": [\n      \"composition_elemental_statistics\"\n    ],\n    \"featurizer_ids\": [\n      \"matminer_oxidation_states\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"composition_ionic_compound_features\",\n    \"display_name\": \"Ionic Compound Features (electronegativity, ionic radii)\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [\n      \"formula\"\n    ],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"composition_ionic_compound\"\n    ],\n    \"material_use_cases\": [\n      \"formation_energy\",\n      \"band_gap\",\n      \"dielectric_constant\"\n    ],\n    \"dependencies\": [\n      \"pymatgen\",\n      \"matminer\"\n    ],\n    \"estimated_cost\": \"medium\",\n    \"known_limitations\": [\n      \"Assumes ionic bonding character\",\n      \"Less relevant for metallic systems\"\n    ],\n    \"fallback_capability_ids\": [\n      \"composition_elemental_statistics\"\n    ],\n    \"featurizer_ids\": [\n      \"matminer_ion_property\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"composition_band_center\",\n    \"display_name\": \"Band Center Features\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"supported_task_types\": [\n      \"regression\"\n    ],\n    \"required_input_columns\": [\n      \"formula\"\n    ],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"composition_band_center\"\n    ],\n    \"material_use_cases\": [\n      \"band_gap\",\n      \"catalytic_activity\",\n      \"formation_energy\"\n    ],\n    \"dependencies\": [\n      \"pymatgen\",\n      \"matminer\"\n    ],\n    \"estimated_cost\": \"medium\",\n    \"known_limitations\": [\n      \"Requires orbital energy data\",\n      \"Less accurate for heavy elements\"\n    ],\n    \"fallback_capability_ids\": [\n      \"composition_elemental_statistics\"\n    ],\n    \"featurizer_ids\": [\n      \"matminer_band_center\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"structure_basic_features\",\n    \"display_name\": \"Basic Structure Features (density, volume, lattice params)\",\n    \"status\": \"available\",\n    \"feature_family\": \"structure\",\n    \"input_modalities\": [\n      \"structure\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [\n      \"structure\"\n    ],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"structure_basic\"\n    ],\n    \"material_use_cases\": [\n      \"elasticity\",\n      \"thermal_expansion\",\n      \"formation_energy\"\n    ],\n    \"dependencies\": [\n      \"pymatgen\",\n      \"matminer\"\n    ],\n    \"estimated_cost\": \"medium\",\n    \"known_limitations\": [\n      \"Requires CIF or POSCAR structure input\",\n      \"Cannot handle disordered structures well\"\n    ],\n    \"fallback_capability_ids\": [\n      \"descriptor_numeric_basic\"\n    ],\n    \"featurizer_ids\": [\n      \"pymatgen_structure_parser\",\n      \"matminer_structure_basic\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"structure_site_features\",\n    \"display_name\": \"Site Fingerprints (coordination, neighbor distances)\",\n    \"status\": \"available\",\n    \"feature_family\": \"structure\",\n    \"input_modalities\": [\n      \"structure\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [\n      \"structure\"\n    ],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"structure_site\"\n    ],\n    \"material_use_cases\": [\n      \"band_gap\",\n      \"formation_energy\",\n      \"ionic_conductivity\"\n    ],\n    \"dependencies\": [\n      \"pymatgen\",\n      \"matminer\"\n    ],\n    \"estimated_cost\": \"high\",\n    \"known_limitations\": [\n      \"Computationally heavy for large supercells\",\n      \"Requires site-specific information\"\n    ],\n    \"fallback_capability_ids\": [\n      \"structure_basic_features\"\n    ],\n    \"featurizer_ids\": [\n      \"matminer_site_stats\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"structure_density_features\",\n    \"display_name\": \"Density and Packing Features\",\n    \"status\": \"available\",\n    \"feature_family\": \"structure\",\n    \"input_modalities\": [\n      \"structure\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [\n      \"structure\"\n    ],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"structure_density\"\n    ],\n    \"material_use_cases\": [\n      \"elasticity\",\n      \"hardness\",\n      \"thermal_conductivity\"\n    ],\n    \"dependencies\": [\n      \"pymatgen\",\n      \"matminer\"\n    ],\n    \"estimated_cost\": \"low\",\n    \"known_limitations\": [\n      \"Only meaningful for periodic structures\"\n    ],\n    \"fallback_capability_ids\": [\n      \"descriptor_numeric_basic\"\n    ],\n    \"featurizer_ids\": [\n      \"matminer_structure_basic\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"descriptor_numeric_basic\",\n    \"display_name\": \"Pre-computed Numeric Descriptors (basic pass-through)\",\n    \"status\": \"available\",\n    \"feature_family\": \"descriptor\",\n    \"input_modalities\": [\n      \"descriptor\",\n      \"descriptor_table\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"descriptor_numeric\"\n    ],\n    \"material_use_cases\": [\n      \"formation_energy\",\n      \"band_gap\",\n      \"elasticity\",\n      \"generic_material_property\"\n    ],\n    \"dependencies\": [],\n    \"estimated_cost\": \"low\",\n    \"known_limitations\": [\n      \"No new feature generation\",\n      \"Relies on pre-existing descriptor columns\"\n    ],\n    \"fallback_capability_ids\": [],\n    \"featurizer_ids\": [\n      \"descriptor_passthrough\",\n      \"descriptor_cleaner\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"descriptor_statistical_features\",\n    \"display_name\": \"Statistical Features from Descriptors (rolling stats, ratios)\",\n    \"status\": \"available\",\n    \"feature_family\": \"descriptor\",\n    \"input_modalities\": [\n      \"descriptor\",\n      \"descriptor_table\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"descriptor_statistical\"\n    ],\n    \"material_use_cases\": [\n      \"formation_energy\",\n      \"thermal_conductivity\",\n      \"elasticity\"\n    ],\n    \"dependencies\": [\n      \"pandas\"\n    ],\n    \"estimated_cost\": \"low\",\n    \"known_limitations\": [\n      \"May generate correlated features\",\n      \"Requires at least 2 numeric columns\"\n    ],\n    \"fallback_capability_ids\": [\n      \"descriptor_numeric_basic\"\n    ],\n    \"featurizer_ids\": [\n      \"descriptor_statistical\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"metadata_feature_extractor\",\n    \"display_name\": \"Metadata Column Extractor (experimental parameters)\",\n    \"status\": \"available\",\n    \"feature_family\": \"metadata\",\n    \"input_modalities\": [\n      \"composition\",\n      \"structure\",\n      \"descriptor_table\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"metadata\"\n    ],\n    \"material_use_cases\": [\n      \"any_property_with_experimental_metadata\"\n    ],\n    \"dependencies\": [],\n    \"estimated_cost\": \"low\",\n    \"known_limitations\": [\n      \"Only extracts existing metadata columns\",\n      \"No synthesis of new metadata features\"\n    ],\n    \"fallback_capability_ids\": [],\n    \"featurizer_ids\": [\n      \"metadata_feature_extractor\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"composition_magpie_features\",\n    \"display_name\": \"Magpie Composition Features (matminer-based)\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [\n      \"formula\"\n    ],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"composition_magpie\"\n    ],\n    \"material_use_cases\": [\n      \"formation_energy\",\n      \"band_gap\",\n      \"elasticity\"\n    ],\n    \"dependencies\": [\n      \"matminer\"\n    ],\n    \"estimated_cost\": \"medium\",\n    \"known_limitations\": [\n      \"Requires matminer >= 0.7.0\"\n    ],\n    \"fallback_capability_ids\": [\n      \"composition_elemental_statistics\"\n    ],\n    \"featurizer_ids\": [\n      \"matminer_magpie\"\n    ],\n    \"version\": \"1.0.0\"\n  },\n  {\n    \"capability_id\": \"composition_valence_orbital\",\n    \"display_name\": \"Valence Orbital Composition Features\",\n    \"status\": \"available\",\n    \"feature_family\": \"composition\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"supported_task_types\": [\n      \"regression\",\n      \"classification\"\n    ],\n    \"required_input_columns\": [\n      \"formula\"\n    ],\n    \"optional_input_columns\": [],\n    \"output_feature_groups\": [\n      \"composition_valence_orbital\"\n    ],\n    \"material_use_cases\": [\n      \"formation_energy\",\n      \"band_gap\",\n      \"elasticity\"\n    ],\n    \"dependencies\": [\n      \"matminer\"\n    ],\n    \"estimated_cost\": \"medium\",\n    \"known_limitations\": [\n      \"Requires matminer >= 0.7.0\"\n    ],\n    \"fallback_capability_ids\": [\n      \"composition_elemental_statistics\"\n    ],\n    \"featurizer_ids\": [\n      \"matminer_valence_orbital\"\n    ],\n    \"version\": \"1.0.0\"\n  }\n]\n\n### Planned Capabilities (for awareness — do NOT use in selected_feature_actions)\n[\n  {\n    \"capability_id\": \"hybrid_composition_descriptor_fusion\",\n    \"display_name\": \"Composition-Descriptor Fusion Features\",\n    \"feature_family\": \"hybrid\",\n    \"why_not_available\": \"No featurizer implementation yet\"\n  },\n  {\n    \"capability_id\": \"graph_neural_network_embeddings\",\n    \"display_name\": \"Graph Neural Network Embeddings (Crystal Graph)\",\n    \"feature_family\": \"structure\",\n    \"why_not_available\": \"No featurizer implementation yet\"\n  }\n]\n\n### Registry Snapshot Version\n1.0.0\n\n## Available Featurizers (for executable_featurizers field)\n[\n  {\n    \"id\": \"basic_composition\",\n    \"display_name\": \"Basic Composition Descriptors\",\n    \"feature_type\": \"composition_descriptors\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"description\": \"Generate lightweight composition-based descriptors from chemical formulas using a built-in 103-element property table. Always available as fallback.\",\n    \"estimated_feature_count\": \"16\"\n  },\n  {\n    \"id\": \"descriptor_passthrough\",\n    \"display_name\": \"Existing Descriptor Passthrough\",\n    \"feature_type\": \"existing_descriptors\",\n    \"input_modalities\": [\n      \"descriptor\"\n    ],\n    \"description\": \"Use existing numeric descriptor columns directly as features.\",\n    \"estimated_feature_count\": \"variable\"\n  },\n  {\n    \"id\": \"pymatgen_composition_parser\",\n    \"display_name\": \"Pymatgen Composition Parser\",\n    \"feature_type\": \"composition_descriptors\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"description\": \"Parse chemical formulas using pymatgen.core.Composition for standardized composition representation. Required by all matminer-based featurizers.\",\n    \"estimated_feature_count\": \"0\"\n  },\n  {\n    \"id\": \"descriptor_cleaner\",\n    \"display_name\": \"Descriptor Cleaner\",\n    \"feature_type\": \"existing_descriptors\",\n    \"input_modalities\": [\n      \"descriptor\"\n    ],\n    \"description\": \"Enhanced descriptor cleaning: identify numeric columns, exclude non-feature columns, drop all-NaN/constant columns, mark high-missing-ratio columns, output feature group metadata.\",\n    \"estimated_feature_count\": \"variable\"\n  },\n  {\n    \"id\": \"matminer_stoichiometry\",\n    \"display_name\": \"Matminer Stoichiometry Features\",\n    \"feature_type\": \"composition_descriptors\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"description\": \"Generate stoichiometric composition features (num_atoms, atomic fractions, etc.) using matminer.featurizers.composition.Stoichiometry.\",\n    \"estimated_feature_count\": \"8\"\n  },\n  {\n    \"id\": \"matminer_element_property\",\n    \"display_name\": \"Matminer ElementProperty Features\",\n    \"feature_type\": \"composition_descriptors\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"description\": \"Generate 132 element property statistics features (mean, range, max, min, etc.) using matminer.featurizers.composition.ElementProperty with Magpie preset.\",\n    \"estimated_feature_count\": \"132\"\n  },\n  {\n    \"id\": \"descriptor_statistical\",\n    \"display_name\": \"Statistical Descriptor Features\",\n    \"feature_type\": \"existing_descriptors\",\n    \"input_modalities\": [\n      \"descriptor\"\n    ],\n    \"description\": \"Generate pairwise ratios, products, and per-row summary statistics from existing numeric descriptor columns. No external dependencies.\",\n    \"estimated_feature_count\": \"variable\"\n  },\n  {\n    \"id\": \"matminer_magpie\",\n    \"display_name\": \"Matminer Magpie Descriptors\",\n    \"feature_type\": \"composition_descriptors\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"description\": \"Generate 132 Magpie composition descriptors using matminer. Now available when pymatgen and matminer are installed.\",\n    \"estimated_feature_count\": \"132\"\n  },\n  {\n    \"id\": \"matminer_valence_orbital\",\n    \"display_name\": \"Matminer ValenceOrbital Features\",\n    \"feature_type\": \"composition_descriptors\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"description\": \"Generate valence orbital composition features using matminer.featurizers.composition.ValenceOrbital.\",\n    \"estimated_feature_count\": \"4\"\n  },\n  {\n    \"id\": \"matminer_oxidation_states\",\n    \"display_name\": \"Matminer OxidationStates Features\",\n    \"feature_type\": \"composition_descriptors\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"description\": \"Generate oxidation state probabilities for each element using matminer.featurizers.composition.ion.OxidationStates.\",\n    \"estimated_feature_count\": \"variable\"\n  },\n  {\n    \"id\": \"matminer_ion_property\",\n    \"display_name\": \"Matminer Ionic Compound Features\",\n    \"feature_type\": \"composition_descriptors\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"description\": \"Generate ionic compound features (electronegativity, ionic radii) using matminer.featurizers.composition.ion.IonProperty.\",\n    \"estimated_feature_count\": \"4\"\n  },\n  {\n    \"id\": \"matminer_band_center\",\n    \"display_name\": \"Matminer BandCenter Features\",\n    \"feature_type\": \"composition_descriptors\",\n    \"input_modalities\": [\n      \"composition\"\n    ],\n    \"description\": \"Generate band center composition features using matminer.featurizers.composition.element.BandCenter.\",\n    \"estimated_feature_count\": \"1\"\n  },\n  {\n    \"id\": \"matminer_site_stats\",\n    \"display_name\": \"Matminer SiteStats Features\",\n    \"feature_type\": \"structure_descriptors\",\n    \"input_modalities\": [\n      \"structure\"\n    ],\n    \"description\": \"Generate site-level structure statistics (coordination, bond lengths, etc.) using matminer.featurizers.structure.sites.SiteStatsFingerprint.\",\n    \"estimated_feature_count\": \"variable\"\n  },\n  {\n    \"id\": \"metadata_feature_extractor\",\n    \"display_name\": \"Metadata Column Extractor\",\n    \"feature_type\": \"existing_descriptors\",\n    \"input_modalities\": [\n      \"descriptor\",\n      \"composition\",\n      \"structure\"\n    ],\n    \"description\": \"Identify and extract experimental metadata columns (temperature, pressure, synthesis method, etc.) as features. Converts low-cardinality categorical metadata to one-hot encoding.\",\n    \"estimated_feature_count\": \"variable\"\n  },\n  {\n    \"id\": \"structure_placeholder\",\n    \"display_name\": \"Structure Featurizer Placeholder\",\n    \"feature_type\": \"structure_descriptors\",\n    \"input_modalities\": [\n      \"structure\"\n    ],\n    \"description\": \"Placeholder for future structure-based featurizers. Not yet executable.\",\n    \"estimated_feature_count\": \"variable\"\n  },\n  {\n    \"id\": \"pymatgen_structure_parser\",\n    \"display_name\": \"Pymatgen Structure Parser\",\n    \"feature_type\": \"structure_descriptors\",\n    \"input_modalities\": [\n      \"structure\"\n    ],\n    \"description\": \"Parse CIF/POSCAR/structure data strings into pymatgen Structure objects for downstream featurizers.\",\n    \"estimated_feature_count\": \"0\"\n  },\n  {\n    \"id\": \"matminer_structure_basic\",\n    \"display_name\": \"Matminer Basic Structure Features\",\n    \"feature_type\": \"structure_descriptors\",\n    \"input_modalities\": [\n      \"structure\"\n    ],\n    \"description\": \"Generate basic structure features: density, volume, n_sites, lattice parameters, space group, packing fraction.\",\n    \"estimated_feature_count\": \"10\"\n  }\n]\n\n## Planned / Future Featurizers (for unsupported_future_featurizers)\n[]\n\n## Iteration Feedback (CRITICAL — Read Before Planning)\nThis Workflow Plan is being REGENERATED because the previous pipeline \niteration was analyzed by the Iteration Decision module and found to be \ndeficient. You MUST produce a materially different strategy from what \nwas produced before. Focus your changes on the root cause and improvement \nlevers identified below.\n\n{\n  \"decision\": \"iterate\",\n  \"confidence\": \"medium\",\n  \"root_cause\": {\n    \"dimension\": \"feature_side\",\n    \"causal_chain\": \"Generic composition descriptors generated (160 features) → Most features lack predictive signal (118 dropped) → Remaining 42 features may contain noise correlations → Tree-based models with high capacity (276 estimators, max_depth=5) fit to noise in small dataset (312 samples) → High variance across CV folds as different folds expose different noise patterns → Unstable model performance\",\n    \"primary_root_cause\": \"Feature engineering strategy is suboptimal for the small dataset, producing many irrelevant features (118/160 dropped) while potentially missing more informative composition descriptors, leading to models that overfit to noise in specific CV folds\",\n    \"upstream_stage_at_fault\": \"feature_engineering\"\n  },\n  \"gap_analysis\": {\n    \"primary_gap\": \"High cross-validation fold variance indicating model instability and unreliable generalization performance\",\n    \"gap_magnitude\": \"moderate\",\n    \"contributing_factors\": [\n      \"Small dataset (312 samples) leading to high variance in CV estimates\",\n      \"Feature engineering produced 160 features with 118 dropped (73.75% drop rate), suggesting suboptimal feature relevance\",\n      \"No explicit featurizers listed, potentially missing domain-specific composition representations\",\n      \"Possible overfitting of XGBoost with 276 estimators on limited data\"\n    ]\n  },\n  \"stage_changes\": [\n    {\n      \"stage\": \"feature_engineering\",\n      \"action\": \"expand\",\n      \"rationale\": \"The current feature set had 73.75% drop rate, indicating generic descriptors lack predictive power. Domain-specific featurizers encode known physics/chemistry relationships that are more likely to be relevant for property prediction\",\n      \"description\": \"Apply domain-specific composition featurizers such as Magpie elemental statistics (mean, std, range of elemental properties weighted by composition), atomic orbital features, and electronegativity-based descriptors\",\n      \"specific_instructions\": {\n        \"featurizers\": [\n          \"Magpie\",\n          \"ElementProperty\"\n        ],\n        \"feature_target_count\": \"80-120 physically meaningful features\"\n      }\n    },\n    {\n      \"stage\": \"feature_preprocessing\",\n      \"action\": \"adjust\",\n      \"rationale\": \"With only 312 samples, 42 features is still relatively high and contributes to overfitting and fold variance. A better sample-to-feature ratio will improve model stability\",\n      \"description\": \"Apply more aggressive feature selection targeting a final feature count of 20-25 to improve the sample-to-feature ratio from 7.4 to ~13-15\",\n      \"specific_instructions\": {\n        \"selection_method\": \"mutual_information_with_variance_threshold\",\n        \"target_n_features\": 25\n      }\n    },\n    {\n      \"stage\": \"model_search_context\",\n      \"action\": \"adjust\",\n      \"rationale\": \"The current best model uses 276 estimators with max_depth=5, which is too complex for 312 samples and contributes to overfitting and high fold variance\",\n      \"description\": \"Constrain XGBoost and LightGBM hyperparameter search to lower complexity regions: max_depth 2-4, n_estimators 50-150, stronger regularization (reg_alpha, reg_lambda)\",\n      \"specific_instructions\": {\n        \"regularization\": \"increase reg_alpha and reg_lambda search ranges\",\n        \"max_depth_range\": [\n          2,\n          4\n        ],\n        \"n_estimators_range\": [\n          50,\n          150\n        ]\n      }\n    }\n  ],\n  \"iteration_index\": 2,\n  \"improvement_potential\": {\n    \"estimate\": \"moderate\",\n    \"key_levers\": [\n      \"Apply domain-specific composition featurizers (e.g., Magpie elemental statistics, orbital field matrix) to generate more physically meaningful features\",\n      \"Reduce model complexity to prevent overfitting on small dataset (fewer estimators, stronger regularization)\",\n      \"Apply more aggressive feature selection to improve sample-to-feature ratio\",\n      \"Consider stratified or composition-aware CV splitting to reduce fold variance\"\n    ]\n  },\n  \"final_reasoning_summary\": \"This is the first iteration and while XGBoost achieves a reasonable MAE of 100.59, the critical flags for high fold variance and model instability indicate the results are unreliable. The root cause traces to suboptimal feature engineering: no domain-specific featurizers were applied, 73.75% of generated features were dropped, and the remaining features combined with a high-capacity model on only 312 samples leads to overfitting. There is moderate improvement potential by applying materials-science-specific composition featurizers, reducing model complexity, and improving the feature-to-sample ratio. Since this is iteration 1 with clear actionable improvements available, another iteration is warranted to produce a more stable and trustworthy model.\"\n}\n\nKEY INSTRUCTIONS:\n- Modify feature_strategy if the root cause lies in feature engineering.\n- Modify preprocessing_intent if preprocessing choices were suboptimal.\n- Modify model_strategy if model selection or hyperparameters were the issue.\n- Modify validation_strategy or evaluation_strategy if those were the problem.\n- Do NOT produce the same plan as last time. Introduce concrete changes.\n\n## Output JSON Schema\nYou MUST output a single JSON object that strictly follows this schema:\n{\n  \"type\": \"object\",\n  \"required\": [\n    \"task_summary\",\n    \"data_strategy\",\n    \"feature_strategy\",\n    \"preprocessing_intent\",\n    \"model_strategy\",\n    \"validation_strategy\",\n    \"evaluation_strategy\",\n    \"hpo_strategy\",\n    \"interpretability_strategy\",\n    \"pipeline_generation_input\",\n    \"workflow_rationale\",\n    \"planning_warnings\",\n    \"planning_assumptions\",\n    \"llm_reasoning_summary\",\n    \"confidence_score\"\n  ],\n  \"properties\": {\n    \"task_summary\": {\n      \"type\": \"object\",\n      \"required\": [\n        \"task_type\",\n        \"input_modality\",\n        \"prediction_target\",\n        \"material_domain\",\n        \"primary_goal\"\n      ],\n      \"properties\": {\n        \"task_type\": {\n          \"type\": \"string\",\n          \"enum\": [\n            \"regression\",\n            \"classification\",\n            \"ranking\"\n          ]\n        },\n        \"input_modality\": {\n          \"type\": \"string\",\n          \"enum\": [\n            \"composition\",\n            \"structure\",\n            \"descriptor\",\n            \"text\",\n            \"mixed\"\n          ]\n        },\n        \"prediction_target\": {\n          \"type\": \"string\"\n        },\n        \"material_domain\": {\n          \"type\": \"string\"\n        },\n        \"primary_goal\": {\n          \"type\": \"string\"\n        }\n      }\n    },\n    \"data_strategy\": {\n      \"type\": \"object\",\n      \"required\": [\n        \"input_columns\",\n        \"target_column\",\n        \"required_cleaning_steps\",\n        \"target_handling\",\n        \"duplicate_handling\",\n        \"missing_value_strategy\"\n      ],\n      \"properties\": {\n        \"input_columns\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"target_column\": {\n          \"type\": \"string\"\n        },\n        \"required_cleaning_steps\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"target_handling\": {\n          \"type\": \"object\",\n          \"properties\": {\n            \"requires_transformation_check\": {\n              \"type\": \"boolean\"\n            },\n            \"recommended_transformation\": {\n              \"type\": \"string\"\n            }\n          }\n        },\n        \"duplicate_handling\": {\n          \"type\": \"string\"\n        },\n        \"missing_value_strategy\": {\n          \"type\": \"string\"\n        }\n      }\n    },\n    \"feature_strategy\": {\n      \"type\": \"object\",\n      \"required\": [\n        \"feature_type\",\n        \"executable_featurizers\",\n        \"selected_feature_actions\",\n        \"rejected_feature_actions\"\n      ],\n      \"properties\": {\n        \"feature_type\": {\n          \"type\": \"string\"\n        },\n        \"executable_featurizers\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"semantic_featurizers\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"unsupported_future_featurizers\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"recommended_featurizers\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"requires_structure_features\": {\n          \"type\": \"boolean\"\n        },\n        \"feature_selection_required\": {\n          \"type\": \"boolean\"\n        },\n        \"feature_scaling_required\": {\n          \"type\": \"boolean\"\n        },\n        \"strategy_id\": {\n          \"type\": \"string\"\n        },\n        \"strategy_version\": {\n          \"type\": \"string\"\n        },\n        \"input_modality_assessment\": {\n          \"type\": \"object\",\n          \"properties\": {\n            \"detected_modalities\": {\n              \"type\": \"array\",\n              \"items\": {\n                \"type\": \"string\"\n              }\n            },\n            \"usable_modalities\": {\n              \"type\": \"array\",\n              \"items\": {\n                \"type\": \"string\"\n              }\n            },\n            \"unusable_modalities\": {\n              \"type\": \"array\",\n              \"items\": {\n                \"type\": \"string\"\n              }\n            },\n            \"rationale\": {\n              \"type\": \"string\"\n            }\n          }\n        },\n        \"selected_feature_actions\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"required\": [\n              \"action_id\",\n              \"capability_id\",\n              \"priority\",\n              \"decision_rationale\"\n            ],\n            \"properties\": {\n              \"action_id\": {\n                \"type\": \"string\"\n              },\n              \"capability_id\": {\n                \"type\": \"string\",\n                \"description\": \"Must match a capability_id from the FE Capability Registry with status=available\"\n              },\n              \"priority\": {\n                \"type\": \"string\",\n                \"enum\": [\n                  \"required\",\n                  \"recommended\",\n                  \"optional\",\n                  \"fallback\"\n                ]\n              },\n              \"input_columns\": {\n                \"type\": \"array\",\n                \"items\": {\n                  \"type\": \"string\"\n                }\n              },\n              \"parameters\": {\n                \"type\": \"object\"\n              },\n              \"output_feature_group\": {\n                \"type\": \"string\"\n              },\n              \"decision_rationale\": {\n                \"type\": \"object\",\n                \"required\": [\n                  \"reason\",\n                  \"evidence\",\n                  \"material_science_basis\",\n                  \"expected_benefit\",\n                  \"risk\",\n                  \"fallback\"\n                ],\n                \"properties\": {\n                  \"reason\": {\n                    \"type\": \"string\"\n                  },\n                  \"evidence\": {\n                    \"type\": \"array\",\n                    \"items\": {\n                      \"type\": \"string\"\n                    }\n                  },\n                  \"material_science_basis\": {\n                    \"type\": \"string\"\n                  },\n                  \"expected_benefit\": {\n                    \"type\": \"string\"\n                  },\n                  \"risk\": {\n                    \"type\": \"string\"\n                  },\n                  \"fallback\": {\n                    \"type\": \"string\"\n                  }\n                }\n              }\n            }\n          }\n        },\n        \"rejected_feature_actions\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"capability_id\": {\n                \"type\": \"string\"\n              },\n              \"reason\": {\n                \"type\": \"string\"\n              },\n              \"evidence\": {\n                \"type\": \"array\",\n                \"items\": {\n                  \"type\": \"string\"\n                }\n              }\n            }\n          }\n        },\n        \"fallback_strategy\": {\n          \"type\": \"object\",\n          \"properties\": {\n            \"fallback_actions\": {\n              \"type\": \"array\",\n              \"items\": {\n                \"type\": \"string\"\n              }\n            },\n            \"trigger_conditions\": {\n              \"type\": \"array\",\n              \"items\": {\n                \"type\": \"string\"\n              }\n            }\n          }\n        },\n        \"feature_group_expectations\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"feature_group\": {\n                \"type\": \"string\"\n              },\n              \"expected_signal\": {\n                \"type\": \"string\"\n              },\n              \"known_limitations\": {\n                \"type\": \"string\"\n              }\n            }\n          }\n        }\n      }\n    },\n    \"preprocessing_intent\": {\n      \"type\": \"object\",\n      \"required\": [\n        \"high_level_goals\"\n      ],\n      \"properties\": {\n        \"intent_id\": {\n          \"type\": \"string\"\n        },\n        \"high_level_goals\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"risks_to_check_after_feature_engineering\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"non_final_notes\": {\n          \"type\": \"string\",\n          \"const\": \"Final executable preprocessing decisions will be made by Feature Preprocessing after Feature Engineering output is available.\"\n        }\n      }\n    },\n    \"model_strategy\": {\n      \"type\": \"object\",\n      \"required\": [\n        \"candidate_model_families\",\n        \"baseline_models\",\n        \"preferred_model_bias\",\n        \"excluded_model_families\",\n        \"selected_model_actions\",\n        \"rejected_model_actions\"\n      ],\n      \"properties\": {\n        \"candidate_model_families\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"baseline_models\": {\n          \"type\": \"array\",\n          \"minItems\": 1,\n          \"maxItems\": 1,\n          \"items\": {\n            \"type\": \"string\"\n          },\n          \"description\": \"EXACTLY ONE model family to serve as the comparative baseline. Must be a simple, fast, well-understood model.\"\n        },\n        \"preferred_model_bias\": {\n          \"type\": \"string\"\n        },\n        \"excluded_model_families\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"model_selection_rationale_summary\": {\n          \"type\": \"string\"\n        },\n        \"selected_model_actions\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"required\": [\n              \"action_id\",\n              \"model_family\",\n              \"priority\",\n              \"decision_rationale\"\n            ],\n            \"properties\": {\n              \"action_id\": {\n                \"type\": \"string\"\n              },\n              \"model_family\": {\n                \"type\": \"string\"\n              },\n              \"priority\": {\n                \"type\": \"string\",\n                \"enum\": [\n                  \"required\",\n                  \"recommended\",\n                  \"optional\",\n                  \"fallback\"\n                ]\n              },\n              \"decision_rationale\": {\n                \"type\": \"object\",\n                \"required\": [\n                  \"reason\",\n                  \"evidence\",\n                  \"expected_performance\",\n                  \"risk\",\n                  \"fallback\"\n                ],\n                \"properties\": {\n                  \"reason\": {\n                    \"type\": \"string\"\n                  },\n                  \"evidence\": {\n                    \"type\": \"array\",\n                    \"items\": {\n                      \"type\": \"string\"\n                    }\n                  },\n                  \"expected_performance\": {\n                    \"type\": \"string\"\n                  },\n                  \"risk\": {\n                    \"type\": \"string\"\n                  },\n                  \"fallback\": {\n                    \"type\": \"string\"\n                  }\n                }\n              }\n            }\n          }\n        },\n        \"rejected_model_actions\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"model_family\": {\n                \"type\": \"string\"\n              },\n              \"reason\": {\n                \"type\": \"string\"\n              },\n              \"evidence\": {\n                \"type\": \"array\",\n                \"items\": {\n                  \"type\": \"string\"\n                }\n              }\n            }\n          }\n        }\n      }\n    },\n    \"validation_strategy\": {\n      \"type\": \"object\",\n      \"required\": [\n        \"split_strategy\",\n        \"n_splits\",\n        \"random_state\",\n        \"stratification_required\"\n      ],\n      \"properties\": {\n        \"split_strategy\": {\n          \"type\": \"string\",\n          \"enum\": [\n            \"train_test_split\",\n            \"k_fold_cross_validation\",\n            \"stratified_k_fold\",\n            \"repeated_cv\"\n          ]\n        },\n        \"n_splits\": {\n          \"type\": \"integer\",\n          \"minimum\": 2,\n          \"maximum\": 10\n        },\n        \"test_size\": {\n          \"type\": [\n            \"number\",\n            \"null\"\n          ]\n        },\n        \"random_state\": {\n          \"type\": \"integer\"\n        },\n        \"stratification_required\": {\n          \"type\": \"boolean\"\n        }\n      }\n    },\n    \"evaluation_strategy\": {\n      \"type\": \"object\",\n      \"required\": [\n        \"primary_metric\",\n        \"secondary_metrics\",\n        \"metric_direction\"\n      ],\n      \"properties\": {\n        \"primary_metric\": {\n          \"type\": \"string\"\n        },\n        \"secondary_metrics\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"metric_direction\": {\n          \"type\": \"string\",\n          \"enum\": [\n            \"minimize\",\n            \"maximize\"\n          ]\n        }\n      }\n    },\n    \"hpo_strategy\": {\n      \"type\": \"object\",\n      \"required\": [\n        \"enabled\",\n        \"search_method\",\n        \"budget_level\",\n        \"max_trials\"\n      ],\n      \"properties\": {\n        \"enabled\": {\n          \"type\": \"boolean\"\n        },\n        \"search_method\": {\n          \"type\": \"string\",\n          \"enum\": [\n            \"grid_search\",\n            \"random_search\",\n            \"bayesian_optimization\",\n            \"optuna_tpe\",\n            \"successive_halving\"\n          ]\n        },\n        \"budget_level\": {\n          \"type\": \"string\",\n          \"enum\": [\n            \"low\",\n            \"medium\",\n            \"high\"\n          ]\n        },\n        \"max_trials\": {\n          \"type\": \"integer\",\n          \"minimum\": 1\n        }\n      }\n    },\n    \"interpretability_strategy\": {\n      \"type\": \"object\",\n      \"required\": [\n        \"enabled\",\n        \"methods\",\n        \"priority\"\n      ],\n      \"properties\": {\n        \"enabled\": {\n          \"type\": \"boolean\"\n        },\n        \"methods\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"priority\": {\n          \"type\": \"string\"\n        }\n      }\n    },\n    \"pipeline_generation_input\": {\n      \"type\": \"object\",\n      \"required\": [\n        \"pipeline_steps\",\n        \"required_components\"\n      ],\n      \"properties\": {\n        \"pipeline_steps\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"required_components\": {\n          \"type\": \"object\",\n          \"properties\": {\n            \"data_cleaner\": {\n              \"type\": \"boolean\"\n            },\n            \"featurizer\": {\n              \"type\": \"boolean\"\n            },\n            \"model_trainer\": {\n              \"type\": \"boolean\"\n            },\n            \"evaluator\": {\n              \"type\": \"boolean\"\n            }\n          }\n        }\n      }\n    },\n    \"workflow_rationale\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"overall_reasoning_summary\": {\n          \"type\": \"string\"\n        },\n        \"key_assumptions\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        },\n        \"known_risks\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"string\"\n          }\n        }\n      }\n    },\n    \"planning_warnings\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"planning_assumptions\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"llm_reasoning_summary\": {\n      \"type\": \"string\"\n    },\n    \"confidence_score\": {\n      \"type\": \"number\",\n      \"minimum\": 0.0,\n      \"maximum\": 1.0\n    }\n  }\n}\n\nRemember:\n1. Output ONLY the JSON object. No markdown, no code blocks, no explanatory text.\n2. Generate a COMPLETE WorkflowPlan — not just FeatureStrategy.\n3. FeatureStrategy.selected_feature_actions must use capability_id from the FE Capability Registry.\n4. Each selected capability MUST have at least one mapped featurizer_id (check the featurizer_ids field).\n5. Capabilities with empty featurizer_ids or a _warning MUST NOT be used as 'required' or 'recommended'.\n6. Each selected feature action MUST have complete decision_rationale.\n7. Each selected model action MUST have complete decision_rationale (reason, evidence, expected_performance, risk, fallback).\n8. Each rejected model MUST have a reason explaining why it was excluded.\n9. preprocessing_intent must ONLY contain high-level goals.",
+      "system_prompt": "You are an expert AutoML workflow planner for materials science. Your task is to generate a COMPLETE structured machine learning workflow plan based on task specifications, task interpretation, dataset profiling results, and the Feature Engineering Capability Registry.\n\n**CRITICAL: You MUST generate a COMPLETE WorkflowPlan.**\nYou must NOT only generate FeatureStrategy. FeatureStrategy is ONE section of the full WorkflowPlan.\nThe full WorkflowPlan must include: task_summary, data_strategy, feature_strategy, preprocessing_intent, model_strategy, hpo_strategy, evaluation_strategy, validation_strategy, pipeline_generation_input, workflow_rationale.\n\n**CRITICAL BOUNDARY RULES — You MUST follow these:**\n\n1. You ONLY plan the machine learning workflow. You do NOT execute anything.\n2. You MUST NOT generate Python code, pseudocode, or any executable code.\n3. You MUST NOT fabricate or predict model training results, metrics values, or evaluation scores.\n4. You MUST NOT claim that models have been trained.\n5. You MUST NOT load, clean, or transform any actual data.\n6. You MUST NOT modify upstream task specification, interpretation, or dataset profile.\n7. You MUST base all decisions on the data facts provided in the dataset profile.\n8. If something is uncertain, put it in \"planning_assumptions\", not in the main plan.\n9. If there are risks or limitations, put them in \"planning_warnings\".\n10. You MUST output ONLY valid JSON matching the exact schema provided. No other text.\n\n**Feature Engineering Capability Rules:**\n\n- You MUST select capability_id values ONLY from the provided Feature Engineering Capability Registry.\n- Only capabilities with status=\"available\" may be used as selected_feature_actions.\n- Each selected_feature_action MUST have a complete decision_rationale with: reason, evidence, material_science_basis, expected_benefit, risk, fallback.\n- Rejected capabilities MUST have a reason explaining why they were rejected.\n- \"planned\" capabilities CANNOT be used as required or recommended actions.\n- You MUST NOT invent capability_ids that are not in the Registry.\n\n**PreprocessingIntent Rules:**\n\n- preprocessing_intent must ONLY contain high_level_goals (e.g., \"handle_missing_values\", \"standardize_numeric_features\").\n- preprocessing_intent must NOT contain column-level operations or executable PreprocessingPlan.\n- The actual PreprocessingPlan will be generated by the Feature Preprocessing module after Feature Engineering output is available.\n\n**Featurizer Selection Rules:**\n\n- You MUST select executable_featurizers ONLY from the available_featurizers list.\n- Use exact featurizer \"id\" values — do NOT invent new IDs.\n- Scientific/semantic concepts go into semantic_featurizers.\n- Planned featurizers go into unsupported_future_featurizers.\n\n**Model Selection Rules:**\n\n- You MUST pick EXACTLY ONE model as the baseline_model. The baseline must be a simple, fast, well-established model (e.g. dummy_mean, linear_regression, ridge) that serves as the minimum-performance reference point. Do NOT select more than one baseline.\n- You MUST provide detailed rationale for BOTH selected AND rejected models.\n- Each selected_model_action MUST have a complete decision_rationale with: reason, evidence, expected_performance, risk, fallback.\n- Each rejected model in rejected_model_actions MUST have a reason explaining why it was excluded for this specific task.\n- Consider: sample size, feature dimensionality, expected noise level, interpretability requirements, and task type when making model decisions.\n- For materials science tasks, prefer models that handle small-to-medium datasets well and offer interpretability.\n- The candidate_model_families list should be a concise summary; the detailed justification goes into selected_model_actions and rejected_model_actions.\n\nFor materials science tasks:\n- **composition** -> composition-based featurizers + descriptor fallback\n- **structure** -> structure-based featurizers if available, descriptor fallback otherwise\n- **descriptor** -> numeric descriptors with scaling and feature selection\n- **regression** -> MAE/RMSE/R2 metrics, tree-based + linear models\n- **classification** -> Accuracy/F1/ROC-AUC metrics, tree-based + linear models\n- Small samples (n < 100) -> simple models, fewer CV folds, limited HPO\n- Medium samples (100 <= n < 1000) -> moderate complexity\n- Large samples (n >= 1000) -> complex models, more HPO budget"
+    },
+    "hpo_strategy": {
+      "enabled": true,
+      "max_trials": 50,
+      "budget_level": "medium",
+      "search_method": "optuna_tpe"
+    },
+    "llm_response": {
+      "raw": "{\n  \"task_summary\": {\n    \"task_type\": \"regression\",\n    \"input_modality\": \"composition\",\n    \"prediction_target\": \"yield strength\",\n    \"material_domain\": \"metal alloys\",\n    \"primary_goal\": \"property_prediction\"\n  },\n  \"data_strategy\": {\n    \"input_columns\": [\n      \"composition\"\n    ],\n    \"target_column\": \"yield strength\",\n    \"required_cleaning_steps\": [\n      \"validate_composition_formulas\",\n      \"remove_invalid_formulas\",\n      \"standardize_composition_strings\"\n    ],\n    \"target_handling\": {\n      \"requires_transformation_check\": true,\n      \"recommended_transformation\": \"yeo_johnson\"\n    },\n    \"duplicate_handling\": \"drop_duplicates\",\n    \"missing_value_strategy\": \"drop_rows_with_missing_target\"\n  },\n  \"feature_strategy\": {\n    \"feature_type\": \"composition_descriptors\",\n    \"executable_featurizers\": [\n      \"pymatgen_composition_parser\",\n      \"matminer_magpie\",\n      \"matminer_element_property\",\n      \"matminer_stoichiometry\",\n      \"matminer_valence_orbital\"\n    ],\n    \"semantic_featurizers\": [],\n    \"unsupported_future_featurizers\": [],\n    \"recommended_featurizers\": [\n      \"matminer_magpie\",\n      \"matminer_valence_orbital\"\n    ],\n    \"requires_structure_features\": false,\n    \"feature_selection_required\": true,\n    \"feature_scaling_required\": true,\n    \"strategy_id\": \"comp_alloy_strength_v2\",\n    \"strategy_version\": \"2.0.0\",\n    \"input_modality_assessment\": {\n      \"detected_modalities\": [\n        \"composition\"\n      ],\n      \"usable_modalities\": [\n        \"composition\"\n      ],\n      \"unusable_modalities\": [\n        \"structure\",\n        \"descriptor\"\n      ],\n      \"rationale\": \"The dataset only contains chemical composition strings. No crystal structure or pre-computed descriptor columns are available.\"\n    },\n    \"selected_feature_actions\": [\n      {\n        \"action_id\": \"feat_magpie\",\n        \"capability_id\": \"composition_magpie_features\",\n        \"priority\": \"required\",\n        \"input_columns\": [\n          \"composition\"\n        ],\n        \"parameters\": {},\n        \"output_feature_group\": \"composition_magpie\",\n        \"decision_rationale\": {\n          \"reason\": \"Magpie descriptors capture elemental property statistics weighted by composition, which are highly predictive for alloy properties and address the high drop-rate of generic features in iteration 1.\",\n          \"evidence\": [\n            \"Ward et al. 2016 demonstrated Magpie features' effectiveness for alloy property prediction\",\n            \"Iteration feedback explicitly requested domain-specific featurizers like Magpie to reduce noise\"\n          ],\n          \"material_science_basis\": \"Macroscopic properties of alloys are heavily influenced by the statistical distribution of elemental properties like atomic radius, electronegativity, and valence electrons.\",\n          \"expected_benefit\": \"Provides physically meaningful features that generalize better than generic descriptors, reducing the 73% drop rate seen in iteration 1.\",\n          \"risk\": \"Generates 132 features, which requires aggressive downstream feature selection to prevent overfitting on 312 samples.\",\n          \"fallback\": \"composition_elemental_statistics\"\n        }\n      },\n      {\n        \"action_id\": \"feat_elemental_stats\",\n        \"capability_id\": \"composition_elemental_statistics\",\n        \"priority\": \"recommended\",\n        \"input_columns\": [\n          \"composition\"\n        ],\n        \"parameters\": {},\n        \"output_feature_group\": \"composition_elemental_statistics\",\n        \"decision_rationale\": {\n          \"reason\": \"Complements Magpie with additional elemental property statistics from matminer's ElementProperty to ensure a broad coverage of physical descriptors.\",\n          \"evidence\": [\n            \"Standard matminer featurizer for composition-based regression\",\n            \"Provides diverse elemental statistics not fully covered by Magpie\"\n          ],\n          \"material_science_basis\": \"Elemental properties such as melting point, density, and bulk modulus correlate with mechanical strength and phase stability in steels.\",\n          \"expected_benefit\": \"Increases the pool of physically relevant features for the feature selection step to choose from.\",\n          \"risk\": \"High collinearity with Magpie features, requiring correlation-based filtering.\",\n          \"fallback\": \"basic_composition\"\n        }\n      },\n      {\n        \"action_id\": \"feat_stoichiometry\",\n        \"capability_id\": \"composition_stoichiometry\",\n        \"priority\": \"recommended\",\n        \"input_columns\": [\n          \"composition\"\n        ],\n        \"parameters\": {},\n        \"output_feature_group\": \"composition_stoichiometry\",\n        \"decision_rationale\": {\n          \"reason\": \"Captures basic compositional ratios and number of elements, which are fundamental to alloy design and provide low-dimensional, robust features.\",\n          \"evidence\": [\n            \"Low computational cost\",\n            \"Provides essential baseline compositional context\"\n          ],\n          \"material_science_basis\": \"The number of constituent elements and their atomic fractions directly dictate the formation of solid solutions and intermetallic phases in steels.\",\n          \"expected_benefit\": \"Adds low-dimensional, highly interpretable features that are robust to noise and improve the sample-to-feature ratio.\",\n          \"risk\": \"Limited predictive power on its own for complex mechanical properties.\",\n          \"fallback\": \"basic_composition\"\n        }\n      },\n      {\n        \"action_id\": \"feat_valence\",\n        \"capability_id\": \"composition_valence_orbital\",\n        \"priority\": \"required\",\n        \"input_columns\": [\n          \"composition\"\n        ],\n        \"parameters\": {},\n        \"output_feature_group\": \"composition_valence_orbital\",\n        \"decision_rationale\": {\n          \"reason\": \"Valence electron concentration is a critical factor in determining the phase stability and strength of metallic alloys, directly addressing the need for domain-specific features.\",\n          \"evidence\": [\n            \"Valence electron count (VEC) is a known Hume-Rothery rule parameter for alloy phase prediction\",\n            \"Iteration feedback highlighted orbital features as a key improvement lever\"\n          ],\n          \"material_science_basis\": \"The d-band electron concentration strongly influences the metallic bonding strength and dislocation mobility, directly affecting yield strength in transition metal alloys like steel.\",\n          \"expected_benefit\": \"Provides highly specific, low-dimensional features (4 features) with strong physical grounding for steel strength.\",\n          \"risk\": \"May be less relevant for non-transition metal alloys, but steels are Fe-based transition metal alloys.\",\n          \"fallback\": \"composition_elemental_statistics\"\n        }\n      }\n    ],\n    \"rejected_feature_actions\": [\n      {\n        \"capability_id\": \"composition_oxidation_states\",\n        \"reason\": \"Steels are metallic alloys where metallic bonding dominates; formal oxidation states are less physically meaningful than in ceramics or ionic compounds.\",\n        \"evidence\": [\n          \"Metallic bonding delocalizes electrons, making integer oxidation states a poor representation of the electronic structure.\"\n        ]\n      },\n      {\n        \"capability_id\": \"composition_ionic_compound_features\",\n        \"reason\": \"Ionic compound features assume ionic bonding character, which is not applicable to metallic systems like steel.\",\n        \"evidence\": [\n          \"Steels are primarily iron-carbon alloys with metallic bonding, not ionic crystals.\"\n        ]\n      },\n      {\n        \"capability_id\": \"composition_band_center\",\n        \"reason\": \"Band center features are more relevant for semiconductors and catalysts, not for predicting mechanical properties of metallic alloys.\",\n        \"evidence\": [\n          \"Mechanical strength in metals is governed by dislocation mechanics and phase fractions, not band gap or band center energetics.\"\n        ]\n      },\n      {\n        \"capability_id\": \"structure_basic_features\",\n        \"reason\": \"No crystal structure data is available in the dataset.\",\n        \"evidence\": [\n          \"Dataset schema only contains 'composition' and 'yield strength' columns.\"\n        ]\n      }\n    ],\n    \"fallback_strategy\": {\n      \"fallback_actions\": [\n        \"basic_composition\"\n      ],\n      \"trigger_conditions\": [\n        \"pymatgen fails to parse >10% of composition strings\",\n        \"matminer featurizers throw unhandled exceptions\"\n      ]\n    },\n    \"feature_group_expectations\": [\n      {\n        \"feature_group\": \"composition_magpie\",\n        \"expected_signal\": \"High - captures weighted elemental statistics crucial for alloy strength.\",\n        \"known_limitations\": \"High dimensionality (132 features) requires aggressive selection.\"\n      },\n      {\n        \"feature_group\": \"composition_valence_orbital\",\n        \"expected_signal\": \"High - VEC is a known predictor for phase stability and strength in steels.\",\n        \"known_limitations\": \"Only 4 features, may not capture complex multi-element interactions alone.\"\n      }\n    ]\n  },\n  \"preprocessing_intent\": {\n    \"intent_id\": \"preprocess_alloy_strength_v2\",\n    \"high_level_goals\": [\n      \"handle_missing_values\",\n      \"standardize_numeric_features\",\n      \"remove_highly_correlated_features\",\n      \"aggressive_feature_selection_to_improve_sample_to_feature_ratio\"\n    ],\n    \"risks_to_check_after_feature_engineering\": [\n      \"High collinearity between Magpie and ElementProperty features\",\n      \"Presence of constant or near-constant features due to limited elemental diversity in steels\",\n      \"Target variable skewness and outliers affecting model training\"\n    ],\n    \"non_final_notes\": \"Final executable preprocessing decisions will be made by Feature Preprocessing after Feature Engineering output is available.\"\n  },\n  \"model_strategy\": {\n    \"candidate_model_families\": [\n      \"tree_based_ensemble\",\n      \"linear_regularized\"\n    ],\n    \"baseline_models\": [\n      \"ridge\"\n    ],\n    \"preferred_model_bias\": \"low_variance_high_bias\",\n    \"excluded_model_families\": [\n      \"deep_neural_networks\",\n      \"gaussian_processes\"\n    ],\n    \"model_selection_rationale_summary\": \"To address the high fold variance and overfitting observed in iteration 1, tree-based models are constrained to lower complexity (shallow depths, fewer estimators, strong regularization). Linear regularized models are included as robust alternatives that benefit from the improved sample-to-feature ratio.\",\n    \"selected_model_actions\": [\n      {\n        \"action_id\": \"model_xgboost_constrained\",\n        \"model_family\": \"xgboost\",\n        \"priority\": \"required\",\n        \"decision_rationale\": {\n          \"reason\": \"Tree-based models capture non-linear composition-property relationships well, but must be strictly constrained to prevent overfitting on the small dataset (312 samples).\",\n          \"evidence\": [\n            \"XGBoost performed well in iteration 1 but showed high variance\",\n            \"Iteration feedback explicitly requested constraining max_depth to 2-4 and n_estimators to 50-150\"\n          ],\n          \"expected_performance\": \"Good MAE with significantly reduced fold variance compared to iteration 1.\",\n          \"risk\": \"Even with constraints, may still overfit if feature selection is not aggressive enough.\",\n          \"fallback\": \"elastic_net\"\n        }\n      },\n      {\n        \"action_id\": \"model_lightgbm_constrained\",\n        \"model_family\": \"lightgbm\",\n        \"priority\": \"recommended\",\n        \"decision_rationale\": {\n          \"reason\": \"Alternative gradient boosting framework that handles small datasets well with leaf-wise growth and strong L1/L2 regularization.\",\n          \"evidence\": [\n            \"Often faster and less prone to overfitting than XGBoost on small tabular data when properly regularized\"\n          ],\n          \"expected_performance\": \"Comparable to XGBoost, potentially better generalization with strong regularization.\",\n          \"risk\": \"Hyperparameter tuning space needs careful constraint to avoid deep trees.\",\n          \"fallback\": \"random_forest\"\n        }\n      },\n      {\n        \"action_id\": \"model_elastic_net\",\n        \"model_family\": \"elastic_net\",\n        \"priority\": \"recommended\",\n        \"decision_rationale\": {\n          \"reason\": \"Linear model with L1/L2 regularization provides a strong, interpretable baseline that is highly resistant to overfitting on small datasets with reduced feature counts.\",\n          \"evidence\": [\n            \"High sample-to-feature ratio after aggressive feature selection will favor linear models\",\n            \"Provides interpretable coefficients for materials science insights\"\n          ],\n          \"expected_performance\": \"Lower accuracy than optimized tree models, but highly stable across CV folds.\",\n          \"risk\": \"May underfit if the true composition-strength relationship is highly non-linear.\",\n          \"fallback\": \"ridge\"\n        }\n      }\n    ],\n    \"rejected_model_actions\": [\n      {\n        \"model_family\": \"deep_neural_networks\",\n        \"reason\": \"312 samples is far too few for neural networks to generalize without severe overfitting, regardless of regularization.\",\n        \"evidence\": [\n          \"Deep learning typically requires thousands of samples for tabular data regression.\"\n        ]\n      },\n      {\n        \"model_family\": \"gaussian_processes\",\n        \"reason\": \"Computational complexity scales cubically with sample size, and kernel selection for high-dimensional composition features is non-trivial and prone to overfitting.\",\n        \"evidence\": [\n          \"GP regression struggles with >50 features without aggressive dimensionality reduction.\"\n        ]\n      },\n      {\n        \"model_family\": \"support_vector_machines\",\n        \"reason\": \"Less interpretable than tree models or linear models, and RBF kernel can easily overfit small datasets with many features.\",\n        \"evidence\": [\n          \"User priority includes interpretability, which SVMs lack compared to SHAP-analyzed tree models or linear coefficients.\"\n        ]\n      }\n    ]\n  },\n  \"validation_strategy\": {\n    \"split_strategy\": \"k_fold_cross_validation\",\n    \"n_splits\": 5,\n    \"test_size\": null,\n    \"random_state\": 42,\n    \"stratification_required\": false\n  },\n  \"evaluation_strategy\": {\n    \"primary_metric\": \"MAE\",\n    \"secondary_metrics\": [\n      \"RMSE\",\n      \"R2\"\n    ],\n    \"metric_direction\": \"minimize\"\n  },\n  \"hpo_strategy\": {\n    \"enabled\": true,\n    \"search_method\": \"optuna_tpe\",\n    \"budget_level\": \"medium\",\n    \"max_trials\": 50\n  },\n  \"interpretability_strategy\": {\n    \"enabled\": true,\n    \"methods\": [\n      \"shap_values\",\n      \"permutation_feature_importance\"\n    ],\n    \"priority\": \"high\"\n  },\n  \"pipeline_generation_input\": {\n    \"pipeline_steps\": [\n      \"data_cleaning\",\n      \"composition_parsing\",\n      \"feature_generation\",\n      \"feature_preprocessing\",\n      \"model_training\",\n      \"evaluation\"\n    ],\n    \"required_components\": {\n      \"data_cleaner\": true,\n      \"featurizer\": true,\n      \"model_trainer\": true,\n      \"evaluator\": true\n    }\n  },\n  \"workflow_rationale\": {\n    \"overall_reasoning_summary\": \"This iteration addresses the high cross-validation fold variance and model instability identified in iteration 1. The root cause was traced to suboptimal feature engineering (generic descriptors with high drop rates) and excessive model complexity (deep XGBoost trees on 312 samples). The revised strategy introduces domain-specific composition featurizers (Magpie, Valence Orbital) to generate physically meaningful features, enforces aggressive feature selection to improve the sample-to-feature ratio to ~13:1, and strictly constrains tree-based model hyperparameters (max_depth 2-4, n_estimators 50-150) to favor low-variance, high-bias models. Linear regularized models are also included as robust, interpretable alternatives.\",\n    \"key_assumptions\": [\n      \"The composition strings are valid chemical formulas that can be parsed by pymatgen.\",\n      \"Yield strength is primarily driven by composition-dependent factors (e.g., solid solution strengthening, phase fractions) that can be approximated by elemental statistics and valence electron counts.\",\n      \"Aggressive feature selection will retain the most physically relevant descriptors while discarding noise.\"\n    ],\n    \"known_risks\": [\n      \"Yield strength is heavily dependent on processing history and microstructure, which are absent in this composition-only dataset, limiting the theoretical upper bound of model accuracy.\",\n      \"Even with constrained hyperparameters, tree-based models may still overfit if the selected features contain spurious correlations.\",\n      \"Target variable skewness and outliers (13 detected) may disproportionately affect MAE and RMSE if not properly handled via transformation.\"\n    ]\n  },\n  \"planning_warnings\": [\n    \"Small dataset size (312 samples) poses a high risk of overfitting, especially with high-dimensional composition descriptors.\",\n    \"Yield strength is heavily dependent on processing history and microstructure, which are absent in this composition-only dataset, limiting the theoretical upper bound of model accuracy.\",\n    \"High target skewness (1.4) and presence of outliers (13) require careful target transformation and robust evaluation metrics.\"\n  ],\n  \"planning_assumptions\": [\n    \"The 'composition' column contains valid chemical formulas parseable by pymatgen.\",\n    \"Magpie and Valence Orbital features will provide sufficient physical signal to compensate for the lack of microstructural and processing data.\",\n    \"A sample-to-feature ratio of ~13:1 (target 25 features) is sufficient to stabilize model training and reduce CV fold variance.\"\n  ],\n  \"llm_reasoning_summary\": \"The previous iteration suffered from high CV fold variance due to generic features and overparameterized tree models on a small dataset. This plan pivots to domain-specific featurizers (Magpie, Valence Orbital) grounded in metallurgical principles (Hume-Rothery rules, solid solution strengthening). Preprocessing is adjusted to enforce aggressive feature selection (target 20-25 features) to improve the sample-to-feature ratio. Model search is constrained to shallow, regularized trees and linear models to explicitly minimize variance and improve generalization stability.\",\n  \"confidence_score\": 0.85\n}"
+    },
+    "task_summary": {
+      "task_type": "regression",
+      "primary_goal": "property_prediction",
+      "input_modality": "composition",
+      "material_domain": "metal alloys",
+      "prediction_target": "yield strength"
+    },
+    "data_strategy": {
+      "input_columns": [
+        "composition"
+      ],
+      "target_column": "yield strength",
+      "target_handling": {
+        "recommended_transformation": "yeo_johnson",
+        "requires_transformation_check": true
+      },
+      "duplicate_handling": "drop_duplicates",
+      "missing_value_strategy": "drop_rows_with_missing_target",
+      "required_cleaning_steps": [
+        "validate_composition_formulas",
+        "remove_invalid_formulas",
+        "standardize_composition_strings"
+      ]
+    },
+    "planning_mode": "llm_guided",
+    "model_strategy": {
+      "baseline_models": [
+        "ridge"
+      ],
+      "preferred_model_bias": "low_variance_high_bias",
+      "rejected_model_actions": [
+        {
+          "reason": "312 samples is far too few for neural networks to generalize without severe overfitting, regardless of regularization.",
+          "evidence": [
+            "Deep learning typically requires thousands of samples for tabular data regression."
+          ],
+          "model_family": "deep_neural_networks"
+        },
+        {
+          "reason": "Computational complexity scales cubically with sample size, and kernel selection for high-dimensional composition features is non-trivial and prone to overfitting.",
+          "evidence": [
+            "GP regression struggles with >50 features without aggressive dimensionality reduction."
+          ],
+          "model_family": "gaussian_processes"
+        },
+        {
+          "reason": "Less interpretable than tree models or linear models, and RBF kernel can easily overfit small datasets with many features.",
+          "evidence": [
+            "User priority includes interpretability, which SVMs lack compared to SHAP-analyzed tree models or linear coefficients."
+          ],
+          "model_family": "support_vector_machines"
+        }
+      ],
+      "selected_model_actions": [
+        {
+          "priority": "required",
+          "action_id": "model_xgboost_constrained",
+          "model_family": "xgboost",
+          "decision_rationale": {
+            "risk": "Even with constraints, may still overfit if feature selection is not aggressive enough.",
+            "reason": "Tree-based models capture non-linear composition-property relationships well, but must be strictly constrained to prevent overfitting on the small dataset (312 samples).",
+            "evidence": [
+              "XGBoost performed well in iteration 1 but showed high variance",
+              "Iteration feedback explicitly requested constraining max_depth to 2-4 and n_estimators to 50-150"
+            ],
+            "fallback": "elastic_net",
+            "expected_performance": "Good MAE with significantly reduced fold variance compared to iteration 1."
+          }
+        },
+        {
+          "priority": "recommended",
+          "action_id": "model_lightgbm_constrained",
+          "model_family": "lightgbm",
+          "decision_rationale": {
+            "risk": "Hyperparameter tuning space needs careful constraint to avoid deep trees.",
+            "reason": "Alternative gradient boosting framework that handles small datasets well with leaf-wise growth and strong L1/L2 regularization.",
+            "evidence": [
+              "Often faster and less prone to overfitting than XGBoost on small tabular data when properly regularized"
+            ],
+            "fallback": "random_forest",
+            "expected_performance": "Comparable to XGBoost, potentially better generalization with strong regularization."
+          }
+        },
+        {
+          "priority": "recommended",
+          "action_id": "model_elastic_net",
+          "model_family": "elastic_net",
+          "decision_rationale": {
+            "risk": "May underfit if the true composition-strength relationship is highly non-linear.",
+            "reason": "Linear model with L1/L2 regularization provides a strong, interpretable baseline that is highly resistant to overfitting on small datasets with reduced feature counts.",
+            "evidence": [
+              "High sample-to-feature ratio after aggressive feature selection will favor linear models",
+              "Provides interpretable coefficients for materials science insights"
+            ],
+            "fallback": "ridge",
+            "expected_performance": "Lower accuracy than optimized tree models, but highly stable across CV folds."
+          }
+        }
+      ],
+      "excluded_model_families": [
+        "deep_neural_networks",
+        "gaussian_processes"
+      ],
+      "candidate_model_families": [
+        "tree_based_ensemble",
+        "linear_regularized"
+      ],
+      "model_selection_rationale_summary": "To address the high fold variance and overfitting observed in iteration 1, tree-based models are constrained to lower complexity (shallow depths, fewer estimators, strong regularization). Linear regularized models are included as robust alternatives that benefit from the improved sample-to-feature ratio."
+    },
+    "execution_hints": null,
+    "confidence_score": 0.85,
+    "feature_strategy": {
+      "strategy_id": "comp_alloy_strength_v2",
+      "feature_type": "composition_descriptors",
+      "strategy_version": "2.0.0",
+      "fallback_strategy": {
+        "fallback_actions": [
+          "basic_composition"
+        ],
+        "trigger_conditions": [
+          "pymatgen fails to parse >10% of composition strings",
+          "matminer featurizers throw unhandled exceptions"
+        ]
+      },
+      "semantic_featurizers": [],
+      "executable_featurizers": [
+        "pymatgen_composition_parser",
+        "matminer_magpie",
+        "matminer_element_property",
+        "matminer_stoichiometry",
+        "matminer_valence_orbital"
+      ],
+      "recommended_featurizers": [
+        "matminer_magpie",
+        "matminer_valence_orbital"
+      ],
+      "feature_scaling_required": true,
+      "rejected_feature_actions": [
+        {
+          "reason": "Steels are metallic alloys where metallic bonding dominates; formal oxidation states are less physically meaningful than in ceramics or ionic compounds.",
+          "evidence": [
+            "Metallic bonding delocalizes electrons, making integer oxidation states a poor representation of the electronic structure."
+          ],
+          "capability_id": "composition_oxidation_states"
+        },
+        {
+          "reason": "Ionic compound features assume ionic bonding character, which is not applicable to metallic systems like steel.",
+          "evidence": [
+            "Steels are primarily iron-carbon alloys with metallic bonding, not ionic crystals."
+          ],
+          "capability_id": "composition_ionic_compound_features"
+        },
+        {
+          "reason": "Band center features are more relevant for semiconductors and catalysts, not for predicting mechanical properties of metallic alloys.",
+          "evidence": [
+            "Mechanical strength in metals is governed by dislocation mechanics and phase fractions, not band gap or band center energetics."
+          ],
+          "capability_id": "composition_band_center"
+        },
+        {
+          "reason": "No crystal structure data is available in the dataset.",
+          "evidence": [
+            "Dataset schema only contains 'composition' and 'yield strength' columns."
+          ],
+          "capability_id": "structure_basic_features"
+        }
+      ],
+      "selected_feature_actions": [
+        {
+          "priority": "required",
+          "action_id": "feat_magpie",
+          "parameters": {},
+          "capability_id": "composition_magpie_features",
+          "input_columns": [
+            "composition"
+          ],
+          "decision_rationale": {
+            "risk": "Generates 132 features, which requires aggressive downstream feature selection to prevent overfitting on 312 samples.",
+            "reason": "Magpie descriptors capture elemental property statistics weighted by composition, which are highly predictive for alloy properties and address the high drop-rate of generic features in iteration 1.",
+            "evidence": [
+              "Ward et al. 2016 demonstrated Magpie features' effectiveness for alloy property prediction",
+              "Iteration feedback explicitly requested domain-specific featurizers like Magpie to reduce noise"
+            ],
+            "fallback": "composition_elemental_statistics",
+            "expected_benefit": "Provides physically meaningful features that generalize better than generic descriptors, reducing the 73% drop rate seen in iteration 1.",
+            "material_science_basis": "Macroscopic properties of alloys are heavily influenced by the statistical distribution of elemental properties like atomic radius, electronegativity, and valence electrons."
+          },
+          "output_feature_group": "composition_magpie"
+        },
+        {
+          "priority": "recommended",
+          "action_id": "feat_elemental_stats",
+          "parameters": {},
+          "capability_id": "composition_elemental_statistics",
+          "input_columns": [
+            "composition"
+          ],
+          "decision_rationale": {
+            "risk": "High collinearity with Magpie features, requiring correlation-based filtering.",
+            "reason": "Complements Magpie with additional elemental property statistics from matminer's ElementProperty to ensure a broad coverage of physical descriptors.",
+            "evidence": [
+              "Standard matminer featurizer for composition-based regression",
+              "Provides diverse elemental statistics not fully covered by Magpie"
+            ],
+            "fallback": "basic_composition",
+            "expected_benefit": "Increases the pool of physically relevant features for the feature selection step to choose from.",
+            "material_science_basis": "Elemental properties such as melting point, density, and bulk modulus correlate with mechanical strength and phase stability in steels."
+          },
+          "output_feature_group": "composition_elemental_statistics"
+        },
+        {
+          "priority": "recommended",
+          "action_id": "feat_stoichiometry",
+          "parameters": {},
+          "capability_id": "composition_stoichiometry",
+          "input_columns": [
+            "composition"
+          ],
+          "decision_rationale": {
+            "risk": "Limited predictive power on its own for complex mechanical properties.",
+            "reason": "Captures basic compositional ratios and number of elements, which are fundamental to alloy design and provide low-dimensional, robust features.",
+            "evidence": [
+              "Low computational cost",
+              "Provides essential baseline compositional context"
+            ],
+            "fallback": "basic_composition",
+            "expected_benefit": "Adds low-dimensional, highly interpretable features that are robust to noise and improve the sample-to-feature ratio.",
+            "material_science_basis": "The number of constituent elements and their atomic fractions directly dictate the formation of solid solutions and intermetallic phases in steels."
+          },
+          "output_feature_group": "composition_stoichiometry"
+        },
+        {
+          "priority": "required",
+          "action_id": "feat_valence",
+          "parameters": {},
+          "capability_id": "composition_valence_orbital",
+          "input_columns": [
+            "composition"
+          ],
+          "decision_rationale": {
+            "risk": "May be less relevant for non-transition metal alloys, but steels are Fe-based transition metal alloys.",
+            "reason": "Valence electron concentration is a critical factor in determining the phase stability and strength of metallic alloys, directly addressing the need for domain-specific features.",
+            "evidence": [
+              "Valence electron count (VEC) is a known Hume-Rothery rule parameter for alloy phase prediction",
+              "Iteration feedback highlighted orbital features as a key improvement lever"
+            ],
+            "fallback": "composition_elemental_statistics",
+            "expected_benefit": "Provides highly specific, low-dimensional features (4 features) with strong physical grounding for steel strength.",
+            "material_science_basis": "The d-band electron concentration strongly influences the metallic bonding strength and dislocation mobility, directly affecting yield strength in transition metal alloys like steel."
+          },
+          "output_feature_group": "composition_valence_orbital"
+        }
+      ],
+      "input_modality_assessment": {
+        "rationale": "The dataset only contains chemical composition strings. No crystal structure or pre-computed descriptor columns are available.",
+        "usable_modalities": [
+          "composition"
+        ],
+        "detected_modalities": [
+          "composition"
+        ],
+        "unusable_modalities": [
+          "structure",
+          "descriptor"
+        ]
+      },
+      "feature_group_expectations": [
+        {
+          "feature_group": "composition_magpie",
+          "expected_signal": "High - captures weighted elemental statistics crucial for alloy strength.",
+          "known_limitations": "High dimensionality (132 features) requires aggressive selection."
+        },
+        {
+          "feature_group": "composition_valence_orbital",
+          "expected_signal": "High - VEC is a known predictor for phase stability and strength in steels.",
+          "known_limitations": "Only 4 features, may not capture complex multi-element interactions alone."
+        }
+      ],
+      "feature_selection_required": true,
+      "requires_structure_features": false,
+      "unsupported_future_featurizers": []
+    },
+    "workflow_plan_id": "plan_5628adcc",
+    "interpretation_id": "interp_f2281683",
+    "planning_warnings": [
+      "Small dataset size (312 samples) poses a high risk of overfitting, especially with high-dimensional composition descriptors.",
+      "Yield strength is heavily dependent on processing history and microstructure, which are absent in this composition-only dataset, limiting the theoretical upper bound of model accuracy.",
+      "High target skewness (1.4) and presence of outliers (13) require careful target transformation and robust evaluation metrics."
+    ],
+    "dataset_profile_id": "profile_b6dc0aab",
+    "workflow_rationale": {
+      "known_risks": [
+        "Yield strength is heavily dependent on processing history and microstructure, which are absent in this composition-only dataset, limiting the theoretical upper bound of model accuracy.",
+        "Even with constrained hyperparameters, tree-based models may still overfit if the selected features contain spurious correlations.",
+        "Target variable skewness and outliers (13 detected) may disproportionately affect MAE and RMSE if not properly handled via transformation."
+      ],
+      "key_assumptions": [
+        "The composition strings are valid chemical formulas that can be parsed by pymatgen.",
+        "Yield strength is primarily driven by composition-dependent factors (e.g., solid solution strengthening, phase fractions) that can be approximated by elemental statistics and valence electron counts.",
+        "Aggressive feature selection will retain the most physically relevant descriptors while discarding noise."
+      ],
+      "overall_reasoning_summary": "This iteration addresses the high cross-validation fold variance and model instability identified in iteration 1. The root cause was traced to suboptimal feature engineering (generic descriptors with high drop rates) and excessive model complexity (deep XGBoost trees on 312 samples). The revised strategy introduces domain-specific composition featurizers (Magpie, Valence Orbital) to generate physically meaningful features, enforces aggressive feature selection to improve the sample-to-feature ratio to ~13:1, and strictly constrains tree-based model hyperparameters (max_depth 2-4, n_estimators 50-150) to favor low-variance, high-bias models. Linear regularized models are also included as robust, interpretable alternatives."
+    },
+    "evaluation_strategy": {
+      "primary_metric": "MAE",
+      "metric_direction": "minimize",
+      "secondary_metrics": [
+        "RMSE",
+        "R2"
+      ]
+    },
+    "validation_strategy": {
+      "n_splits": 5,
+      "test_size": null,
+      "random_state": 42,
+      "split_strategy": "k_fold_cross_validation",
+      "stratification_required": false
+    },
+    "planning_assumptions": [
+      "The 'composition' column contains valid chemical formulas parseable by pymatgen.",
+      "Magpie and Valence Orbital features will provide sufficient physical signal to compensate for the lack of microstructural and processing data.",
+      "A sample-to-feature ratio of ~13:1 (target 25 features) is sufficient to stabilize model training and reduce CV fold variance."
+    ],
+    "preprocessing_intent": {
+      "intent_id": "preprocess_alloy_strength_v2",
+      "non_final_notes": "Final executable preprocessing decisions will be made by Feature Preprocessing after Feature Engineering output is available.",
+      "high_level_goals": [
+        "handle_missing_values",
+        "standardize_numeric_features",
+        "remove_highly_correlated_features",
+        "aggressive_feature_selection_to_improve_sample_to_feature_ratio"
+      ],
+      "risks_to_check_after_feature_engineering": [
+        "High collinearity between Magpie and ElementProperty features",
+        "Presence of constant or near-constant features due to limited elemental diversity in steels",
+        "Target variable skewness and outliers affecting model training"
+      ]
+    },
+    "llm_reasoning_summary": "The previous iteration suffered from high CV fold variance due to generic features and overparameterized tree models on a small dataset. This plan pivots to domain-specific featurizers (Magpie, Valence Orbital) grounded in metallurgical principles (Hume-Rothery rules, solid solution strengthening). Preprocessing is adjusted to enforce aggressive feature selection (target 20-25 features) to improve the sample-to-feature ratio. Model search is constrained to shallow, regularized trees and linear models to explicitly minimize variance and improve generalization stability.",
+    "interpretability_strategy": {
+      "enabled": true,
+      "methods": [
+        "shap_values",
+        "permutation_feature_importance"
+      ],
+      "priority": "high"
+    },
+    "pipeline_generation_input": {
+      "pipeline_steps": [
+        "data_cleaning",
+        "composition_parsing",
+        "feature_generation",
+        "feature_preprocessing",
+        "model_training",
+        "evaluation"
+      ],
+      "required_components": {
+        "evaluator": true,
+        "featurizer": true,
+        "data_cleaner": true,
+        "model_trainer": true
+      }
+    },
+    "fe_registry_snapshot_version": "1.0.0"
+  }
+}

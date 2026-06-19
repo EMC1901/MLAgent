@@ -1,0 +1,28 @@
+{
+  "dataset_source": "Uploaded dataset",
+  "target_column": "unknown",
+  "feature_columns_count": null,
+  "feature_artifact_path": "",
+  "preprocessor_artifact_path": "",
+  "model_ready_matrix_path": "\\app\\artifacts\\training\\pe_f416b7bd\\models\\trial_xgboost_0001_b9bb41_fold_0.joblib",
+  "model_artifact_path": "/app/artifacts/training\\pe_f416b7bd\\models\\trial_xgboost_0001_b9bb41_fold_0.joblib",
+  "prediction_artifact_paths": [
+    "/app/artifacts/training\\pe_f416b7bd/predictions\\trial_xgboost_0001_b9bb41_fold_0.parquet",
+    "/app/artifacts/training\\pe_f416b7bd/predictions\\trial_xgboost_0001_b9bb41_fold_1.parquet",
+    "/app/artifacts/training\\pe_f416b7bd/predictions\\trial_xgboost_0001_b9bb41_fold_2.parquet",
+    "/app/artifacts/training\\pe_f416b7bd/predictions\\trial_xgboost_0001_b9bb41_fold_3.parquet",
+    "/app/artifacts/training\\pe_f416b7bd/predictions\\trial_xgboost_0001_b9bb41_fold_4.parquet"
+  ],
+  "random_state": null,
+  "validation_strategy": {},
+  "hpo_summary": {},
+  "environment_summary": {
+    "python_version": "3.12.12 | packaged by Anaconda, Inc. | (main, Oct 21 2025, 20:05:38) [MSC v.1929 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "platform_system": "Windows",
+    "platform_release": "11",
+    "platform_machine": "AMD64"
+  },
+  "registry_versions": {},
+  "created_at": "2026-06-14T13:46:53.194739+00:00"
+}

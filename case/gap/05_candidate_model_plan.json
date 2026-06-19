@@ -1,0 +1,1665 @@
+{
+  "model_search_context_id": "msc_11ff2a7c",
+  "status": "updated",
+  "n_candidate_models": 5,
+  "ready_for_pipeline_generation": true,
+  "model_strategy_adjusted": true,
+  "candidate_models": [],
+  "excluded_models": [],
+  "context_detail": {
+    "errors": [],
+    "status": "updated",
+    "task_id": "task_441dd90c",
+    "hpo_plan": {
+      "enabled": true,
+      "budget_level": "medium",
+      "search_method": "optuna_tpe",
+      "early_stopping": false,
+      "fallback_method": "random_search",
+      "max_total_trials": 30,
+      "trial_allocation": [
+        {
+          "model_id": "ridge",
+          "max_trials": 0,
+          "allocation_rationale": "Baseline model — fixed defaults, no HPO needed."
+        },
+        {
+          "model_id": "lasso",
+          "max_trials": 4,
+          "allocation_rationale": "Lasso has a small search space (primarily alpha). 4 trials are sufficient to explore a range of regularization strengths given the modest feature count (24) and large sample size (4604). More trials would yield diminishing returns."
+        },
+        {
+          "model_id": "random_forest",
+          "max_trials": 6,
+          "allocation_rationale": "Random forest has moderate complexity (n_estimators, max_depth, min_samples_split). With 4604 samples, 6 trials allow exploration of key parameters without excessive computational cost. It is less sensitive to hyperparameters than boosting."
+        },
+        {
+          "model_id": "gradient_boosting",
+          "max_trials": 6,
+          "allocation_rationale": "Gradient boosting (sklearn) has moderate sensitivity to learning_rate, n_estimators, and max_depth. 6 trials provide a fair search given that it shares the boosting concept with xgboost but is often slower to converge."
+        },
+        {
+          "model_id": "xgboost",
+          "max_trials": 8,
+          "allocation_rationale": "XGBoost is the most promising model for low MAE on this dataset, but it has the largest and most sensitive hyperparameter set (n_estimators, learning_rate, max_depth, subsample, colsample_bytree, regularization). 8 trials are allocated to thoroughly explore its search space within the 30-trial budget."
+        },
+        {
+          "model_id": "svr",
+          "max_trials": 6,
+          "allocation_rationale": "SVR with RBF kernel requires tuning of C and gamma, but training time per trial is higher due to quadratic complexity. 6 trials balance the need to find good parameters with the risk of excessive runtime. Its expected performance is lower than boosting, so it receives fewer trials than xgboost."
+        }
+      ],
+      "max_parallel_trials": 1
+    },
+    "warnings": [],
+    "context_id": "msc_11ff2a7c",
+    "created_at": null,
+    "updated_at": null,
+    "update_mode": "llm_guided_with_system_validation",
+    "error_message": null,
+    "evaluation_plan": {
+      "scorer_id": null,
+      "primary_metric": "MAE",
+      "metric_direction": "minimize",
+      "secondary_metrics": [
+        "RMSE",
+        "R2"
+      ]
+    },
+    "validation_plan": {
+      "shuffle": true,
+      "n_splits": 5,
+      "random_state": 42,
+      "split_strategy": "k_fold_cross_validation",
+      "benchmark_split": false,
+      "stratification_required": false
+    },
+    "confidence_score": 0.85,
+    "strategy_changes": [
+      {
+        "field_path": "baseline_models",
+        "change_type": "confirmed",
+        "strategy_area": "model",
+        "updated_value": [
+          "ridge"
+        ],
+        "original_value": [
+          "ridge"
+        ],
+        "decision_rationale": {
+          "risk": "May underfit if true relationship is highly non-linear.",
+          "reason": "Ridge regression is a well-regularized linear baseline, appropriate for 4604 samples and 24 features; scaling executed ensures proper conditioning. Dummy_mean would be too trivial and not informative as a lower bound.",
+          "evidence": [
+            "n_samples=4604 provides enough data for ridge coefficients.",
+            "scaling_executed=true ensures standardized input for L2 penalty.",
+            "feature_reduction_ratio=0.25 indicates no drastic feature reduction, maintaining model stability."
+          ],
+          "fallback": "If ridge yields poor MAE, consider linear_regression or dummy_mean as fallback baseline.",
+          "expected_benefit": "Provides a simple, interpretable performance floor."
+        }
+      },
+      {
+        "field_path": "preferred_model_bias",
+        "change_type": "confirmed",
+        "strategy_area": "model",
+        "updated_value": "accuracy_with_interpretability",
+        "original_value": "accuracy_with_interpretability",
+        "decision_rationale": {
+          "risk": "Over-emphasis on interpretability might discard very high-accuracy black-box models (e.g., DNN), but DNN was already excluded for other reasons.",
+          "reason": "The bias towards accuracy with interpretability remains valid because the dataset size (4604) and feature count (24) allow non-linear models (tree ensembles) that can provide feature importance, alongside interpretable linear models.",
+          "evidence": [
+            "Selected model families include ridge, lasso (coefficient-based) and random forest, xgboost (feature importance).",
+            "Scaling and feature selection have been executed, supporting both linear and tree-based models."
+          ],
+          "fallback": "If tree-based importance is insufficient, switch to Shapley-based explanations.",
+          "expected_benefit": "Ensures that top-performing models also offer insight into feature contributions."
+        }
+      },
+      {
+        "field_path": "rejected_model_actions",
+        "change_type": "confirmed",
+        "strategy_area": "model",
+        "updated_value": [
+          {
+            "reason": "Typical DNNs require larger datasets (often >10k) to outperform tree‑based methods; they are also less interpretable and harder to tune, conflicting with user requirements.",
+            "evidence": [
+              "Matbench results show tree ensembles often match or exceed DNNs for composition‑based property prediction."
+            ],
+            "model_family": "deep_neural_networks"
+          },
+          {
+            "reason": "K‑nearest neighbors provides limited interpretability and often underperforms on high‑dimensional composition features; it also scales poorly with dataset size.",
+            "evidence": [
+              "KNN is rarely competitive in materials regression benchmarks."
+            ],
+            "model_family": "knn"
+          },
+          {
+            "reason": "Gaussian process regression scales poorly (O(n³)) and offers little advantage over regularized linear models for 4600 samples; interpretability is limited to kernel choice.",
+            "evidence": [
+              "GP is better suited for uncertainty quantification on smaller datasets."
+            ],
+            "model_family": "gaussian_process"
+          }
+        ],
+        "original_value": [
+          {
+            "reason": "Typical DNNs require larger datasets (often >10k) to outperform tree‑based methods; they are also less interpretable and harder to tune, conflicting with user requirements.",
+            "evidence": [
+              "Matbench results show tree ensembles often match or exceed DNNs for composition‑based property prediction."
+            ],
+            "model_family": "deep_neural_networks"
+          },
+          {
+            "reason": "K‑nearest neighbors provides limited interpretability and often underperforms on high‑dimensional composition features; it also scales poorly with dataset size.",
+            "evidence": [
+              "KNN is rarely competitive in materials regression benchmarks."
+            ],
+            "model_family": "knn"
+          },
+          {
+            "reason": "Gaussian process regression scales poorly (O(n³)) and offers little advantage over regularized linear models for 4600 samples; interpretability is limited to kernel choice.",
+            "evidence": [
+              "GP is better suited for uncertainty quantification on smaller datasets."
+            ],
+            "model_family": "gaussian_process"
+          }
+        ],
+        "decision_rationale": {
+          "risk": "If data is highly non-linear and tree models underfit, excluded models might have been useful.",
+          "reason": "The reasons for rejecting DNN, KNN, and Gaussian processes remain valid: dataset size (4604) is insufficient for DNN to outperform tree ensembles; KNN provides limited interpretability and poor scalability; GP computational cost is high with marginal benefit over regularized linear models, especially with 24 features after selection.",
+          "evidence": [
+            "n_samples=4604 limits DNN advantage.",
+            "24 final features make KNN distance metrics less meaningful.",
+            "GP O(n³) complexity is prohibitive for >4000 samples."
+          ],
+          "fallback": "If approved model families all underperform, reconsider KNN or GPR with a subset of data.",
+          "expected_benefit": "Focus computational resources on models likely to yield best MAE and interpretability."
+        }
+      },
+      {
+        "field_path": "selected_model_actions",
+        "change_type": "modified",
+        "strategy_area": "model",
+        "updated_value": [
+          {
+            "priority": "required",
+            "action_id": "model_001_ridge",
+            "model_family": "ridge",
+            "decision_rationale": {
+              "risk": "May underfit if composition‑band gap mapping is highly non‑linear.",
+              "reason": "Ridge regression provides a simple, well‑regularized linear baseline that is interpretable via coefficient magnitudes and often performs competitively on composition‑property datasets.",
+              "evidence": [
+                "Commonly used as a baseline in Matbench and materials informatics studies.",
+                "Ridge performs well when features are numerous and correlated due to L2 penalty."
+              ],
+              "fallback": "Not applicable; baseline model always trained.",
+              "expected_performance": "Reasonably low MAE; may be outperformed by non‑linear models if relationship is strongly non‑linear."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_002_lasso",
+            "model_family": "lasso",
+            "decision_rationale": {
+              "risk": "May discard relevant but correlated features, harming accuracy.",
+              "reason": "Lasso leverages L1 regularization to produce sparse solutions, performing automatic feature selection and enhancing interpretability of the most important descriptors.",
+              "evidence": [
+                "Lasso is widely used when the number of features is large relative to samples.",
+                "Interpretability is directly supported by zero/zero coefficients."
+              ],
+              "fallback": "If performance is poor, use ridge or Elastic Net.",
+              "expected_performance": "Comparable or slightly lower MAE than ridge if only few features are informative; may suffer if many weak signals exist."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_003_random_forest",
+            "model_family": "random_forest",
+            "decision_rationale": {
+              "risk": "Risk of overfitting if max_depth not bounded; requires tuning.",
+              "reason": "Random forest effectively captures non‑linear interactions and is robust to outliers and irrelevant features; it provides feature importance for interpretability.",
+              "evidence": [
+                "Random forest consistently performs well on Matbench band gap and formation energy tasks.",
+                "Ensemble methods reduce variance and improve generalization."
+              ],
+              "fallback": "If overfitting despite tuning, use gradient boosting with early stopping.",
+              "expected_performance": "Often achieves lower MAE than linear models when non‑linearity is present; may overfit if not tuned."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_004_gradient_boosting",
+            "model_family": "gradient_boosting",
+            "decision_rationale": {
+              "risk": "More hyperparameters to tune; can be over‑sensitive to noise.",
+              "reason": "Gradient boosting (sklearn) is a strong tree‑based method; retained alongside XGBoost to compare different boosting implementations on this 4604‑sample materials dataset.",
+              "evidence": [
+                "Gradient boosting often performs competitively with XGBoost on medium‑sized tabular data.",
+                "Allows evaluation of both light and heavy boosting approaches."
+              ],
+              "fallback": "If overfitting or unstable, reduce learning rate and increase n_estimators or switch to XGBoost exclusively.",
+              "expected_performance": "High accuracy, potentially matching or slightly below XGBoost."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_006_xgboost",
+            "model_family": "xgboost",
+            "decision_rationale": {
+              "risk": "Many hyperparameters; risk of overfitting if not tuned carefully.",
+              "reason": "XGBoost is a state‑of‑the‑art gradient boosting library, known for top performance on tabular benchmarks including materials property prediction. Given 4604 samples and 24 features, it can learn complex interactions.",
+              "evidence": [
+                "XGBoost consistently wins Kaggle competitions on tabular data.",
+                "Matbench studies show XGBoost outperforming random forest and linear models for band gap prediction."
+              ],
+              "fallback": "If overfitting or training time too long, reduce number of trials or fallback to gradient_boosting.",
+              "expected_performance": "Expected to yield lowest MAE among all candidates if properly tuned."
+            }
+          },
+          {
+            "priority": "optional",
+            "action_id": "model_005_svm",
+            "model_family": "svr",
+            "decision_rationale": {
+              "risk": "Computationally expensive; requires careful tuning of C and gamma.",
+              "reason": "SVR with RBF kernel can model complex non‑linear relationships; included as an alternative in case tree‑based models do not perform well.",
+              "evidence": [
+                "SVR has been successfully applied to small‑to‑medium materials datasets.",
+                "Kernel trick allows flexibility without manual feature engineering."
+              ],
+              "fallback": "If training time is excessive or performance is subpar, rely on tree‑based models.",
+              "expected_performance": "Potentially competitive, but often less performant than gradient boosting on tabular materials data."
+            }
+          }
+        ],
+        "original_value": [
+          {
+            "priority": "required",
+            "action_id": "model_001_ridge",
+            "model_family": "ridge",
+            "decision_rationale": {
+              "risk": "May underfit if composition‑band gap mapping is highly non‑linear.",
+              "reason": "Ridge regression provides a simple, well‑regularized linear baseline that is interpretable via coefficient magnitudes and often performs competitively on composition‑property datasets.",
+              "evidence": [
+                "Commonly used as a baseline in Matbench and materials informatics studies.",
+                "Ridge performs well when features are numerous and correlated due to L2 penalty."
+              ],
+              "fallback": "Not applicable; baseline model always trained.",
+              "expected_performance": "Reasonably low MAE; may be outperformed by non‑linear models if relationship is strongly non‑linear."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_002_lasso",
+            "model_family": "lasso",
+            "decision_rationale": {
+              "risk": "May discard relevant but correlated features, harming accuracy.",
+              "reason": "Lasso leverages L1 regularization to produce sparse solutions, performing automatic feature selection and enhancing interpretability of the most important descriptors.",
+              "evidence": [
+                "Lasso is widely used when the number of features is large relative to samples.",
+                "Interpretability is directly supported by zero/zero coefficients."
+              ],
+              "fallback": "If performance is poor, use ridge or Elastic Net.",
+              "expected_performance": "Comparable or slightly lower MAE than ridge if only few features are informative; may suffer if many weak signals exist."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_003_random_forest",
+            "model_family": "random_forest",
+            "decision_rationale": {
+              "risk": "Risk of overfitting if max_depth not bounded; requires tuning.",
+              "reason": "Random forest effectively captures non‑linear interactions and is robust to outliers and irrelevant features; it provides feature importance for interpretability.",
+              "evidence": [
+                "Random forest consistently performs well on Matbench band gap and formation energy tasks.",
+                "Ensemble methods reduce variance and improve generalization."
+              ],
+              "fallback": "If overfitting despite tuning, use gradient boosting with early stopping.",
+              "expected_performance": "Often achieves lower MAE than linear models when non‑linearity is present; may overfit if not tuned."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_004_gradient_boosting",
+            "model_family": "gradient_boosting",
+            "decision_rationale": {
+              "risk": "More hyperparameters to tune; can be over‑sensitive to noise.",
+              "reason": "Gradient boosting (XGBoost/LightGBM) is state‑of‑the‑art for tabular data, capable of learning complex interactions and often yielding top accuracy on materials property prediction.",
+              "evidence": [
+                "Top performance in many Kaggle and Matbench regression competitions.",
+                "Handles mixed data types well and offers built‑in regularization."
+              ],
+              "fallback": "If unstable, use random forest or regularized linear models.",
+              "expected_performance": "Highest expected accuracy; may require careful hyperparameter tuning to avoid overfitting."
+            }
+          },
+          {
+            "priority": "optional",
+            "action_id": "model_005_svm",
+            "model_family": "svr",
+            "decision_rationale": {
+              "risk": "Computationally expensive; requires careful tuning of C and gamma.",
+              "reason": "SVR with RBF kernel can model complex non‑linear relationships; included as an alternative in case tree‑based models do not perform well.",
+              "evidence": [
+                "SVR has been successfully applied to small‑to‑medium materials datasets.",
+                "Kernel trick allows flexibility without manual feature engineering."
+              ],
+              "fallback": "If training time is excessive or performance is subpar, rely on tree‑based models.",
+              "expected_performance": "Potentially competitive, but often less performant than gradient boosting on tabular materials data."
+            }
+          }
+        ],
+        "decision_rationale": {
+          "risk": "More hyperparameter tuning required; overlapping search spaces may increase trial budget consumption.",
+          "reason": "XGBoost is added as a recommended model to improve predictive accuracy, leveraging its proven performance on tabular materials data of this size (4604 samples). Gradient boosting rationale updated to reflect coexistence with XGBoost.",
+          "evidence": [
+            "n_samples=4604 is adequate for XGBoost, which typically outperforms random forest and sklearn gradient boosting.",
+            "24 features provide enough complexity for boosting to learn non-linear interactions.",
+            "XGBoost is commonly top-ranked in materials property prediction benchmarks (Matbench)."
+          ],
+          "fallback": "If XGBoost does not improve over gradient_boosting, drop it and reallocate trials to remaining models.",
+          "expected_benefit": "Higher likelihood of finding a low-MAE model due to diverse tree boosting approaches."
+        }
+      },
+      {
+        "field_path": "candidate_model_families",
+        "change_type": "modified",
+        "strategy_area": "model",
+        "updated_value": [
+          "ridge",
+          "lasso",
+          "random_forest",
+          "gradient_boosting",
+          "xgboost",
+          "svr"
+        ],
+        "original_value": [
+          "ridge",
+          "lasso",
+          "random_forest",
+          "gradient_boosting",
+          "svr"
+        ],
+        "decision_rationale": {
+          "risk": "Potential overfitting if not tuned; increased search space size.",
+          "reason": "Added xgboost to candidate families because it is a highly effective tree-boosting method on 4604-sample, 24-feature datasets, often outperforming generic gradient_boosting.",
+          "evidence": [
+            "XGBoost is a top performer on Matbench regression tasks.",
+            "4604 samples and 24 features is well within XGBoost‘s optimal range.",
+            "Scaling executed but not needed for tree models, having minimal impact on xgboost."
+          ],
+          "fallback": "If xgboost overfits or training time is excessive, remove it and revert to original candidate list.",
+          "expected_benefit": "Higher predictive accuracy by including a second boosting variant."
+        }
+      },
+      {
+        "field_path": "model_selection_rationale_summary",
+        "change_type": "modified",
+        "strategy_area": "model",
+        "updated_value": "Selected models cover a spectrum from interpretable linear regularization (ridge, lasso) to non‑linear tree ensembles (random forest, gradient boosting, xgboost) and support vector regression. XGBoost added as a high‑performance boosting method leveraging its state‑of‑the‑art results on materials data. Ridge serves as a fast, interpretable baseline. Deep learning is excluded due to limited dataset size and low interpretability. KNN is excluded for poor scalability and lack of mechanistic insight. Gaussian processes are omitted due to computational cost and limited advantage on medium‑sized data.",
+        "original_value": "Selected models cover a spectrum from interpretable linear regularization (ridge, lasso) to non‑linear tree ensembles (random forest, gradient boosting) and support vector regression. Ridge serves as a fast, interpretable baseline. Deep learning is excluded due to limited dataset size and low interpretability. KNN is excluded for poor scalability and lack of mechanistic insight. Gaussian processes are omitted due to computational cost and limited advantage on medium‑sized data.",
+        "decision_rationale": {
+          "risk": "None.",
+          "reason": "Updated summary to reflect the addition of XGBoost to the candidate set, which strengthens the tree‑boosting family for this 4604‑sample, 24‑feature dataset.",
+          "evidence": [
+            "XGBoost is widely documented as a top performer for tabular materials data.",
+            "Current dataset profile (4604 samples, 24 features) is ideal for XGBoost."
+          ],
+          "fallback": "If the summary is not updated, the reasoning might appear inconsistent with the actual candidate list.",
+          "expected_benefit": "Provides clear documentation of model selection rationale for reproducibility."
+        }
+      },
+      {
+        "field_path": "excluded_model_families",
+        "change_type": "confirmed",
+        "strategy_area": "model",
+        "updated_value": [
+          "deep_neural_networks",
+          "knn",
+          "gaussian_process"
+        ],
+        "original_value": [
+          "deep_neural_networks",
+          "knn",
+          "gaussian_process"
+        ],
+        "decision_rationale": {
+          "risk": "If all approved models underperform, excluded ones might have been useful.",
+          "reason": "The exclusion of DNN, KNN, and GP remains justified by dataset size (4604), feature count (24), and interpretability requirements.",
+          "evidence": [
+            "n_samples=4604 is below threshold for DNN advantage.",
+            "24 features reduces KNN‘s effectiveness.",
+            "GP O(n³) complexity is impractical for >4000 samples."
+          ],
+          "fallback": "Add KNN or GP with a subset of data if acceptable, or increase dataset size for DNN.",
+          "expected_benefit": "No resources wasted on poorly suited models."
+        }
+      },
+      {
+        "field_path": "enabled",
+        "change_type": "confirmed",
+        "strategy_area": "hpo",
+        "updated_value": true,
+        "original_value": true,
+        "decision_rationale": {
+          "risk": "Without HPO, default parameters may underfit or overfit.",
+          "reason": "HPO is essential to tune complex tree models (random_forest, gradient_boosting, xgboost) and SVR on 4604 samples to achieve best MAE.",
+          "evidence": [
+            "tree models have many hyperparameters (max_depth, learning_rate, n_estimators) that significantly impact performance.",
+            "SVR requires careful C and gamma tuning."
+          ],
+          "fallback": "If HPO causes overfitting or timeouts, reduce search space or trials.",
+          "expected_benefit": "Improved generalization and lower MAE."
+        }
+      },
+      {
+        "field_path": "max_trials",
+        "change_type": "confirmed",
+        "strategy_area": "hpo",
+        "updated_value": 30,
+        "original_value": 30,
+        "decision_rationale": {
+          "risk": "If some models have larger search spaces (e.g., xgboost), 8 trials may be borderline; could miss optimal regions.",
+          "reason": "30 trials is a balanced budget for 6 candidate models (one baseline with 0 trials) on a dataset of 4604 samples; it allows ~5-8 trials per complex model.",
+          "evidence": [
+            "Total budget 30 trials, spread across 5 HPO models gives average 6 trials each, sufficient for moderate search spaces.",
+            "4604 samples: each trial can be completed in reasonable time for tree and linear models."
+          ],
+          "fallback": "If performance is poor, increase max_trials to 40 or use early stopping.",
+          "expected_benefit": "Good trade-off between exploration and training cost."
+        }
+      },
+      {
+        "field_path": "budget_level",
+        "change_type": "confirmed",
+        "strategy_area": "hpo",
+        "updated_value": "medium",
+        "original_value": "medium",
+        "decision_rationale": {
+          "risk": "If training is very cheap, a higher budget could yield better results.",
+          "reason": "Medium budget (30 trials) is appropriate for 4604 samples and 6 models; not too small to be inadequate, not excessive given dataset size.",
+          "evidence": [
+            "4604 samples with 24 features: moderate training cost.",
+            "Performance requirements likely justify medium exploration."
+          ],
+          "fallback": "Upgrade to high budget (e.g., 60 trials) if time permits and initial results promising.",
+          "expected_benefit": "Aligns budget with dataset size."
+        }
+      },
+      {
+        "field_path": "search_method",
+        "change_type": "confirmed",
+        "strategy_area": "hpo",
+        "updated_value": "optuna_tpe",
+        "original_value": "optuna_tpe",
+        "decision_rationale": {
+          "risk": "TPE may get stuck in local optima for highly irregular search spaces; but tree models have smooth response.",
+          "reason": "Optuna TPE efficiently handles mixed continuous/discrete hyperparameters and converges quickly on medium-sized datasets like this one (4604 samples).",
+          "evidence": [
+            "Optuna is widely used for tabular model tuning.",
+            "TPE outperforms random/grid search in sample efficiency."
+          ],
+          "fallback": "If TPE fails, try bayesian_optimization or random_search.",
+          "expected_benefit": "Faster convergence to good hyperparameters within 30 trials."
+        }
+      },
+      {
+        "field_path": "search_space_width",
+        "change_type": "added",
+        "strategy_area": "hpo",
+        "updated_value": "moderate",
+        "original_value": null,
+        "decision_rationale": {
+          "risk": "Could miss optimal hyperparameters that lie just outside moderate bounds.",
+          "reason": "With 4604 samples but only 24 features, a moderate search space width is appropriate. Wide is only recommended when both samples >= 1000 and features >= 50, to avoid excessive overfitting of the search itself.",
+          "evidence": [
+            "n_samples=4604 allows exploration, but n_final_features=24 does not warrant wide parameter ranges.",
+            "Moderate reduces risk of overfitting to validation set."
+          ],
+          "fallback": "If cross-validation scores show under-exploration, widen to 'wide' for a few models.",
+          "expected_benefit": "Better generalization by constraining hyperparameter ranges to plausible values."
+        }
+      },
+      {
+        "field_path": "n_splits",
+        "change_type": "confirmed",
+        "strategy_area": "validation",
+        "updated_value": 5,
+        "original_value": 5,
+        "decision_rationale": {
+          "risk": "Slightly optimistic if folds are not independent, but random_state=42 ensures reproducibility.",
+          "reason": "5-fold CV is standard and provides a reliable estimate of MAE on 4604 samples without excessive computation.",
+          "evidence": [
+            "4604 / 5 ≈ 921 samples per fold, enough for stable estimates.",
+            "No stratification needed for regression."
+          ],
+          "fallback": "If runtime too high, reduce to 3 folds.",
+          "expected_benefit": "Accurate performance estimation."
+        }
+      },
+      {
+        "field_path": "test_size",
+        "change_type": "confirmed",
+        "strategy_area": "validation",
+        "updated_value": null,
+        "original_value": null,
+        "decision_rationale": {
+          "risk": "If final model selection is based solely on CV, there is a small risk of overfitting to the validation scheme.",
+          "reason": "Using k-fold CV instead of a hold-out test set is appropriate to maximize training data and get robust error estimates.",
+          "evidence": [
+            "K-Fold with 5 splits uses all 4604 samples for both training and validation across folds.",
+            "No separate test set needed."
+          ],
+          "fallback": "Could add a small hold-out (10%) for final validation if desired.",
+          "expected_benefit": "Higher effective training size."
+        }
+      },
+      {
+        "field_path": "random_state",
+        "change_type": "confirmed",
+        "strategy_area": "validation",
+        "updated_value": 42,
+        "original_value": 42,
+        "decision_rationale": {
+          "risk": "Solution may be sensitive to this particular split.",
+          "reason": "Fixed random_state ensures reproducibility across runs.",
+          "evidence": [
+            "42 is a conventional seed."
+          ],
+          "fallback": "If robustness is a concern, use repeated CV or different seeds.",
+          "expected_benefit": "Deterministic splits."
+        }
+      },
+      {
+        "field_path": "split_strategy",
+        "change_type": "confirmed",
+        "strategy_area": "validation",
+        "updated_value": "k_fold_cross_validation",
+        "original_value": "k_fold_cross_validation",
+        "decision_rationale": {
+          "risk": "None.",
+          "reason": "K-fold CV is the most reliable method for regression with 4604 samples, providing multiple train/valid splits.",
+          "evidence": [
+            "No obvious grouping or time-series structure in composition data.",
+            "5-fold is standard."
+          ],
+          "fallback": "If data has hidden groups, use GroupKFold, but not indicated.",
+          "expected_benefit": "Unbiased performance estimation."
+        }
+      },
+      {
+        "field_path": "stratification_required",
+        "change_type": "confirmed",
+        "strategy_area": "validation",
+        "updated_value": false,
+        "original_value": false,
+        "decision_rationale": {
+          "risk": "None.",
+          "reason": "Stratification is not applicable to regression tasks.",
+          "evidence": [
+            "target 'gap expt' is continuous.",
+            "Stratification is only for classification."
+          ],
+          "fallback": "Not applicable.",
+          "expected_benefit": "Simpler validation."
+        }
+      }
+    ],
+    "workflow_plan_id": "plan_e1b06ec1",
+    "search_space_plan": {
+      "spaces": [
+        {
+          "model_id": "lasso",
+          "parameters": [
+            {
+              "low": 0.0001,
+              "high": 100.0,
+              "name": "alpha",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "lasso_default_regression"
+        },
+        {
+          "model_id": "random_forest",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 3.0,
+              "high": 30.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "None",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 20.0,
+              "name": "min_samples_split",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "2",
+              "override_rationale": null
+            },
+            {
+              "low": 1.0,
+              "high": 10.0,
+              "name": "min_samples_leaf",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "1",
+              "override_rationale": null
+            },
+            {
+              "low": null,
+              "high": null,
+              "name": "max_features",
+              "choices": [
+                "sqrt",
+                "log2",
+                0.5,
+                0.8,
+                1.0
+              ],
+              "sampling": "choice",
+              "param_type": "categorical",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "random_forest_default_regression"
+        },
+        {
+          "model_id": "gradient_boosting",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 0.01,
+              "high": 0.3,
+              "name": "learning_rate",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 10.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "3",
+              "override_rationale": null
+            },
+            {
+              "low": 0.5,
+              "high": 1.0,
+              "name": "subsample",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "gradient_boosting_default_regression"
+        },
+        {
+          "model_id": "xgboost",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 0.01,
+              "high": 0.3,
+              "name": "learning_rate",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 12.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "6",
+              "override_rationale": null
+            },
+            {
+              "low": 0.5,
+              "high": 1.0,
+              "name": "subsample",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            },
+            {
+              "low": 0.5,
+              "high": 1.0,
+              "name": "colsample_bytree",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "xgboost_default_regression"
+        },
+        {
+          "model_id": "svr",
+          "parameters": [
+            {
+              "low": 0.001,
+              "high": 1000.0,
+              "name": "C",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "1.0",
+              "override_rationale": null
+            },
+            {
+              "low": 0.001,
+              "high": 1.0,
+              "name": "epsilon",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": null,
+              "high": null,
+              "name": "kernel",
+              "choices": [
+                "linear",
+                "rbf",
+                "poly"
+              ],
+              "sampling": "choice",
+              "param_type": "categorical",
+              "default_value": "rbf",
+              "override_rationale": null
+            },
+            {
+              "low": 0.0001,
+              "high": 1.0,
+              "name": "gamma",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "scale",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "svr_default_regression"
+        }
+      ]
+    },
+    "llm_strategy_advice": {
+      "n_splits": 5,
+      "max_trials": 30,
+      "risk_notes": [
+        "XGBoost may overfit if regularization is insufficient; cross-validation with 5 folds should mitigate this.",
+        "SVR training time could be substantial on 4604 samples, limiting the effective number of trials.",
+        "The exclusion of KNN and GP could leave some non-linear patterns unexplored if tree models fail."
+      ],
+      "baseline_models": [],
+      "confidence_score": 0.85,
+      "hpo_budget_level": "moderate",
+      "hpo_search_method": null,
+      "adjustment_reasons": [],
+      "preferred_model_bias": null,
+      "candidate_model_families": [],
+      "validation_split_strategy": null
+    },
+    "strategy_adjustment": {
+      "adjustment_reasons": [
+        "model.selected_model_actions: modified",
+        "model.candidate_model_families: modified",
+        "model.model_selection_rationale_summary: modified",
+        "hpo.search_space_width: added"
+      ],
+      "hpo_strategy_adjusted": true,
+      "model_strategy_adjusted": true,
+      "evaluation_strategy_adjusted": false,
+      "validation_strategy_adjusted": false
+    },
+    "candidate_model_plan": {
+      "baseline_models": [
+        {
+          "role": "strong_baseline",
+          "model_id": "ridge",
+          "hpo_enabled": false
+        }
+      ],
+      "excluded_models": [
+        {
+          "reason": "Typical DNNs require larger datasets (often >10k) to outperform tree‑based methods; they are also less interpretable and harder to tune, conflicting with user requirements.",
+          "model_id": "deep_neural_networks"
+        },
+        {
+          "reason": "K‑nearest neighbors provides limited interpretability and often underperforms on high‑dimensional composition features; it also scales poorly with dataset size.",
+          "model_id": "knn"
+        },
+        {
+          "reason": "Gaussian process regression scales poorly (O(n³)) and offers little advantage over regularized linear models for 4600 samples; interpretability is limited to kernel choice.",
+          "model_id": "gaussian_process"
+        }
+      ],
+      "candidate_models": [
+        {
+          "reason": "Lasso leverages L1 regularization to produce sparse solutions, performing automatic feature selection and enhancing interpretability of the most important descriptors.",
+          "model_id": "lasso",
+          "priority": "high",
+          "hpo_enabled": true,
+          "model_family": "lasso"
+        },
+        {
+          "reason": "Random forest effectively captures non‑linear interactions and is robust to outliers and irrelevant features; it provides feature importance for interpretability.",
+          "model_id": "random_forest",
+          "priority": "high",
+          "hpo_enabled": true,
+          "model_family": "random_forest"
+        },
+        {
+          "reason": "Gradient boosting (sklearn) is a strong tree‑based method; retained alongside XGBoost to compare different boosting implementations on this 4604‑sample materials dataset.",
+          "model_id": "gradient_boosting",
+          "priority": "high",
+          "hpo_enabled": true,
+          "model_family": "gradient_boosting"
+        },
+        {
+          "reason": "XGBoost is a state‑of‑the‑art gradient boosting library, known for top performance on tabular benchmarks including materials property prediction. Given 4604 samples and 24 features, it can learn complex interactions.",
+          "model_id": "xgboost",
+          "priority": "high",
+          "hpo_enabled": true,
+          "model_family": "xgboost"
+        },
+        {
+          "reason": "SVR with RBF kernel can model complex non‑linear relationships; included as an alternative in case tree‑based models do not perform well.",
+          "model_id": "svr",
+          "priority": "medium",
+          "hpo_enabled": true,
+          "model_family": "svr"
+        }
+      ]
+    },
+    "updated_hpo_strategy": {
+      "enabled": true,
+      "max_trials": 30,
+      "budget_level": "medium",
+      "search_method": "optuna_tpe",
+      "search_space_width": "moderate"
+    },
+    "feature_group_summary": {
+      "dropped_groups": [],
+      "retained_groups": [
+        "elemental_property_statistics",
+        "matminer_oxidation_states",
+        "matminer_ion_property",
+        "matminer_band_center",
+        "matminer_valence_orbital"
+      ],
+      "partially_retained_groups": [],
+      "low_effective_feature_warning": false
+    },
+    "preprocessing_summary": {
+      "scaling_executed": true,
+      "fold_safe_deferred": {
+        "has_deferred": true,
+        "fold_spec_path": "/app/artifacts/model_ready\\fmp_69180d40\\fold_pipeline_spec.json",
+        "operations_by_group": {
+          "scaling": [
+            "robust_scaler"
+          ]
+        },
+        "n_deferred_operations": 2
+      },
+      "imputation_executed": false,
+      "scaling_execution_mode": "fold_safe",
+      "imputation_execution_mode": "none",
+      "feature_selection_executed": true,
+      "categorical_encoding_executed": false,
+      "feature_selection_execution_mode": "global",
+      "preprocessing_pipeline_artifact_id": "artifact_preprocessor_47e3ca9f"
+    },
+    "feature_engineering_id": "feat_20f723ef",
+    "updated_model_strategy": {
+      "baseline_models": [
+        "ridge"
+      ],
+      "preferred_model_bias": "accuracy_with_interpretability",
+      "rejected_model_actions": [
+        {
+          "reason": "Typical DNNs require larger datasets (often >10k) to outperform tree‑based methods; they are also less interpretable and harder to tune, conflicting with user requirements.",
+          "evidence": [
+            "Matbench results show tree ensembles often match or exceed DNNs for composition‑based property prediction."
+          ],
+          "model_family": "deep_neural_networks"
+        },
+        {
+          "reason": "K‑nearest neighbors provides limited interpretability and often underperforms on high‑dimensional composition features; it also scales poorly with dataset size.",
+          "evidence": [
+            "KNN is rarely competitive in materials regression benchmarks."
+          ],
+          "model_family": "knn"
+        },
+        {
+          "reason": "Gaussian process regression scales poorly (O(n³)) and offers little advantage over regularized linear models for 4600 samples; interpretability is limited to kernel choice.",
+          "evidence": [
+            "GP is better suited for uncertainty quantification on smaller datasets."
+          ],
+          "model_family": "gaussian_process"
+        }
+      ],
+      "selected_model_actions": [
+        {
+          "priority": "required",
+          "action_id": "model_001_ridge",
+          "model_family": "ridge",
+          "decision_rationale": {
+            "risk": "May underfit if composition‑band gap mapping is highly non‑linear.",
+            "reason": "Ridge regression provides a simple, well‑regularized linear baseline that is interpretable via coefficient magnitudes and often performs competitively on composition‑property datasets.",
+            "evidence": [
+              "Commonly used as a baseline in Matbench and materials informatics studies.",
+              "Ridge performs well when features are numerous and correlated due to L2 penalty."
+            ],
+            "fallback": "Not applicable; baseline model always trained.",
+            "expected_performance": "Reasonably low MAE; may be outperformed by non‑linear models if relationship is strongly non‑linear."
+          }
+        },
+        {
+          "priority": "recommended",
+          "action_id": "model_002_lasso",
+          "model_family": "lasso",
+          "decision_rationale": {
+            "risk": "May discard relevant but correlated features, harming accuracy.",
+            "reason": "Lasso leverages L1 regularization to produce sparse solutions, performing automatic feature selection and enhancing interpretability of the most important descriptors.",
+            "evidence": [
+              "Lasso is widely used when the number of features is large relative to samples.",
+              "Interpretability is directly supported by zero/zero coefficients."
+            ],
+            "fallback": "If performance is poor, use ridge or Elastic Net.",
+            "expected_performance": "Comparable or slightly lower MAE than ridge if only few features are informative; may suffer if many weak signals exist."
+          }
+        },
+        {
+          "priority": "recommended",
+          "action_id": "model_003_random_forest",
+          "model_family": "random_forest",
+          "decision_rationale": {
+            "risk": "Risk of overfitting if max_depth not bounded; requires tuning.",
+            "reason": "Random forest effectively captures non‑linear interactions and is robust to outliers and irrelevant features; it provides feature importance for interpretability.",
+            "evidence": [
+              "Random forest consistently performs well on Matbench band gap and formation energy tasks.",
+              "Ensemble methods reduce variance and improve generalization."
+            ],
+            "fallback": "If overfitting despite tuning, use gradient boosting with early stopping.",
+            "expected_performance": "Often achieves lower MAE than linear models when non‑linearity is present; may overfit if not tuned."
+          }
+        },
+        {
+          "priority": "recommended",
+          "action_id": "model_004_gradient_boosting",
+          "model_family": "gradient_boosting",
+          "decision_rationale": {
+            "risk": "More hyperparameters to tune; can be over‑sensitive to noise.",
+            "reason": "Gradient boosting (sklearn) is a strong tree‑based method; retained alongside XGBoost to compare different boosting implementations on this 4604‑sample materials dataset.",
+            "evidence": [
+              "Gradient boosting often performs competitively with XGBoost on medium‑sized tabular data.",
+              "Allows evaluation of both light and heavy boosting approaches."
+            ],
+            "fallback": "If overfitting or unstable, reduce learning rate and increase n_estimators or switch to XGBoost exclusively.",
+            "expected_performance": "High accuracy, potentially matching or slightly below XGBoost."
+          }
+        },
+        {
+          "priority": "recommended",
+          "action_id": "model_006_xgboost",
+          "model_family": "xgboost",
+          "decision_rationale": {
+            "risk": "Many hyperparameters; risk of overfitting if not tuned carefully.",
+            "reason": "XGBoost is a state‑of‑the‑art gradient boosting library, known for top performance on tabular benchmarks including materials property prediction. Given 4604 samples and 24 features, it can learn complex interactions.",
+            "evidence": [
+              "XGBoost consistently wins Kaggle competitions on tabular data.",
+              "Matbench studies show XGBoost outperforming random forest and linear models for band gap prediction."
+            ],
+            "fallback": "If overfitting or training time too long, reduce number of trials or fallback to gradient_boosting.",
+            "expected_performance": "Expected to yield lowest MAE among all candidates if properly tuned."
+          }
+        },
+        {
+          "priority": "optional",
+          "action_id": "model_005_svm",
+          "model_family": "svr",
+          "decision_rationale": {
+            "risk": "Computationally expensive; requires careful tuning of C and gamma.",
+            "reason": "SVR with RBF kernel can model complex non‑linear relationships; included as an alternative in case tree‑based models do not perform well.",
+            "evidence": [
+              "SVR has been successfully applied to small‑to‑medium materials datasets.",
+              "Kernel trick allows flexibility without manual feature engineering."
+            ],
+            "fallback": "If training time is excessive or performance is subpar, rely on tree‑based models.",
+            "expected_performance": "Potentially competitive, but often less performant than gradient boosting on tabular materials data."
+          }
+        }
+      ],
+      "excluded_model_families": [
+        "deep_neural_networks",
+        "knn",
+        "gaussian_process"
+      ],
+      "candidate_model_families": [
+        "ridge",
+        "lasso",
+        "random_forest",
+        "gradient_boosting",
+        "xgboost",
+        "svr"
+      ],
+      "model_selection_rationale_summary": "Selected models cover a spectrum from interpretable linear regularization (ridge, lasso) to non‑linear tree ensembles (random forest, gradient boosting, xgboost) and support vector regression. XGBoost added as a high‑performance boosting method leveraging its state‑of‑the‑art results on materials data. Ridge serves as a fast, interpretable baseline. Deep learning is excluded due to limited dataset size and low interpretability. KNN is excluded for poor scalability and lack of mechanistic insight. Gaussian processes are omitted due to computational cost and limited advantage on medium‑sized data."
+    },
+    "strategy_change_summary": "Updated strategy for the 4604-sample, 24-feature gap expt prediction maintains ridge as baseline and lasso for sparse interpretability, while adding XGBoost alongside random forest, gradient boosting, and SVR. HPO budget remains at 30 trials allocated across models with higher complexity receiving more trials. A moderate search space width is introduced to prevent overfitting of the hyperparameter search itself.",
+    "feature_preprocessing_id": "fmp_69180d40",
+    "system_validation_result": {
+      "is_valid": true,
+      "fallback_applied": false,
+      "rejected_suggestions": []
+    },
+    "dataset_effective_profile": {
+      "n_samples": 4604,
+      "task_type": "regression",
+      "target_column": "gap expt",
+      "n_raw_features": 32,
+      "n_final_features": 24,
+      "n_dropped_features": 8,
+      "feature_reduction_ratio": 0.25
+    },
+    "pipeline_generation_input": {
+      "hpo_plan": {
+        "enabled": true,
+        "budget_level": "medium",
+        "search_method": "optuna_tpe",
+        "early_stopping": false,
+        "fallback_method": "random_search",
+        "max_total_trials": 30,
+        "trial_allocation": [
+          {
+            "model_id": "ridge",
+            "max_trials": 0,
+            "allocation_rationale": "Baseline model — fixed defaults, no HPO needed."
+          },
+          {
+            "model_id": "lasso",
+            "max_trials": 4,
+            "allocation_rationale": "Lasso has a small search space (primarily alpha). 4 trials are sufficient to explore a range of regularization strengths given the modest feature count (24) and large sample size (4604). More trials would yield diminishing returns."
+          },
+          {
+            "model_id": "random_forest",
+            "max_trials": 6,
+            "allocation_rationale": "Random forest has moderate complexity (n_estimators, max_depth, min_samples_split). With 4604 samples, 6 trials allow exploration of key parameters without excessive computational cost. It is less sensitive to hyperparameters than boosting."
+          },
+          {
+            "model_id": "gradient_boosting",
+            "max_trials": 6,
+            "allocation_rationale": "Gradient boosting (sklearn) has moderate sensitivity to learning_rate, n_estimators, and max_depth. 6 trials provide a fair search given that it shares the boosting concept with xgboost but is often slower to converge."
+          },
+          {
+            "model_id": "xgboost",
+            "max_trials": 8,
+            "allocation_rationale": "XGBoost is the most promising model for low MAE on this dataset, but it has the largest and most sensitive hyperparameter set (n_estimators, learning_rate, max_depth, subsample, colsample_bytree, regularization). 8 trials are allocated to thoroughly explore its search space within the 30-trial budget."
+          },
+          {
+            "model_id": "svr",
+            "max_trials": 6,
+            "allocation_rationale": "SVR with RBF kernel requires tuning of C and gamma, but training time per trial is higher due to quadratic complexity. 6 trials balance the need to find good parameters with the risk of excessive runtime. Its expected performance is lower than boosting, so it receives fewer trials than xgboost."
+          }
+        ],
+        "max_parallel_trials": 1
+      },
+      "target_column": "gap expt",
+      "evaluation_plan": {
+        "scorer_id": null,
+        "primary_metric": "MAE",
+        "metric_direction": "minimize",
+        "secondary_metrics": [
+          "RMSE",
+          "R2"
+        ]
+      },
+      "feature_columns": [],
+      "validation_plan": {
+        "shuffle": true,
+        "n_splits": 5,
+        "random_state": 42,
+        "split_strategy": "k_fold_cross_validation",
+        "benchmark_split": false,
+        "stratification_required": false
+      },
+      "search_space_plan": {
+        "spaces": [
+          {
+            "model_id": "lasso",
+            "parameters": [
+              {
+                "low": 0.0001,
+                "high": 100.0,
+                "name": "alpha",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "lasso_default_regression"
+          },
+          {
+            "model_id": "random_forest",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 3.0,
+                "high": 30.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "None",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 20.0,
+                "name": "min_samples_split",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "2",
+                "override_rationale": null
+              },
+              {
+                "low": 1.0,
+                "high": 10.0,
+                "name": "min_samples_leaf",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "max_features",
+                "choices": [
+                  "sqrt",
+                  "log2",
+                  0.5,
+                  0.8,
+                  1.0
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "random_forest_default_regression"
+          },
+          {
+            "model_id": "gradient_boosting",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 10.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "3",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "gradient_boosting_default_regression"
+          },
+          {
+            "model_id": "xgboost",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 12.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "6",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "subsample",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              },
+              {
+                "low": 0.5,
+                "high": 1.0,
+                "name": "colsample_bytree",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "xgboost_default_regression"
+          },
+          {
+            "model_id": "svr",
+            "parameters": [
+              {
+                "low": 0.001,
+                "high": 1000.0,
+                "name": "C",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "1.0",
+                "override_rationale": null
+              },
+              {
+                "low": 0.001,
+                "high": 1.0,
+                "name": "epsilon",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "kernel",
+                "choices": [
+                  "linear",
+                  "rbf",
+                  "poly"
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "rbf",
+                "override_rationale": null
+              },
+              {
+                "low": 0.0001,
+                "high": 1.0,
+                "name": "gamma",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "scale",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "svr_default_regression"
+          }
+        ]
+      },
+      "candidate_model_plan": {
+        "baseline_models": [
+          {
+            "role": "strong_baseline",
+            "model_id": "ridge",
+            "hpo_enabled": false
+          }
+        ],
+        "excluded_models": [
+          {
+            "reason": "Typical DNNs require larger datasets (often >10k) to outperform tree‑based methods; they are also less interpretable and harder to tune, conflicting with user requirements.",
+            "model_id": "deep_neural_networks"
+          },
+          {
+            "reason": "K‑nearest neighbors provides limited interpretability and often underperforms on high‑dimensional composition features; it also scales poorly with dataset size.",
+            "model_id": "knn"
+          },
+          {
+            "reason": "Gaussian process regression scales poorly (O(n³)) and offers little advantage over regularized linear models for 4600 samples; interpretability is limited to kernel choice.",
+            "model_id": "gaussian_process"
+          }
+        ],
+        "candidate_models": [
+          {
+            "reason": "Lasso leverages L1 regularization to produce sparse solutions, performing automatic feature selection and enhancing interpretability of the most important descriptors.",
+            "model_id": "lasso",
+            "priority": "high",
+            "hpo_enabled": true,
+            "model_family": "lasso"
+          },
+          {
+            "reason": "Random forest effectively captures non‑linear interactions and is robust to outliers and irrelevant features; it provides feature importance for interpretability.",
+            "model_id": "random_forest",
+            "priority": "high",
+            "hpo_enabled": true,
+            "model_family": "random_forest"
+          },
+          {
+            "reason": "Gradient boosting (sklearn) is a strong tree‑based method; retained alongside XGBoost to compare different boosting implementations on this 4604‑sample materials dataset.",
+            "model_id": "gradient_boosting",
+            "priority": "high",
+            "hpo_enabled": true,
+            "model_family": "gradient_boosting"
+          },
+          {
+            "reason": "XGBoost is a state‑of‑the‑art gradient boosting library, known for top performance on tabular benchmarks including materials property prediction. Given 4604 samples and 24 features, it can learn complex interactions.",
+            "model_id": "xgboost",
+            "priority": "high",
+            "hpo_enabled": true,
+            "model_family": "xgboost"
+          },
+          {
+            "reason": "SVR with RBF kernel can model complex non‑linear relationships; included as an alternative in case tree‑based models do not perform well.",
+            "model_id": "svr",
+            "priority": "medium",
+            "hpo_enabled": true,
+            "model_family": "svr"
+          }
+        ]
+      },
+      "model_ready_matrix_path": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+      "ready_for_pipeline_generation": true,
+      "preprocessing_pipeline_artifact_id": "artifact_preprocessor_47e3ca9f"
+    },
+    "model_search_context_input": {
+      "task_type": "regression",
+      "hpo_strategy": {
+        "enabled": true,
+        "max_trials": 30,
+        "budget_level": "medium",
+        "search_method": "optuna_tpe",
+        "search_space_width": "moderate"
+      },
+      "target_column": "gap expt",
+      "model_strategy": {
+        "baseline_models": [
+          "ridge"
+        ],
+        "preferred_model_bias": "accuracy_with_interpretability",
+        "rejected_model_actions": [
+          {
+            "reason": "Typical DNNs require larger datasets (often >10k) to outperform tree‑based methods; they are also less interpretable and harder to tune, conflicting with user requirements.",
+            "evidence": [
+              "Matbench results show tree ensembles often match or exceed DNNs for composition‑based property prediction."
+            ],
+            "model_family": "deep_neural_networks"
+          },
+          {
+            "reason": "K‑nearest neighbors provides limited interpretability and often underperforms on high‑dimensional composition features; it also scales poorly with dataset size.",
+            "evidence": [
+              "KNN is rarely competitive in materials regression benchmarks."
+            ],
+            "model_family": "knn"
+          },
+          {
+            "reason": "Gaussian process regression scales poorly (O(n³)) and offers little advantage over regularized linear models for 4600 samples; interpretability is limited to kernel choice.",
+            "evidence": [
+              "GP is better suited for uncertainty quantification on smaller datasets."
+            ],
+            "model_family": "gaussian_process"
+          }
+        ],
+        "selected_model_actions": [
+          {
+            "priority": "required",
+            "action_id": "model_001_ridge",
+            "model_family": "ridge",
+            "decision_rationale": {
+              "risk": "May underfit if composition‑band gap mapping is highly non‑linear.",
+              "reason": "Ridge regression provides a simple, well‑regularized linear baseline that is interpretable via coefficient magnitudes and often performs competitively on composition‑property datasets.",
+              "evidence": [
+                "Commonly used as a baseline in Matbench and materials informatics studies.",
+                "Ridge performs well when features are numerous and correlated due to L2 penalty."
+              ],
+              "fallback": "Not applicable; baseline model always trained.",
+              "expected_performance": "Reasonably low MAE; may be outperformed by non‑linear models if relationship is strongly non‑linear."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_002_lasso",
+            "model_family": "lasso",
+            "decision_rationale": {
+              "risk": "May discard relevant but correlated features, harming accuracy.",
+              "reason": "Lasso leverages L1 regularization to produce sparse solutions, performing automatic feature selection and enhancing interpretability of the most important descriptors.",
+              "evidence": [
+                "Lasso is widely used when the number of features is large relative to samples.",
+                "Interpretability is directly supported by zero/zero coefficients."
+              ],
+              "fallback": "If performance is poor, use ridge or Elastic Net.",
+              "expected_performance": "Comparable or slightly lower MAE than ridge if only few features are informative; may suffer if many weak signals exist."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_003_random_forest",
+            "model_family": "random_forest",
+            "decision_rationale": {
+              "risk": "Risk of overfitting if max_depth not bounded; requires tuning.",
+              "reason": "Random forest effectively captures non‑linear interactions and is robust to outliers and irrelevant features; it provides feature importance for interpretability.",
+              "evidence": [
+                "Random forest consistently performs well on Matbench band gap and formation energy tasks.",
+                "Ensemble methods reduce variance and improve generalization."
+              ],
+              "fallback": "If overfitting despite tuning, use gradient boosting with early stopping.",
+              "expected_performance": "Often achieves lower MAE than linear models when non‑linearity is present; may overfit if not tuned."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_004_gradient_boosting",
+            "model_family": "gradient_boosting",
+            "decision_rationale": {
+              "risk": "More hyperparameters to tune; can be over‑sensitive to noise.",
+              "reason": "Gradient boosting (sklearn) is a strong tree‑based method; retained alongside XGBoost to compare different boosting implementations on this 4604‑sample materials dataset.",
+              "evidence": [
+                "Gradient boosting often performs competitively with XGBoost on medium‑sized tabular data.",
+                "Allows evaluation of both light and heavy boosting approaches."
+              ],
+              "fallback": "If overfitting or unstable, reduce learning rate and increase n_estimators or switch to XGBoost exclusively.",
+              "expected_performance": "High accuracy, potentially matching or slightly below XGBoost."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_006_xgboost",
+            "model_family": "xgboost",
+            "decision_rationale": {
+              "risk": "Many hyperparameters; risk of overfitting if not tuned carefully.",
+              "reason": "XGBoost is a state‑of‑the‑art gradient boosting library, known for top performance on tabular benchmarks including materials property prediction. Given 4604 samples and 24 features, it can learn complex interactions.",
+              "evidence": [
+                "XGBoost consistently wins Kaggle competitions on tabular data.",
+                "Matbench studies show XGBoost outperforming random forest and linear models for band gap prediction."
+              ],
+              "fallback": "If overfitting or training time too long, reduce number of trials or fallback to gradient_boosting.",
+              "expected_performance": "Expected to yield lowest MAE among all candidates if properly tuned."
+            }
+          },
+          {
+            "priority": "optional",
+            "action_id": "model_005_svm",
+            "model_family": "svr",
+            "decision_rationale": {
+              "risk": "Computationally expensive; requires careful tuning of C and gamma.",
+              "reason": "SVR with RBF kernel can model complex non‑linear relationships; included as an alternative in case tree‑based models do not perform well.",
+              "evidence": [
+                "SVR has been successfully applied to small‑to‑medium materials datasets.",
+                "Kernel trick allows flexibility without manual feature engineering."
+              ],
+              "fallback": "If training time is excessive or performance is subpar, rely on tree‑based models.",
+              "expected_performance": "Potentially competitive, but often less performant than gradient boosting on tabular materials data."
+            }
+          }
+        ],
+        "excluded_model_families": [
+          "deep_neural_networks",
+          "knn",
+          "gaussian_process"
+        ],
+        "candidate_model_families": [
+          "ridge",
+          "lasso",
+          "random_forest",
+          "gradient_boosting",
+          "xgboost",
+          "svr"
+        ],
+        "model_selection_rationale_summary": "Selected models cover a spectrum from interpretable linear regularization (ridge, lasso) to non‑linear tree ensembles (random forest, gradient boosting, xgboost) and support vector regression. XGBoost added as a high‑performance boosting method leveraging its state‑of‑the‑art results on materials data. Ridge serves as a fast, interpretable baseline. Deep learning is excluded due to limited dataset size and low interpretability. KNN is excluded for poor scalability and lack of mechanistic insight. Gaussian processes are omitted due to computational cost and limited advantage on medium‑sized data."
+      },
+      "primary_metric": "MAE",
+      "feature_columns": [],
+      "evaluation_strategy": {
+        "primary_metric": "MAE",
+        "metric_direction": "minimize",
+        "secondary_metrics": [
+          "RMSE",
+          "R2"
+        ]
+      },
+      "validation_strategy": {
+        "n_splits": 5,
+        "test_size": null,
+        "random_state": 42,
+        "split_strategy": "k_fold_cross_validation",
+        "stratification_required": false
+      },
+      "model_ready_matrix_path": "/app/artifacts/model_ready\\fmp_69180d40\\model_ready_features.parquet",
+      "ready_for_pipeline_generation": true,
+      "preprocessing_pipeline_artifact_id": "artifact_preprocessor_47e3ca9f"
+    },
+    "updated_evaluation_strategy": {
+      "primary_metric": "MAE",
+      "metric_direction": "minimize",
+      "secondary_metrics": [
+        "RMSE",
+        "R2"
+      ]
+    },
+    "updated_validation_strategy": {
+      "n_splits": 5,
+      "test_size": null,
+      "random_state": 42,
+      "split_strategy": "k_fold_cross_validation",
+      "stratification_required": false
+    }
+  }
+}

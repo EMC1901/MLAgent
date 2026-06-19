@@ -1,0 +1,213 @@
+{
+  "dataset_profile_id": "profile_f466b83c",
+  "status": "profiled",
+  "source_type": "uploaded_file",
+  "n_samples": 4921,
+  "n_columns": 2,
+  "target_column": "is_metal",
+  "quality_level": "good",
+  "is_usable_for_ml": true,
+  "profile_detail": {
+    "status": "profiled",
+    "preview": {
+      "rows": [
+        {
+          "is_metal": true,
+          "composition": "Ag(AuS)2"
+        },
+        {
+          "is_metal": true,
+          "composition": "Ag(W3Br7)2"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag0.5Ge1Pb1.75S4"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag0.5Ge1Pb1.75Se4"
+        },
+        {
+          "is_metal": true,
+          "composition": "Ag2BBr"
+        },
+        {
+          "is_metal": true,
+          "composition": "Ag2BiO3"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag2GeS3"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag2GeSe3"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag2GeTe3"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag2HgI4"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag2Mo(I2O7)2"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag2O"
+        },
+        {
+          "is_metal": true,
+          "composition": "Ag2P2PbO7"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag2PdO2"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag2S"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag2SnS3"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag2SnSe3"
+        },
+        {
+          "is_metal": true,
+          "composition": "Ag3AsO4"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag3AsS3"
+        },
+        {
+          "is_metal": false,
+          "composition": "Ag3AsSe3"
+        }
+      ],
+      "columns": [
+        "composition",
+        "is_metal"
+      ],
+      "total_rows": 4921,
+      "preview_rows": 20
+    },
+    "task_id": "task_f702ff10",
+    "created_at": "2026-06-10T13:50:28.175280",
+    "updated_at": "2026-06-10T13:50:28.175280",
+    "data_quality": {
+      "errors": [],
+      "warnings": [],
+      "duplicates": {
+        "duplicate_rows": 0,
+        "duplicate_input_samples": 0
+      },
+      "invalid_rows": {
+        "count": 0,
+        "examples": []
+      },
+      "missing_values": {
+        "total_missing": 0,
+        "columns_with_missing": []
+      }
+    },
+    "dataset_schema": {
+      "columns": [
+        {
+          "name": "composition",
+          "role": "input",
+          "dtype": "object",
+          "missing_count": 0,
+          "missing_ratio": 0.0
+        },
+        {
+          "name": "is_metal",
+          "role": "target",
+          "dtype": "bool",
+          "missing_count": 0,
+          "missing_ratio": 0.0
+        }
+      ],
+      "n_columns": 2,
+      "n_samples": 4921,
+      "input_columns": [
+        "composition"
+      ],
+      "target_column": "is_metal"
+    },
+    "dataset_source": {
+      "loader": "file",
+      "file_id": "file_732615d6.csv",
+      "file_name": "file_732615d6.csv",
+      "file_path": null,
+      "loaded_from": "file_732615d6.csv",
+      "source_type": "uploaded_file",
+      "dataset_reference": "file_732615d6.csv"
+    },
+    "modality_check": {
+      "messages": [],
+      "is_consistent": true,
+      "detected_input_modality": "composition",
+      "expected_input_modality": "composition"
+    },
+    "target_profile": {
+      "dtype": "bool",
+      "task_type": "classification",
+      "class_count": 2,
+      "is_imbalanced": false,
+      "missing_count": 0,
+      "missing_ratio": 0.0,
+      "target_column": "is_metal",
+      "class_distribution": [
+        {
+          "count": 2470,
+          "label": "False",
+          "ratio": 0.5019305019305019
+        },
+        {
+          "count": 2451,
+          "label": "True",
+          "ratio": 0.4980694980694981
+        }
+      ],
+      "majority_class_ratio": 0.5019305019305019,
+      "minority_class_count": 2451
+    },
+    "interpretation_id": "interp_22120a63",
+    "profiling_summary": {
+      "is_loadable": true,
+      "main_issues": [],
+      "quality_level": "good",
+      "is_usable_for_ml": true,
+      "sample_size_level": "medium",
+      "recommended_next_step": "ready_for_workflow_planning"
+    },
+    "dataset_profile_id": "profile_f466b83c",
+    "workflow_planning_input": {
+      "n_columns": 2,
+      "n_samples": 4921,
+      "task_type": "classification",
+      "input_columns": [
+        "composition"
+      ],
+      "quality_level": "good",
+      "target_column": "is_metal",
+      "has_duplicates": false,
+      "input_modality": "composition",
+      "n_features_raw": 1,
+      "is_usable_for_ml": true,
+      "requires_cleaning": false,
+      "sample_size_level": "medium",
+      "has_missing_values": false,
+      "target_distribution": null,
+      "requires_target_transformation_check": false
+    }
+  }
+}

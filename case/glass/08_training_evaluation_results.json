@@ -1,0 +1,44 @@
+{
+  "metric_evaluation_id": "me_61bd3c35",
+  "status": "evaluated",
+  "primary_metric": "ROC_AUC",
+  "metric_direction": "maximize",
+  "n_trials_evaluated": 51,
+  "n_models_evaluated": 5,
+  "best_model": {
+    "model_id": "xgboost",
+    "trial_id": "trial_xgboost_0010_1acac5",
+    "primary_metric_value": 0.9530370654945518,
+    "metrics": {
+      "mae": {
+        "mean": 0.104049,
+        "std": 0.015503
+      },
+      "mae_mean": 0.104049,
+      "mae_std": 0.015503,
+      "mse": {
+        "mean": 0.104049,
+        "std": 0.015503
+      },
+      "mse_mean": 0.104049,
+      "mse_std": 0.015503,
+      "accuracy": {
+        "mean": 0.895951,
+        "std": 0.015503
+      },
+      "accuracy_mean": 0.895951,
+      "accuracy_std": 0.015503,
+      "rmse": {
+        "mean": 0.321646,
+        "std": 0.024355
+      },
+      "rmse_mean": 0.321646,
+      "rmse_std": 0.024355
+    },
+    "hyperparameters": {
+      "max_depth": 8,
+      "n_estimators": 488,
+      "learning_rate": 0.09292160616154661
+    }
+  }
+}

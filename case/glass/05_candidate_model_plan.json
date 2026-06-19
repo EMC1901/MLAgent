@@ -1,0 +1,1428 @@
+{
+  "model_search_context_id": "msc_6cdab7de",
+  "status": "updated_with_warning",
+  "n_candidate_models": 4,
+  "ready_for_pipeline_generation": true,
+  "model_strategy_adjusted": true,
+  "candidate_models": [],
+  "excluded_models": [],
+  "context_detail": {
+    "errors": [],
+    "status": "updated_with_warning",
+    "task_id": "task_49c350f8",
+    "hpo_plan": {
+      "enabled": true,
+      "budget_level": "high",
+      "search_method": "optuna_tpe",
+      "early_stopping": false,
+      "fallback_method": "random_search",
+      "max_total_trials": 50,
+      "trial_allocation": [
+        {
+          "model_id": "logistic_regression",
+          "max_trials": 0,
+          "allocation_rationale": "Baseline model — fixed defaults, no HPO needed."
+        },
+        {
+          "model_id": "random_forest",
+          "max_trials": 10,
+          "allocation_rationale": "Random Forest has a relatively stable performance landscape and is less sensitive to hyperparameter tuning than gradient boosting models. 20 trials are sufficient to find a strong configuration for n_estimators and max_depth given the 108 features."
+        },
+        {
+          "model_id": "gradient_boosting",
+          "max_trials": 12,
+          "allocation_rationale": "Standard Gradient Boosting requires careful tuning of learning_rate, n_estimators, and subsample to avoid overfitting. 25 trials provide adequate exploration of its moderate search space for the 5680-sample dataset."
+        },
+        {
+          "model_id": "xgboost",
+          "max_trials": 15,
+          "allocation_rationale": "XGBoost has a large, complex search space including regularization parameters (reg_alpha, reg_lambda) and tree structure parameters. As a top-tier candidate for tabular data, it receives the highest allocation (30 trials) to fully leverage its capacity."
+        },
+        {
+          "model_id": "lightgbm",
+          "max_trials": 13,
+          "allocation_rationale": "LightGBM's leaf-wise growth and num_leaves parameter require careful tuning to prevent overfitting on 5680 samples. 25 trials allow sufficient exploration of its unique histogram-based parameters while balancing the overall budget."
+        }
+      ],
+      "max_parallel_trials": 1
+    },
+    "warnings": [
+      "LLM advice partially rejected: [\"strategy_changes[2][0]: model_family 'neural_networks' is not in Model Registry\", \"strategy_changes[2][1]: model_family 'svm' is not in Model Registry\", 'max_trials: 100 exceeds system limit of 50']"
+    ],
+    "context_id": "msc_6cdab7de",
+    "created_at": null,
+    "updated_at": null,
+    "update_mode": "llm_guided_with_system_validation",
+    "error_message": null,
+    "evaluation_plan": {
+      "scorer_id": null,
+      "primary_metric": "ROC_AUC",
+      "metric_direction": "maximize",
+      "secondary_metrics": [
+        "accuracy",
+        "f1_score",
+        "precision",
+        "recall"
+      ]
+    },
+    "validation_plan": {
+      "shuffle": true,
+      "n_splits": 5,
+      "random_state": 42,
+      "split_strategy": "stratified_k_fold",
+      "benchmark_split": false,
+      "stratification_required": true
+    },
+    "confidence_score": 0.95,
+    "strategy_changes": [
+      {
+        "field_path": "baseline_models",
+        "change_type": "confirmed",
+        "strategy_area": "model",
+        "updated_value": [
+          "logistic_regression"
+        ],
+        "original_value": [
+          "logistic_regression"
+        ],
+        "decision_rationale": {
+          "risk": "May underfit if the true decision boundary is highly non-linear.",
+          "reason": "Logistic regression remains an excellent baseline for this classification task with 5680 samples and 108 features, providing a fast, interpretable minimum-performance threshold.",
+          "evidence": [
+            "n_samples = 5680 is sufficient for logistic regression to converge reliably.",
+            "Provides coefficient-based interpretability which aligns with materials science rationale."
+          ],
+          "fallback": "Switch to dummy_mean if logistic regression fails to converge or performs worse than random guessing.",
+          "expected_benefit": "Establishes a robust linear baseline to compare against complex tree-based ensembles."
+        }
+      },
+      {
+        "field_path": "preferred_model_bias",
+        "change_type": "confirmed",
+        "strategy_area": "model",
+        "updated_value": "tree_based_ensemble",
+        "original_value": "tree_based_ensemble",
+        "decision_rationale": {
+          "risk": "Tree models can be biased towards high-cardinality features if not properly regularized.",
+          "reason": "Tree-based ensembles are ideal for tabular materials data with 108 features, as they naturally capture non-linear interactions between elemental properties without requiring extensive feature engineering.",
+          "evidence": [
+            "Retained feature groups include basic_composition, matminer_valence_orbital, and matminer_magpie.",
+            "Tree models handle mixed-scale tabular data exceptionally well."
+          ],
+          "fallback": "Revert to linear models with polynomial features if tree ensembles severely overfit.",
+          "expected_benefit": "Maximizes predictive performance and ROC-AUC on this specific dataset profile."
+        }
+      },
+      {
+        "field_path": "rejected_model_actions",
+        "change_type": "confirmed",
+        "strategy_area": "model",
+        "updated_value": [
+          {
+            "reason": "Lack inherent interpretability, which conflicts with the user's strict priority for interpretability and materials science rationale. Additionally, 5680 samples may not be sufficient for deep neural networks to generalize better than tree ensembles without extensive tuning and regularization.",
+            "evidence": [
+              "User priority explicitly includes 'interpretability'",
+              "Dataset size (n=5680) is relatively small for data-hungry deep learning models"
+            ],
+            "model_family": "neural_networks"
+          },
+          {
+            "reason": "Computationally expensive for >5000 samples with >100 features. Kernel SVMs lack inherent interpretability, and linear SVMs offer no significant advantage over logistic regression for this task.",
+            "evidence": [
+              "O(n^2) to O(n^3) complexity for kernel SVMs",
+              "Lack of native feature importance metrics"
+            ],
+            "model_family": "svm"
+          }
+        ],
+        "original_value": [
+          {
+            "reason": "Lack inherent interpretability, which conflicts with the user's strict priority for interpretability and materials science rationale. Additionally, 5680 samples may not be sufficient for deep neural networks to generalize better than tree ensembles without extensive tuning and regularization.",
+            "evidence": [
+              "User priority explicitly includes 'interpretability'",
+              "Dataset size (n=5680) is relatively small for data-hungry deep learning models"
+            ],
+            "model_family": "neural_networks"
+          },
+          {
+            "reason": "Computationally expensive for >5000 samples with >100 features. Kernel SVMs lack inherent interpretability, and linear SVMs offer no significant advantage over logistic regression for this task.",
+            "evidence": [
+              "O(n^2) to O(n^3) complexity for kernel SVMs",
+              "Lack of native feature importance metrics"
+            ],
+            "model_family": "svm"
+          }
+        ],
+        "decision_rationale": {
+          "risk": "Might miss out on marginal gains if the data has highly complex, non-local patterns.",
+          "reason": "The rationale for excluding neural networks and SVMs remains completely valid given the dataset size (5680 samples), feature count (108), and the strict requirement for interpretability in materials science.",
+          "evidence": [
+            "n_samples = 5680 is below the typical threshold for deep learning superiority on tabular data.",
+            "Interpretability is a stated user priority."
+          ],
+          "fallback": "Re-evaluate MLP if tree-based ensembles plateau and SHAP values prove insufficient for interpretation.",
+          "expected_benefit": "Saves computational budget and avoids uninterpretable black-box models."
+        }
+      },
+      {
+        "field_path": "selected_model_actions",
+        "change_type": "modified",
+        "strategy_area": "model",
+        "updated_value": [
+          {
+            "priority": "required",
+            "action_id": "model_lr_baseline",
+            "model_family": "logistic_regression",
+            "decision_rationale": {
+              "risk": "Underfitting due to linear assumption.",
+              "reason": "Serves as a simple, interpretable, and fast baseline to establish the minimum performance threshold and provide coefficient-based insights.",
+              "evidence": [
+                "Standard baseline for classification tasks",
+                "Provides coefficient-based interpretability"
+              ],
+              "fallback": "dummy_mean",
+              "expected_performance": "Moderate; may struggle with complex non-linear interactions in alloy compositions but will highlight linearly separable features."
+            }
+          },
+          {
+            "priority": "required",
+            "action_id": "model_rf",
+            "model_family": "random_forest",
+            "decision_rationale": {
+              "risk": "Can overfit if trees are too deep; feature importance can be biased towards high-cardinality features.",
+              "reason": "Tree-based ensemble that handles non-linear feature interactions well and provides inherent feature importance for interpretability, aligning with user priorities.",
+              "evidence": [
+                "Strong performance on tabular materials data",
+                "Robust to unscaled features and outliers"
+              ],
+              "fallback": "xgboost",
+              "expected_performance": "High; expected to capture complex composition-property relationships and provide reliable ROC-AUC."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_gb",
+            "model_family": "gradient_boosting",
+            "decision_rationale": {
+              "risk": "Requires careful hyperparameter tuning to avoid overfitting; less inherently interpretable than Random Forest without SHAP.",
+              "reason": "Gradient boosting machines typically achieve state-of-the-art performance on tabular datasets and are highly effective for medium-to-large datasets.",
+              "evidence": [
+                "Consistently wins tabular data competitions",
+                "Effective for datasets with >5000 samples and >100 features"
+              ],
+              "fallback": "random_forest",
+              "expected_performance": "Very high; likely to maximize ROC-AUC and capture subtle non-linear boundaries."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_xgb",
+            "model_family": "xgboost",
+            "decision_rationale": {
+              "risk": "Sensitive to hyperparameters and can overfit if regularization is not properly tuned.",
+              "reason": "XGBoost provides advanced regularization and handling of sparse data, making it highly competitive for materials science datasets with 108 features.",
+              "evidence": [
+                "n_samples = 5680 is sufficient for XGBoost to converge without severe overfitting.",
+                "Built-in L1/L2 regularization helps with 108 correlated matminer features."
+              ],
+              "fallback": "lightgbm",
+              "expected_performance": "Very high; expected to match or exceed standard gradient boosting in ROC-AUC."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_lgbm",
+            "model_family": "lightgbm",
+            "decision_rationale": {
+              "risk": "Leaf-wise growth can lead to overfitting on smaller datasets if num_leaves is not constrained.",
+              "reason": "LightGBM offers faster training times and excellent performance on tabular data, providing a strong alternative to XGBoost and standard GBM.",
+              "evidence": [
+                "Highly efficient for n_samples = 5680 and n_features = 108.",
+                "Histogram-based splitting handles continuous matminer features efficiently."
+              ],
+              "fallback": "xgboost",
+              "expected_performance": "Very high; comparable to XGBoost with potentially faster HPO convergence."
+            }
+          }
+        ],
+        "original_value": [
+          {
+            "priority": "required",
+            "action_id": "model_lr_baseline",
+            "model_family": "logistic_regression",
+            "decision_rationale": {
+              "risk": "Underfitting due to linear assumption.",
+              "reason": "Serves as a simple, interpretable, and fast baseline to establish the minimum performance threshold and provide coefficient-based insights.",
+              "evidence": [
+                "Standard baseline for classification tasks",
+                "Provides coefficient-based interpretability"
+              ],
+              "fallback": "dummy_classifier",
+              "expected_performance": "Moderate; may struggle with complex non-linear interactions in alloy compositions but will highlight linearly separable features."
+            }
+          },
+          {
+            "priority": "required",
+            "action_id": "model_rf",
+            "model_family": "random_forest",
+            "decision_rationale": {
+              "risk": "Can overfit if trees are too deep; feature importance can be biased towards high-cardinality features.",
+              "reason": "Tree-based ensemble that handles non-linear feature interactions well and provides inherent feature importance for interpretability, aligning with user priorities.",
+              "evidence": [
+                "Strong performance on tabular materials data",
+                "Robust to unscaled features and outliers"
+              ],
+              "fallback": "gradient_boosting",
+              "expected_performance": "High; expected to capture complex composition-property relationships and provide reliable ROC-AUC."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_gb",
+            "model_family": "gradient_boosting",
+            "decision_rationale": {
+              "risk": "Requires careful hyperparameter tuning to avoid overfitting; less inherently interpretable than Random Forest without SHAP.",
+              "reason": "Gradient boosting machines typically achieve state-of-the-art performance on tabular datasets and are highly effective for medium-sized datasets like Matbench.",
+              "evidence": [
+                "Consistently wins tabular data competitions",
+                "Effective for medium-sized datasets with high-dimensional features"
+              ],
+              "fallback": "random_forest",
+              "expected_performance": "Very high; likely to maximize ROC-AUC and capture subtle non-linear boundaries."
+            }
+          }
+        ],
+        "decision_rationale": {
+          "risk": "Increases the computational burden during HPO due to more model families.",
+          "reason": "Expanded the selected model actions to include XGBoost and LightGBM, which are state-of-the-art gradient boosting frameworks highly suited for the dataset's size (5680 samples) and feature count (108).",
+          "evidence": [
+            "n_samples = 5680 and n_final_features = 108 provide enough data for advanced boosting algorithms to generalize well.",
+            "Matminer features often contain complex interactions that XGBoost/LightGBM capture effectively."
+          ],
+          "fallback": "Remove LightGBM if HPO time exceeds resource limits, keeping XGBoost as the primary advanced booster.",
+          "expected_benefit": "Increases the probability of finding the optimal model by leveraging the distinct algorithmic advantages of XGBoost (regularization) and LightGBM (leaf-wise growth)."
+        }
+      },
+      {
+        "field_path": "excluded_model_families",
+        "change_type": "confirmed",
+        "strategy_area": "model",
+        "updated_value": [
+          "neural_networks",
+          "svm"
+        ],
+        "original_value": [
+          "neural_networks",
+          "svm"
+        ],
+        "decision_rationale": {
+          "risk": "None significant, as tree ensembles generally outperform SVMs on this type of tabular data.",
+          "reason": "Neural networks and SVMs remain excluded due to interpretability requirements and computational inefficiency for this specific dataset profile.",
+          "evidence": [
+            "User priority includes interpretability.",
+            "SVM complexity is O(n^2) to O(n^3), which is heavy for 5680 samples."
+          ],
+          "fallback": "Re-evaluate SVC with linear kernel if linear models fail completely.",
+          "expected_benefit": "Focuses computational resources on more interpretable and efficient tree-based models."
+        }
+      },
+      {
+        "field_path": "candidate_model_families",
+        "change_type": "modified",
+        "strategy_area": "model",
+        "updated_value": [
+          "random_forest",
+          "gradient_boosting",
+          "xgboost",
+          "lightgbm"
+        ],
+        "original_value": [
+          "random_forest",
+          "gradient_boosting",
+          "logistic_regression"
+        ],
+        "decision_rationale": {
+          "risk": "More candidates require more HPO trials to ensure fair evaluation.",
+          "reason": "Added xgboost and lightgbm to the candidate list to leverage their superior performance on tabular data, and removed logistic_regression from candidates since it is already designated as the baseline model.",
+          "evidence": [
+            "n_samples = 5680 and n_final_features = 108 is an ideal regime for advanced gradient boosting.",
+            "Logistic regression is retained as the sole baseline model."
+          ],
+          "fallback": "Revert to original candidate list if computational budget is strictly limited.",
+          "expected_benefit": "Broadens the search space to include the most competitive algorithms for this data profile without duplicating the baseline."
+        }
+      },
+      {
+        "field_path": "model_selection_rationale_summary",
+        "change_type": "modified",
+        "strategy_area": "model",
+        "updated_value": "Tree-based ensembles, including Random Forest, Gradient Boosting, XGBoost, and LightGBM, are selected as primary candidates due to their exceptional performance on tabular materials data and ability to capture complex non-linear interactions among 108 matminer features. Logistic regression serves as an interpretable baseline. Neural networks and SVMs are excluded to satisfy interpretability constraints and avoid computational inefficiency for the 5680-sample dataset.",
+        "original_value": "Tree-based ensembles are selected as the primary models due to their strong performance on tabular materials data, robustness to unscaled features, and ability to capture non-linear interactions between elemental properties. Logistic regression serves as an interpretable baseline. Neural networks and SVMs are excluded due to interpretability constraints and computational inefficiency for this dataset size.",
+        "decision_rationale": {
+          "risk": "None.",
+          "reason": "Updated the summary to reflect the inclusion of XGBoost and LightGBM and the specific dataset characteristics (108 features, 5680 samples).",
+          "evidence": [
+            "Candidate list now includes xgboost and lightgbm.",
+            "Dataset profile confirms n_samples=5680 and n_final_features=108."
+          ],
+          "fallback": "Revert to original summary if model additions are rejected.",
+          "expected_benefit": "Provides a clear, accurate narrative for the materials scientist regarding the chosen modeling strategy."
+        }
+      },
+      {
+        "field_path": "enabled",
+        "change_type": "confirmed",
+        "strategy_area": "hpo",
+        "updated_value": true,
+        "original_value": true,
+        "decision_rationale": {
+          "risk": "Increases total pipeline execution time.",
+          "reason": "HPO must remain enabled to properly tune the complex hyperparameter spaces of the four candidate tree-based ensembles.",
+          "evidence": [
+            "Gradient boosting models are highly sensitive to learning rate, depth, and regularization parameters."
+          ],
+          "fallback": "Disable HPO and use default parameters if time constraints are absolute.",
+          "expected_benefit": "Ensures models reach their optimal performance potential."
+        }
+      },
+      {
+        "field_path": "max_trials",
+        "change_type": "modified",
+        "strategy_area": "hpo",
+        "updated_value": 50,
+        "original_value": 50,
+        "decision_rationale": {
+          "risk": "Doubles the computational time required for the HPO phase.",
+          "reason": "Increased max_trials from 50 to 100 to adequately cover the expanded candidate list (4 complex models) and ensure each model receives sufficient exploration budget.",
+          "evidence": [
+            "4 candidate models with large search spaces require more trials to avoid under-exploration.",
+            "n_samples = 5680 allows for robust evaluation of 100 trials without severe overfitting to the validation set."
+          ],
+          "fallback": "Reduce to 60 trials if computational resources are exhausted.",
+          "expected_benefit": "Improves the likelihood of finding the global optimum for sensitive models like XGBoost and LightGBM."
+        }
+      },
+      {
+        "field_path": "budget_level",
+        "change_type": "modified",
+        "strategy_area": "hpo",
+        "updated_value": "high",
+        "original_value": "medium",
+        "decision_rationale": {
+          "risk": "May exceed soft time limits if the system enforces strict wall-clock constraints.",
+          "reason": "Upgraded budget level to 'high' to align with the increased max_trials (100) and the addition of computationally intensive gradient boosting frameworks.",
+          "evidence": [
+            "max_trials increased to 100.",
+            "XGBoost and LightGBM require more evaluations to tune effectively."
+          ],
+          "fallback": "Revert to 'medium' and reduce max_trials to 60.",
+          "expected_benefit": "Signals the system to allocate appropriate resources and time limits for the HPO process."
+        }
+      },
+      {
+        "field_path": "search_method",
+        "change_type": "confirmed",
+        "strategy_area": "hpo",
+        "updated_value": "optuna_tpe",
+        "original_value": "optuna_tpe",
+        "decision_rationale": {
+          "risk": "Slightly higher overhead per trial compared to random search.",
+          "reason": "Optuna TPE (Tree-structured Parzen Estimator) remains the best choice for efficiently navigating the complex, conditional hyperparameter spaces of tree-based ensembles.",
+          "evidence": [
+            "TPE handles conditional parameters (e.g., max_depth depending on tree type) better than random or grid search.",
+            "Proven effectiveness for XGBoost and LightGBM tuning."
+          ],
+          "fallback": "Switch to random_search if TPE initialization fails or stalls.",
+          "expected_benefit": "Faster convergence to optimal hyperparameters compared to random search."
+        }
+      },
+      {
+        "field_path": "search_space_width",
+        "change_type": "added",
+        "strategy_area": "hpo",
+        "updated_value": "moderate",
+        "original_value": null,
+        "decision_rationale": {
+          "risk": "None significant; this is the standard recommendation for this data profile.",
+          "reason": "Set search space width to 'moderate' because the dataset has a medium-to-large sample size (5680) and moderate feature count (108), which supports standard parameter ranges without excessive risk of overfitting.",
+          "evidence": [
+            "n_samples = 5680 (>= 200 and < 10000).",
+            "n_final_features = 108 (>= 10 and < 500)."
+          ],
+          "fallback": "Switch to 'narrow' if validation curves show severe overfitting during HPO.",
+          "expected_benefit": "Balances exploration and exploitation, preventing overly constrained or dangerously wide search spaces."
+        }
+      },
+      {
+        "field_path": "n_splits",
+        "change_type": "confirmed",
+        "strategy_area": "validation",
+        "updated_value": 5,
+        "original_value": 5,
+        "decision_rationale": {
+          "risk": "Slightly higher variance than 10-fold, but 10-fold would double training time.",
+          "reason": "5-fold cross-validation is optimal for 5680 samples, providing a good balance between bias and variance in performance estimation while keeping computational cost manageable.",
+          "evidence": [
+            "n_samples = 5680 ensures each fold has ~1136 samples, which is sufficient for stable gradient boosting training."
+          ],
+          "fallback": "Increase to 10 splits if performance metrics show high variance across folds.",
+          "expected_benefit": "Reliable and robust estimate of generalization performance."
+        }
+      },
+      {
+        "field_path": "test_size",
+        "change_type": "confirmed",
+        "strategy_area": "validation",
+        "updated_value": null,
+        "original_value": null,
+        "decision_rationale": {
+          "risk": "No dedicated hold-out set for final unbiased evaluation unless explicitly separated later.",
+          "reason": "Keeping test_size as null ensures the entire dataset is used for stratified k-fold cross-validation, maximizing the training data available for each fold.",
+          "evidence": [
+            "Stratified k-fold is the designated split_strategy."
+          ],
+          "fallback": "Set test_size to 0.2 if a strict hold-out set is required for final reporting.",
+          "expected_benefit": "Optimal use of the 5680 samples for model evaluation."
+        }
+      },
+      {
+        "field_path": "random_state",
+        "change_type": "confirmed",
+        "strategy_area": "validation",
+        "updated_value": 42,
+        "original_value": 42,
+        "decision_rationale": {
+          "risk": "None.",
+          "reason": "Maintaining random_state=42 ensures reproducibility of the data splits and HPO results across different runs.",
+          "evidence": [
+            "Standard practice for reproducible machine learning pipelines."
+          ],
+          "fallback": "Change to a different seed if the specific split creates an unrepresentative fold.",
+          "expected_benefit": "Allows exact replication of results for debugging and scientific reporting."
+        }
+      },
+      {
+        "field_path": "split_strategy",
+        "change_type": "confirmed",
+        "strategy_area": "validation",
+        "updated_value": "stratified_k_fold",
+        "original_value": "stratified_k_fold",
+        "decision_rationale": {
+          "risk": "None.",
+          "reason": "Stratified k-fold is essential for classification tasks to ensure the target class distribution is preserved in each fold, preventing biased performance estimates.",
+          "evidence": [
+            "Task type is classification.",
+            "Target column 'gfa' likely has imbalanced classes common in materials science datasets."
+          ],
+          "fallback": "Revert to standard k_fold if stratification fails due to extremely rare classes.",
+          "expected_benefit": "Stable and reliable ROC-AUC evaluation across all folds."
+        }
+      },
+      {
+        "field_path": "stratification_required",
+        "change_type": "confirmed",
+        "strategy_area": "validation",
+        "updated_value": true,
+        "original_value": true,
+        "decision_rationale": {
+          "risk": "May fail if a class has fewer than 5 samples total.",
+          "reason": "Stratification is strictly required to maintain class balance in each fold, which is critical for accurate ROC-AUC calculation in classification.",
+          "evidence": [
+            "Primary metric is ROC_AUC, which is sensitive to class distribution."
+          ],
+          "fallback": "Disable stratification and use group k-fold or standard k-fold if class counts are too low.",
+          "expected_benefit": "Prevents folds with zero or near-zero instances of the minority class."
+        }
+      }
+    ],
+    "workflow_plan_id": "plan_2c4cb807",
+    "search_space_plan": {
+      "spaces": [
+        {
+          "model_id": "random_forest",
+          "parameters": [
+            {
+              "low": 100.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": "Given the dataset size of 5680 samples, the model can comfortably support up to 500 trees to ensure convergence and stable feature importance estimates, without incurring prohibitive training times."
+            },
+            {
+              "low": 3.0,
+              "high": 30.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "None",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 20.0,
+              "name": "min_samples_split",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "2",
+              "override_rationale": null
+            },
+            {
+              "low": 1.0,
+              "high": 10.0,
+              "name": "min_samples_leaf",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "1",
+              "override_rationale": null
+            },
+            {
+              "low": null,
+              "high": null,
+              "name": "criterion",
+              "choices": [
+                "gini",
+                "entropy"
+              ],
+              "sampling": "choice",
+              "param_type": "categorical",
+              "default_value": "gini",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "random_forest_default_classification"
+        },
+        {
+          "model_id": "gradient_boosting",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 0.01,
+              "high": 0.3,
+              "name": "learning_rate",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": 2.0,
+              "high": 10.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "3",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "gradient_boosting_default_classification"
+        },
+        {
+          "model_id": "xgboost",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 0.01,
+              "high": 0.3,
+              "name": "learning_rate",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": 3.0,
+              "high": 10.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "6",
+              "override_rationale": "With 108 features and 5680 samples, extremely deep trees (e.g., >10) are likely to overfit to noise in the matminer features. Capping max_depth at 10 ensures robust generalization while still capturing complex interactions."
+            }
+          ],
+          "search_space_id": "xgboost_default_classification"
+        },
+        {
+          "model_id": "lightgbm",
+          "parameters": [
+            {
+              "low": 50.0,
+              "high": 500.0,
+              "name": "n_estimators",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "100",
+              "override_rationale": null
+            },
+            {
+              "low": 0.01,
+              "high": 0.3,
+              "name": "learning_rate",
+              "choices": [],
+              "sampling": "log_uniform",
+              "param_type": "float",
+              "default_value": "0.1",
+              "override_rationale": null
+            },
+            {
+              "low": 15.0,
+              "high": 127.0,
+              "name": "num_leaves",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "31",
+              "override_rationale": "LightGBM's leaf-wise growth can quickly lead to overfitting if num_leaves is unconstrained. For 108 features, a maximum of 127 leaves (equivalent to a depth of ~7) provides sufficient model capacity without memorizing the 5680 training samples."
+            },
+            {
+              "low": 3.0,
+              "high": 12.0,
+              "name": "max_depth",
+              "choices": [],
+              "sampling": "uniform",
+              "param_type": "int",
+              "default_value": "-1",
+              "override_rationale": null
+            }
+          ],
+          "search_space_id": "lightgbm_default_classification"
+        }
+      ]
+    },
+    "llm_strategy_advice": {
+      "n_splits": 5,
+      "max_trials": 30,
+      "risk_notes": [
+        "Adding XGBoost and LightGBM increases the total computational cost and HPO time, which may delay model selection if resources are constrained.",
+        "Gradient boosting models are sensitive to hyperparameter tuning; insufficient trials could lead to suboptimal configurations compared to Random Forest.",
+        "If the target classes are highly imbalanced, tree-based models may still bias towards the majority class despite stratification, requiring class_weight adjustments."
+      ],
+      "baseline_models": [],
+      "confidence_score": 0.95,
+      "hpo_budget_level": "moderate",
+      "hpo_search_method": null,
+      "adjustment_reasons": [],
+      "preferred_model_bias": null,
+      "candidate_model_families": [],
+      "validation_split_strategy": null
+    },
+    "strategy_adjustment": {
+      "adjustment_reasons": [
+        "model.selected_model_actions: modified",
+        "model.candidate_model_families: modified",
+        "model.model_selection_rationale_summary: modified",
+        "hpo.max_trials: modified",
+        "hpo.budget_level: modified",
+        "hpo.search_space_width: added"
+      ],
+      "hpo_strategy_adjusted": true,
+      "model_strategy_adjusted": true,
+      "evaluation_strategy_adjusted": false,
+      "validation_strategy_adjusted": false
+    },
+    "candidate_model_plan": {
+      "baseline_models": [
+        {
+          "role": "strong_baseline",
+          "model_id": "logistic_regression",
+          "hpo_enabled": false
+        }
+      ],
+      "excluded_models": [
+        {
+          "reason": "Lack inherent interpretability, which conflicts with the user's strict priority for interpretability and materials science rationale. Additionally, 5680 samples may not be sufficient for deep neural networks to generalize better than tree ensembles without extensive tuning and regularization.",
+          "model_id": "neural_networks"
+        },
+        {
+          "reason": "Computationally expensive for >5000 samples with >100 features. Kernel SVMs lack inherent interpretability, and linear SVMs offer no significant advantage over logistic regression for this task.",
+          "model_id": "svm"
+        }
+      ],
+      "candidate_models": [
+        {
+          "reason": "Tree-based ensemble that handles non-linear feature interactions well and provides inherent feature importance for interpretability, aligning with user priorities.",
+          "model_id": "random_forest",
+          "priority": "high",
+          "hpo_enabled": true,
+          "model_family": "random_forest"
+        },
+        {
+          "reason": "Gradient boosting machines typically achieve state-of-the-art performance on tabular datasets and are highly effective for medium-to-large datasets.",
+          "model_id": "gradient_boosting",
+          "priority": "high",
+          "hpo_enabled": true,
+          "model_family": "gradient_boosting"
+        },
+        {
+          "reason": "XGBoost provides advanced regularization and handling of sparse data, making it highly competitive for materials science datasets with 108 features.",
+          "model_id": "xgboost",
+          "priority": "high",
+          "hpo_enabled": true,
+          "model_family": "xgboost"
+        },
+        {
+          "reason": "LightGBM offers faster training times and excellent performance on tabular data, providing a strong alternative to XGBoost and standard GBM.",
+          "model_id": "lightgbm",
+          "priority": "high",
+          "hpo_enabled": true,
+          "model_family": "lightgbm"
+        }
+      ]
+    },
+    "updated_hpo_strategy": {
+      "enabled": true,
+      "max_trials": 50,
+      "budget_level": "high",
+      "search_method": "optuna_tpe",
+      "search_space_width": "moderate"
+    },
+    "feature_group_summary": {
+      "dropped_groups": [],
+      "retained_groups": [
+        "basic_composition",
+        "matminer_valence_orbital",
+        "matminer_magpie"
+      ],
+      "partially_retained_groups": [],
+      "low_effective_feature_warning": false
+    },
+    "preprocessing_summary": {
+      "scaling_executed": true,
+      "fold_safe_deferred": {
+        "has_deferred": true,
+        "fold_spec_path": "/app/artifacts/model_ready\\fmp_0cf99d34\\fold_pipeline_spec.json",
+        "operations_by_group": {
+          "scaling": [
+            "robust_scaler"
+          ],
+          "imputation": [
+            "median_imputer"
+          ]
+        },
+        "n_deferred_operations": 3
+      },
+      "imputation_executed": true,
+      "scaling_execution_mode": "fold_safe",
+      "imputation_execution_mode": "fold_safe",
+      "feature_selection_executed": true,
+      "categorical_encoding_executed": false,
+      "feature_selection_execution_mode": "global",
+      "preprocessing_pipeline_artifact_id": "artifact_preprocessor_1501b38b"
+    },
+    "feature_engineering_id": "feat_e1f62f58",
+    "updated_model_strategy": {
+      "baseline_models": [
+        "logistic_regression"
+      ],
+      "preferred_model_bias": "tree_based_ensemble",
+      "rejected_model_actions": [
+        {
+          "reason": "Lack inherent interpretability, which conflicts with the user's strict priority for interpretability and materials science rationale. Additionally, 5680 samples may not be sufficient for deep neural networks to generalize better than tree ensembles without extensive tuning and regularization.",
+          "evidence": [
+            "User priority explicitly includes 'interpretability'",
+            "Dataset size (n=5680) is relatively small for data-hungry deep learning models"
+          ],
+          "model_family": "neural_networks"
+        },
+        {
+          "reason": "Computationally expensive for >5000 samples with >100 features. Kernel SVMs lack inherent interpretability, and linear SVMs offer no significant advantage over logistic regression for this task.",
+          "evidence": [
+            "O(n^2) to O(n^3) complexity for kernel SVMs",
+            "Lack of native feature importance metrics"
+          ],
+          "model_family": "svm"
+        }
+      ],
+      "selected_model_actions": [
+        {
+          "priority": "required",
+          "action_id": "model_lr_baseline",
+          "model_family": "logistic_regression",
+          "decision_rationale": {
+            "risk": "Underfitting due to linear assumption.",
+            "reason": "Serves as a simple, interpretable, and fast baseline to establish the minimum performance threshold and provide coefficient-based insights.",
+            "evidence": [
+              "Standard baseline for classification tasks",
+              "Provides coefficient-based interpretability"
+            ],
+            "fallback": "dummy_mean",
+            "expected_performance": "Moderate; may struggle with complex non-linear interactions in alloy compositions but will highlight linearly separable features."
+          }
+        },
+        {
+          "priority": "required",
+          "action_id": "model_rf",
+          "model_family": "random_forest",
+          "decision_rationale": {
+            "risk": "Can overfit if trees are too deep; feature importance can be biased towards high-cardinality features.",
+            "reason": "Tree-based ensemble that handles non-linear feature interactions well and provides inherent feature importance for interpretability, aligning with user priorities.",
+            "evidence": [
+              "Strong performance on tabular materials data",
+              "Robust to unscaled features and outliers"
+            ],
+            "fallback": "xgboost",
+            "expected_performance": "High; expected to capture complex composition-property relationships and provide reliable ROC-AUC."
+          }
+        },
+        {
+          "priority": "recommended",
+          "action_id": "model_gb",
+          "model_family": "gradient_boosting",
+          "decision_rationale": {
+            "risk": "Requires careful hyperparameter tuning to avoid overfitting; less inherently interpretable than Random Forest without SHAP.",
+            "reason": "Gradient boosting machines typically achieve state-of-the-art performance on tabular datasets and are highly effective for medium-to-large datasets.",
+            "evidence": [
+              "Consistently wins tabular data competitions",
+              "Effective for datasets with >5000 samples and >100 features"
+            ],
+            "fallback": "random_forest",
+            "expected_performance": "Very high; likely to maximize ROC-AUC and capture subtle non-linear boundaries."
+          }
+        },
+        {
+          "priority": "recommended",
+          "action_id": "model_xgb",
+          "model_family": "xgboost",
+          "decision_rationale": {
+            "risk": "Sensitive to hyperparameters and can overfit if regularization is not properly tuned.",
+            "reason": "XGBoost provides advanced regularization and handling of sparse data, making it highly competitive for materials science datasets with 108 features.",
+            "evidence": [
+              "n_samples = 5680 is sufficient for XGBoost to converge without severe overfitting.",
+              "Built-in L1/L2 regularization helps with 108 correlated matminer features."
+            ],
+            "fallback": "lightgbm",
+            "expected_performance": "Very high; expected to match or exceed standard gradient boosting in ROC-AUC."
+          }
+        },
+        {
+          "priority": "recommended",
+          "action_id": "model_lgbm",
+          "model_family": "lightgbm",
+          "decision_rationale": {
+            "risk": "Leaf-wise growth can lead to overfitting on smaller datasets if num_leaves is not constrained.",
+            "reason": "LightGBM offers faster training times and excellent performance on tabular data, providing a strong alternative to XGBoost and standard GBM.",
+            "evidence": [
+              "Highly efficient for n_samples = 5680 and n_features = 108.",
+              "Histogram-based splitting handles continuous matminer features efficiently."
+            ],
+            "fallback": "xgboost",
+            "expected_performance": "Very high; comparable to XGBoost with potentially faster HPO convergence."
+          }
+        }
+      ],
+      "excluded_model_families": [
+        "neural_networks",
+        "svm"
+      ],
+      "candidate_model_families": [
+        "random_forest",
+        "gradient_boosting",
+        "xgboost",
+        "lightgbm"
+      ],
+      "model_selection_rationale_summary": "Tree-based ensembles, including Random Forest, Gradient Boosting, XGBoost, and LightGBM, are selected as primary candidates due to their exceptional performance on tabular materials data and ability to capture complex non-linear interactions among 108 matminer features. Logistic regression serves as an interpretable baseline. Neural networks and SVMs are excluded to satisfy interpretability constraints and avoid computational inefficiency for the 5680-sample dataset."
+    },
+    "strategy_change_summary": "Updated the model strategy to include XGBoost and LightGBM as candidate model families, leveraging the dataset's substantial size (5680 samples) and moderate feature count (108 features) to maximize ROC-AUC. Increased the HPO trial budget to 100 to adequately explore the expanded search space of these gradient-boosting frameworks. Confirmed the stratified 5-fold cross-validation and logistic regression baseline to ensure robust, interpretable performance evaluation.",
+    "feature_preprocessing_id": "fmp_0cf99d34",
+    "system_validation_result": {
+      "is_valid": false,
+      "fallback_applied": true,
+      "rejected_suggestions": [
+        "strategy_changes[2][0]: model_family 'neural_networks' is not in Model Registry",
+        "strategy_changes[2][1]: model_family 'svm' is not in Model Registry",
+        "max_trials: 100 exceeds system limit of 50"
+      ]
+    },
+    "dataset_effective_profile": {
+      "n_samples": 5680,
+      "task_type": "classification",
+      "target_column": "gfa",
+      "n_raw_features": 156,
+      "n_final_features": 108,
+      "n_dropped_features": 48,
+      "feature_reduction_ratio": 0.3077
+    },
+    "pipeline_generation_input": {
+      "hpo_plan": {
+        "enabled": true,
+        "budget_level": "high",
+        "search_method": "optuna_tpe",
+        "early_stopping": false,
+        "fallback_method": "random_search",
+        "max_total_trials": 50,
+        "trial_allocation": [
+          {
+            "model_id": "logistic_regression",
+            "max_trials": 0,
+            "allocation_rationale": "Baseline model — fixed defaults, no HPO needed."
+          },
+          {
+            "model_id": "random_forest",
+            "max_trials": 10,
+            "allocation_rationale": "Random Forest has a relatively stable performance landscape and is less sensitive to hyperparameter tuning than gradient boosting models. 20 trials are sufficient to find a strong configuration for n_estimators and max_depth given the 108 features."
+          },
+          {
+            "model_id": "gradient_boosting",
+            "max_trials": 12,
+            "allocation_rationale": "Standard Gradient Boosting requires careful tuning of learning_rate, n_estimators, and subsample to avoid overfitting. 25 trials provide adequate exploration of its moderate search space for the 5680-sample dataset."
+          },
+          {
+            "model_id": "xgboost",
+            "max_trials": 15,
+            "allocation_rationale": "XGBoost has a large, complex search space including regularization parameters (reg_alpha, reg_lambda) and tree structure parameters. As a top-tier candidate for tabular data, it receives the highest allocation (30 trials) to fully leverage its capacity."
+          },
+          {
+            "model_id": "lightgbm",
+            "max_trials": 13,
+            "allocation_rationale": "LightGBM's leaf-wise growth and num_leaves parameter require careful tuning to prevent overfitting on 5680 samples. 25 trials allow sufficient exploration of its unique histogram-based parameters while balancing the overall budget."
+          }
+        ],
+        "max_parallel_trials": 1
+      },
+      "target_column": "gfa",
+      "evaluation_plan": {
+        "scorer_id": null,
+        "primary_metric": "ROC_AUC",
+        "metric_direction": "maximize",
+        "secondary_metrics": [
+          "accuracy",
+          "f1_score",
+          "precision",
+          "recall"
+        ]
+      },
+      "feature_columns": [],
+      "validation_plan": {
+        "shuffle": true,
+        "n_splits": 5,
+        "random_state": 42,
+        "split_strategy": "stratified_k_fold",
+        "benchmark_split": false,
+        "stratification_required": true
+      },
+      "search_space_plan": {
+        "spaces": [
+          {
+            "model_id": "random_forest",
+            "parameters": [
+              {
+                "low": 100.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": "Given the dataset size of 5680 samples, the model can comfortably support up to 500 trees to ensure convergence and stable feature importance estimates, without incurring prohibitive training times."
+              },
+              {
+                "low": 3.0,
+                "high": 30.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "None",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 20.0,
+                "name": "min_samples_split",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "2",
+                "override_rationale": null
+              },
+              {
+                "low": 1.0,
+                "high": 10.0,
+                "name": "min_samples_leaf",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "1",
+                "override_rationale": null
+              },
+              {
+                "low": null,
+                "high": null,
+                "name": "criterion",
+                "choices": [
+                  "gini",
+                  "entropy"
+                ],
+                "sampling": "choice",
+                "param_type": "categorical",
+                "default_value": "gini",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "random_forest_default_classification"
+          },
+          {
+            "model_id": "gradient_boosting",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 2.0,
+                "high": 10.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "3",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "gradient_boosting_default_classification"
+          },
+          {
+            "model_id": "xgboost",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 3.0,
+                "high": 10.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "6",
+                "override_rationale": "With 108 features and 5680 samples, extremely deep trees (e.g., >10) are likely to overfit to noise in the matminer features. Capping max_depth at 10 ensures robust generalization while still capturing complex interactions."
+              }
+            ],
+            "search_space_id": "xgboost_default_classification"
+          },
+          {
+            "model_id": "lightgbm",
+            "parameters": [
+              {
+                "low": 50.0,
+                "high": 500.0,
+                "name": "n_estimators",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "100",
+                "override_rationale": null
+              },
+              {
+                "low": 0.01,
+                "high": 0.3,
+                "name": "learning_rate",
+                "choices": [],
+                "sampling": "log_uniform",
+                "param_type": "float",
+                "default_value": "0.1",
+                "override_rationale": null
+              },
+              {
+                "low": 15.0,
+                "high": 127.0,
+                "name": "num_leaves",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "31",
+                "override_rationale": "LightGBM's leaf-wise growth can quickly lead to overfitting if num_leaves is unconstrained. For 108 features, a maximum of 127 leaves (equivalent to a depth of ~7) provides sufficient model capacity without memorizing the 5680 training samples."
+              },
+              {
+                "low": 3.0,
+                "high": 12.0,
+                "name": "max_depth",
+                "choices": [],
+                "sampling": "uniform",
+                "param_type": "int",
+                "default_value": "-1",
+                "override_rationale": null
+              }
+            ],
+            "search_space_id": "lightgbm_default_classification"
+          }
+        ]
+      },
+      "candidate_model_plan": {
+        "baseline_models": [
+          {
+            "role": "strong_baseline",
+            "model_id": "logistic_regression",
+            "hpo_enabled": false
+          }
+        ],
+        "excluded_models": [
+          {
+            "reason": "Lack inherent interpretability, which conflicts with the user's strict priority for interpretability and materials science rationale. Additionally, 5680 samples may not be sufficient for deep neural networks to generalize better than tree ensembles without extensive tuning and regularization.",
+            "model_id": "neural_networks"
+          },
+          {
+            "reason": "Computationally expensive for >5000 samples with >100 features. Kernel SVMs lack inherent interpretability, and linear SVMs offer no significant advantage over logistic regression for this task.",
+            "model_id": "svm"
+          }
+        ],
+        "candidate_models": [
+          {
+            "reason": "Tree-based ensemble that handles non-linear feature interactions well and provides inherent feature importance for interpretability, aligning with user priorities.",
+            "model_id": "random_forest",
+            "priority": "high",
+            "hpo_enabled": true,
+            "model_family": "random_forest"
+          },
+          {
+            "reason": "Gradient boosting machines typically achieve state-of-the-art performance on tabular datasets and are highly effective for medium-to-large datasets.",
+            "model_id": "gradient_boosting",
+            "priority": "high",
+            "hpo_enabled": true,
+            "model_family": "gradient_boosting"
+          },
+          {
+            "reason": "XGBoost provides advanced regularization and handling of sparse data, making it highly competitive for materials science datasets with 108 features.",
+            "model_id": "xgboost",
+            "priority": "high",
+            "hpo_enabled": true,
+            "model_family": "xgboost"
+          },
+          {
+            "reason": "LightGBM offers faster training times and excellent performance on tabular data, providing a strong alternative to XGBoost and standard GBM.",
+            "model_id": "lightgbm",
+            "priority": "high",
+            "hpo_enabled": true,
+            "model_family": "lightgbm"
+          }
+        ]
+      },
+      "model_ready_matrix_path": "/app/artifacts/model_ready\\fmp_0cf99d34\\model_ready_features.parquet",
+      "ready_for_pipeline_generation": true,
+      "preprocessing_pipeline_artifact_id": "artifact_preprocessor_1501b38b"
+    },
+    "model_search_context_input": {
+      "task_type": "classification",
+      "hpo_strategy": {
+        "enabled": true,
+        "max_trials": 50,
+        "budget_level": "high",
+        "search_method": "optuna_tpe",
+        "search_space_width": "moderate"
+      },
+      "target_column": "gfa",
+      "model_strategy": {
+        "baseline_models": [
+          "logistic_regression"
+        ],
+        "preferred_model_bias": "tree_based_ensemble",
+        "rejected_model_actions": [
+          {
+            "reason": "Lack inherent interpretability, which conflicts with the user's strict priority for interpretability and materials science rationale. Additionally, 5680 samples may not be sufficient for deep neural networks to generalize better than tree ensembles without extensive tuning and regularization.",
+            "evidence": [
+              "User priority explicitly includes 'interpretability'",
+              "Dataset size (n=5680) is relatively small for data-hungry deep learning models"
+            ],
+            "model_family": "neural_networks"
+          },
+          {
+            "reason": "Computationally expensive for >5000 samples with >100 features. Kernel SVMs lack inherent interpretability, and linear SVMs offer no significant advantage over logistic regression for this task.",
+            "evidence": [
+              "O(n^2) to O(n^3) complexity for kernel SVMs",
+              "Lack of native feature importance metrics"
+            ],
+            "model_family": "svm"
+          }
+        ],
+        "selected_model_actions": [
+          {
+            "priority": "required",
+            "action_id": "model_lr_baseline",
+            "model_family": "logistic_regression",
+            "decision_rationale": {
+              "risk": "Underfitting due to linear assumption.",
+              "reason": "Serves as a simple, interpretable, and fast baseline to establish the minimum performance threshold and provide coefficient-based insights.",
+              "evidence": [
+                "Standard baseline for classification tasks",
+                "Provides coefficient-based interpretability"
+              ],
+              "fallback": "dummy_mean",
+              "expected_performance": "Moderate; may struggle with complex non-linear interactions in alloy compositions but will highlight linearly separable features."
+            }
+          },
+          {
+            "priority": "required",
+            "action_id": "model_rf",
+            "model_family": "random_forest",
+            "decision_rationale": {
+              "risk": "Can overfit if trees are too deep; feature importance can be biased towards high-cardinality features.",
+              "reason": "Tree-based ensemble that handles non-linear feature interactions well and provides inherent feature importance for interpretability, aligning with user priorities.",
+              "evidence": [
+                "Strong performance on tabular materials data",
+                "Robust to unscaled features and outliers"
+              ],
+              "fallback": "xgboost",
+              "expected_performance": "High; expected to capture complex composition-property relationships and provide reliable ROC-AUC."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_gb",
+            "model_family": "gradient_boosting",
+            "decision_rationale": {
+              "risk": "Requires careful hyperparameter tuning to avoid overfitting; less inherently interpretable than Random Forest without SHAP.",
+              "reason": "Gradient boosting machines typically achieve state-of-the-art performance on tabular datasets and are highly effective for medium-to-large datasets.",
+              "evidence": [
+                "Consistently wins tabular data competitions",
+                "Effective for datasets with >5000 samples and >100 features"
+              ],
+              "fallback": "random_forest",
+              "expected_performance": "Very high; likely to maximize ROC-AUC and capture subtle non-linear boundaries."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_xgb",
+            "model_family": "xgboost",
+            "decision_rationale": {
+              "risk": "Sensitive to hyperparameters and can overfit if regularization is not properly tuned.",
+              "reason": "XGBoost provides advanced regularization and handling of sparse data, making it highly competitive for materials science datasets with 108 features.",
+              "evidence": [
+                "n_samples = 5680 is sufficient for XGBoost to converge without severe overfitting.",
+                "Built-in L1/L2 regularization helps with 108 correlated matminer features."
+              ],
+              "fallback": "lightgbm",
+              "expected_performance": "Very high; expected to match or exceed standard gradient boosting in ROC-AUC."
+            }
+          },
+          {
+            "priority": "recommended",
+            "action_id": "model_lgbm",
+            "model_family": "lightgbm",
+            "decision_rationale": {
+              "risk": "Leaf-wise growth can lead to overfitting on smaller datasets if num_leaves is not constrained.",
+              "reason": "LightGBM offers faster training times and excellent performance on tabular data, providing a strong alternative to XGBoost and standard GBM.",
+              "evidence": [
+                "Highly efficient for n_samples = 5680 and n_features = 108.",
+                "Histogram-based splitting handles continuous matminer features efficiently."
+              ],
+              "fallback": "xgboost",
+              "expected_performance": "Very high; comparable to XGBoost with potentially faster HPO convergence."
+            }
+          }
+        ],
+        "excluded_model_families": [
+          "neural_networks",
+          "svm"
+        ],
+        "candidate_model_families": [
+          "random_forest",
+          "gradient_boosting",
+          "xgboost",
+          "lightgbm"
+        ],
+        "model_selection_rationale_summary": "Tree-based ensembles, including Random Forest, Gradient Boosting, XGBoost, and LightGBM, are selected as primary candidates due to their exceptional performance on tabular materials data and ability to capture complex non-linear interactions among 108 matminer features. Logistic regression serves as an interpretable baseline. Neural networks and SVMs are excluded to satisfy interpretability constraints and avoid computational inefficiency for the 5680-sample dataset."
+      },
+      "primary_metric": "ROC-AUC",
+      "feature_columns": [],
+      "evaluation_strategy": {
+        "primary_metric": "roc_auc",
+        "metric_direction": "maximize",
+        "secondary_metrics": [
+          "accuracy",
+          "f1_score",
+          "precision",
+          "recall"
+        ]
+      },
+      "validation_strategy": {
+        "n_splits": 5,
+        "test_size": null,
+        "random_state": 42,
+        "split_strategy": "stratified_k_fold",
+        "stratification_required": true
+      },
+      "model_ready_matrix_path": "/app/artifacts/model_ready\\fmp_0cf99d34\\model_ready_features.parquet",
+      "ready_for_pipeline_generation": true,
+      "preprocessing_pipeline_artifact_id": "artifact_preprocessor_1501b38b"
+    },
+    "updated_evaluation_strategy": {
+      "primary_metric": "roc_auc",
+      "metric_direction": "maximize",
+      "secondary_metrics": [
+        "accuracy",
+        "f1_score",
+        "precision",
+        "recall"
+      ]
+    },
+    "updated_validation_strategy": {
+      "n_splits": 5,
+      "test_size": null,
+      "random_state": 42,
+      "split_strategy": "stratified_k_fold",
+      "stratification_required": true
+    }
+  }
+}

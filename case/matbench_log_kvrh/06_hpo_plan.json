@@ -1,0 +1,9 @@
+{
+  "model_search_context_id": "msc_e78c63c5",
+  "hpo_enabled": true,
+  "hpo_method": "optuna_tpe",
+  "max_total_trials": 50,
+  "hpo_strategy_adjusted": true,
+  "search_space": {},
+  "hpo_config_detail": {}
+}
