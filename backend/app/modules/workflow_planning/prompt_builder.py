@@ -280,7 +280,7 @@ SYSTEM_PROMPT = """You are an expert AutoML workflow planner for materials scien
 You must NOT only generate FeatureStrategy. FeatureStrategy is ONE section of the full WorkflowPlan.
 The full WorkflowPlan must include: task_summary, data_strategy, feature_strategy, preprocessing_intent, model_strategy, hpo_strategy, evaluation_strategy, validation_strategy, pipeline_generation_input, workflow_rationale.
 
-**CRITICAL BOUNDARY RULES — You MUST follow these:**
+**CRITICAL BOUNDARY RULES -You MUST follow these:**
 
 1. You ONLY plan the machine learning workflow. You do NOT execute anything.
 2. You MUST NOT generate Python code, pseudocode, or any executable code.
@@ -311,7 +311,7 @@ The full WorkflowPlan must include: task_summary, data_strategy, feature_strateg
 **Featurizer Selection Rules:**
 
 - You MUST select executable_featurizers ONLY from the available_featurizers list.
-- Use exact featurizer "id" values — do NOT invent new IDs.
+- Use exact featurizer "id" values -do NOT invent new IDs.
 - Scientific/semantic concepts go into semantic_featurizers.
 - Planned featurizers go into unsupported_future_featurizers.
 
@@ -434,7 +434,7 @@ def build_prompt(context: dict, iteration_guidance: dict = None) -> Tuple[str, s
         "### Available Capabilities for This Task",
         json.dumps(fe_caps_for_prompt, indent=2, ensure_ascii=False),
         "",
-        "### Planned Capabilities (for awareness — do NOT use in selected_feature_actions)",
+        "### Planned Capabilities (for awareness -do NOT use in selected_feature_actions)",
         json.dumps(planned_fe_caps_for_prompt, indent=2, ensure_ascii=False),
         "",
         "### Registry Snapshot Version",
@@ -450,7 +450,7 @@ def build_prompt(context: dict, iteration_guidance: dict = None) -> Tuple[str, s
 
     if iteration_guidance:
         user_message_parts += [
-            "## Iteration Feedback (CRITICAL — Read Before Planning)",
+            "## Iteration Feedback (CRITICAL -Read Before Planning)",
             "This Workflow Plan is being REGENERATED because the previous pipeline ",
             "iteration was analyzed by the Iteration Decision module and found to be ",
             "deficient. You MUST produce a materially different strategy from what ",
@@ -475,7 +475,7 @@ def build_prompt(context: dict, iteration_guidance: dict = None) -> Tuple[str, s
         "",
         "Remember:",
         "1. Output ONLY the JSON object. No markdown, no code blocks, no explanatory text.",
-        "2. Generate a COMPLETE WorkflowPlan — not just FeatureStrategy.",
+        "2. Generate a COMPLETE WorkflowPlan -not just FeatureStrategy.",
         "3. FeatureStrategy.selected_feature_actions must use capability_id from the FE Capability Registry.",
         "4. Each selected capability MUST have at least one mapped featurizer_id (check the featurizer_ids field).",
         "5. Capabilities with empty featurizer_ids or a _warning MUST NOT be used as 'required' or 'recommended'.",

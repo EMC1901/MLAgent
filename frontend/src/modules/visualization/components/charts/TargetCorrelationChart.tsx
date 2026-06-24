@@ -24,7 +24,7 @@ const TargetCorrelationChart: React.FC<Props> = ({ data }) => {
   return (
     <ResponsiveContainer width="100%" height={Math.max(250, chartData.length * 28)}>
       <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 20, left: 120, bottom: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
         <XAxis type="number" domain={[-1, 1]} tick={{ fontSize: 12 }} />
         <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={110} />
         <Tooltip
@@ -33,7 +33,7 @@ const TargetCorrelationChart: React.FC<Props> = ({ data }) => {
         />
         <Legend />
         <Bar dataKey="pearson" name="Pearson r" fill={CHART_COLORS.primary} />
-        <Bar dataKey="spearman" name="Spearman ρ" fill={CHART_COLORS.secondary} />
+        <Bar dataKey="spearman" name="Spearman rho" fill={CHART_COLORS.secondary} />
       </BarChart>
     </ResponsiveContainer>
   );

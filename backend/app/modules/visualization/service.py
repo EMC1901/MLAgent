@@ -29,7 +29,7 @@ class VisualizationService:
         self.fp_repo = FeaturePreprocessingRepository()
 
     def get_visualization_data(self, session: Session, task_id: str) -> VisualizationDataResponse:
-        ia = self._get_latest(session, task_id, self.ia_repo, "interpretability analysis")
+        ia = self._get_latest(session, task_id, self.ia_repo, "interpretability analysis", required=False)
         me = self._get_latest(session, task_id, self.me_repo, "metric evaluation", required=False)
         dp = self._get_latest(session, task_id, self.dp_repo, "dataset profile", required=False)
         pe = self._get_latest(session, task_id, self.pe_repo, "pipeline execution", required=False)
@@ -52,13 +52,26 @@ class VisualizationService:
 
     def _get_latest(self, session, task_id, repo, label, required=True):
         try:
-            record = repo.get_latest_by_task_id(session, task_id)
+            records = repo.list_by_task_id(session, task_id)
+            record = next((r for r in records if self._is_completed(r)), None)
         except Exception as e:
             logger.warning("Failed to query %s: %s", label, str(e))
             record = None
         if record is None and required:
             raise BusinessException(
                 "VISUALIZATION_DATA_MISSING",
-                f"No {label} record found for task {task_id}. Run the pipeline first.",
+                f"No completed {label} record found for task {task_id}. Run the pipeline first.",
             )
         return record
+
+    @staticmethod
+    def _is_completed(record) -> bool:
+        status = (getattr(record, "status", None) or "").strip().lower()
+        if not status:
+            return True
+        return status in {
+            "completed", "completed_with_warning", "success", "success_with_warning",
+            "succeeded", "evaluated", "evaluated_with_warning", "partially_evaluated",
+            "analyzed", "analyzed_with_warning", "profiled", "profiled_with_warning",
+            "preprocessed", "preprocessed_with_warning", "ready",
+        }

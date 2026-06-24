@@ -1,12 +1,36 @@
 import React, { useState } from 'react';
+import { Button, Space, Card, Descriptions, Spin, Tabs } from 'antd';
 import { createDatasetProfile, rerunDatasetProfile } from '../../../api/datasetProfileApi';
 import { DatasetProfileResponse, DatasetFileUploadResponse } from '../types';
 import FileUpload from './FileUpload';
+import {
+  PanelContainer,
+  StatusBadge,
+  WarningBox,
+  ErrorBox,
+  JsonViewer,
+  EmptyState,
+} from '../../../components/shared';
+import { pipelineAccent } from '../../../theme/pipelineColors';
 
 interface DatasetProfilePanelProps {
   taskId: string;
   initialResult?: DatasetProfileResponse;
 }
+
+const STATUS_COLORS: Record<string, string> = {
+  profiled: 'success',
+  profiled_with_warning: 'warning',
+  failed: 'error',
+  blocked: 'default',
+};
+
+const QUALITY_COLORS: Record<string, string> = {
+  good: 'success',
+  fair: 'warning',
+  poor: 'error',
+  unusable: 'default',
+};
 
 const DatasetProfilePanel: React.FC<DatasetProfilePanelProps> = ({ taskId, initialResult }) => {
   const [uploadResult, setUploadResult] = useState<DatasetFileUploadResponse | null>(null);
@@ -58,302 +82,223 @@ const DatasetProfilePanel: React.FC<DatasetProfilePanelProps> = ({ taskId, initi
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'profiled': return '#4caf50';
-      case 'profiled_with_warning': return '#ff9800';
-      case 'failed': return '#f44336';
-      case 'blocked': return '#9e9e9e';
-      default: return '#9e9e9e';
-    }
-  };
-
-  const getQualityColor = (level: string) => {
-    switch (level) {
-      case 'good': return '#4caf50';
-      case 'fair': return '#ff9800';
-      case 'poor': return '#f44336';
-      case 'unusable': return '#9e9e9e';
-      default: return '#9e9e9e';
-    }
-  };
-
-  const Badge: React.FC<{ label: string; color?: string }> = ({ label, color = '#1976d2' }) => (
-    <span style={{ ...s.badge, backgroundColor: color }}>{label}</span>
-  );
-
   const renderProfile = () => {
-    if (!profile) return null;
+    if (!profile) return <EmptyState description="No profile data available." />;
+
     return (
-      <div>
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Profile Summary</h4>
-          <div style={s.grid}>
-            <div style={s.field}><strong>Profile ID:</strong> {profile.dataset_profile_id}</div>
-            <div style={s.field}>
-              <strong>Status: </strong>
-              <Badge label={profile.status} color={getStatusColor(profile.status)} />
-            </div>
-          </div>
-        </div>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Card size="small" title="Profile Summary">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Profile ID">{profile.dataset_profile_id}</Descriptions.Item>
+            <Descriptions.Item label="Status">
+              <StatusBadge label={profile.status} color={STATUS_COLORS[profile.status]} />
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
 
         {profile.dataset_source && (
-          <div style={s.card}>
-            <h4 style={s.cardTitle}>Source</h4>
-            <div style={s.field}>
+          <Card size="small" title="Source">
+            <p style={{ margin: 0 }}>
               {profile.dataset_source.source_type}
               {profile.dataset_source.dataset_reference && ` (${profile.dataset_source.dataset_reference})`}
-            </div>
-          </div>
+            </p>
+          </Card>
         )}
 
         {profile.dataset_schema && (
-          <div style={s.card}>
-            <h4 style={s.cardTitle}>Schema</h4>
-            <div style={s.grid}>
-              <div style={s.field}><strong>Samples:</strong> {profile.dataset_schema.n_samples}</div>
-              <div style={s.field}><strong>Columns:</strong> {profile.dataset_schema.n_columns}</div>
-              <div style={s.field}><strong>Input Columns:</strong> {profile.dataset_schema.input_columns.join(', ') || 'none'}</div>
-              <div style={s.field}><strong>Target:</strong> {profile.dataset_schema.target_column || 'none'}</div>
-            </div>
-          </div>
+          <Card size="small" title="Schema">
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="Samples">{profile.dataset_schema.n_samples}</Descriptions.Item>
+              <Descriptions.Item label="Columns">{profile.dataset_schema.n_columns}</Descriptions.Item>
+              <Descriptions.Item label="Input Columns">
+                {profile.dataset_schema.input_columns?.join(', ') || 'none'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Target">
+                {profile.dataset_schema.target_column || 'none'}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
         )}
 
         {profile.modality_check && (
-          <div style={s.card}>
-            <h4 style={s.cardTitle}>Modality Check</h4>
-            <div style={s.field}>
-              <span style={{
-                color: profile.modality_check.is_consistent ? '#2e7d32' : '#c62828',
-                fontWeight: 600,
-              }}>
-                {profile.modality_check.is_consistent ? 'Consistent' : 'Mismatch'}
-              </span>
-            </div>
-          </div>
+          <Card size="small" title="Modality Check">
+            <StatusBadge
+              label={profile.modality_check.is_consistent ? 'Consistent' : 'Mismatch'}
+              color={profile.modality_check.is_consistent ? 'success' : 'error'}
+            />
+          </Card>
         )}
 
         {profile.target_profile && (
-          <div style={s.card}>
-            <h4 style={s.cardTitle}>Target Profile ({profile.target_profile.task_type})</h4>
-            {profile.target_profile.task_type === 'regression' && (
-              <div style={s.grid}>
-                <div style={s.field}><strong>Range:</strong> {profile.target_profile.min?.toFixed(2)} – {profile.target_profile.max?.toFixed(2)}</div>
-                <div style={s.field}><strong>Mean:</strong> {profile.target_profile.mean?.toFixed(2)}</div>
-                <div style={s.field}><strong>Std:</strong> {profile.target_profile.std?.toFixed(2)}</div>
-                <div style={s.field}><strong>Skewness:</strong> {profile.target_profile.skewness?.toFixed(2)}</div>
-                <div style={s.field}><strong>Outliers:</strong> {profile.target_profile.outlier_count}</div>
-              </div>
-            )}
-            {profile.target_profile.task_type === 'classification' && (
-              <div style={s.grid}>
-                <div style={s.field}><strong>Classes:</strong> {profile.target_profile.class_count}</div>
+          <Card size="small" title={`Target Profile (${profile.target_profile.task_type})`}>
+            {profile.target_profile.task_type === 'regression' ? (
+              <Descriptions column={2} size="small">
+                <Descriptions.Item label="Range">
+                  {profile.target_profile.min?.toFixed(2)} – {profile.target_profile.max?.toFixed(2)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Mean">{profile.target_profile.mean?.toFixed(2)}</Descriptions.Item>
+                <Descriptions.Item label="Std">{profile.target_profile.std?.toFixed(2)}</Descriptions.Item>
+                <Descriptions.Item label="Skewness">{profile.target_profile.skewness?.toFixed(2)}</Descriptions.Item>
+                <Descriptions.Item label="Outliers">{profile.target_profile.outlier_count}</Descriptions.Item>
+              </Descriptions>
+            ) : (
+              <Descriptions column={2} size="small">
+                <Descriptions.Item label="Classes">{profile.target_profile.class_count}</Descriptions.Item>
                 {profile.target_profile.is_imbalanced && (
-                  <div style={{ ...s.field, color: '#e65100' }}>Warning: Classes are imbalanced</div>
+                  <Descriptions.Item label="Warning">
+                    <span style={{ color: '#e65100', fontWeight: 600 }}>Classes are imbalanced</span>
+                  </Descriptions.Item>
                 )}
-              </div>
+              </Descriptions>
             )}
-          </div>
+          </Card>
         )}
 
         {profile.data_quality && (
-          <div style={s.card}>
-            <h4 style={s.cardTitle}>Data Quality</h4>
-            <div style={s.grid}>
-              <div style={s.field}><strong>Missing:</strong> {profile.data_quality.missing_values.total_missing}</div>
-              <div style={s.field}><strong>Duplicate Rows:</strong> {profile.data_quality.duplicates.duplicate_rows}</div>
-            </div>
+          <Card size="small" title="Data Quality">
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="Missing Values">
+                {profile.data_quality.missing_values.total_missing}
+              </Descriptions.Item>
+              <Descriptions.Item label="Duplicate Rows">
+                {profile.data_quality.duplicates.duplicate_rows}
+              </Descriptions.Item>
+            </Descriptions>
             {profile.data_quality.warnings.length > 0 && (
-              <div style={{ color: '#e65100', marginTop: '4px' }}>Warnings: {profile.data_quality.warnings.length}</div>
+              <WarningBox warnings={profile.data_quality.warnings} />
             )}
             {profile.data_quality.errors.length > 0 && (
-              <div style={{ color: '#c62828', marginTop: '4px' }}>Errors: {profile.data_quality.errors.length}</div>
+              <ErrorBox message={`${profile.data_quality.errors.length} data quality error(s)`} style={{ marginBottom: 0 }} />
             )}
-          </div>
+          </Card>
         )}
 
         {profile.profiling_summary && (
-          <div style={s.card}>
-            <h4 style={s.cardTitle}>Summary</h4>
-            <div style={s.grid}>
-              <div style={s.field}>
-                <strong>Quality: </strong>
-                <span style={{ color: getQualityColor(profile.profiling_summary.quality_level), fontWeight: 600 }}>
-                  {profile.profiling_summary.quality_level}
-                </span>
-              </div>
-              <div style={s.field}><strong>Sample Size:</strong> {profile.profiling_summary.sample_size_level}</div>
-              <div style={s.field}><strong>Usable for ML:</strong> {profile.profiling_summary.is_usable_for_ml ? 'Yes' : 'No'}</div>
+          <Card size="small" title="Summary">
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="Quality">
+                <StatusBadge
+                  label={profile.profiling_summary.quality_level}
+                  color={QUALITY_COLORS[profile.profiling_summary.quality_level]}
+                />
+              </Descriptions.Item>
+              <Descriptions.Item label="Sample Size">
+                {profile.profiling_summary.sample_size_level}
+              </Descriptions.Item>
+              <Descriptions.Item label="Usable for ML">
+                {profile.profiling_summary.is_usable_for_ml ? 'Yes' : 'No'}
+              </Descriptions.Item>
               {profile.profiling_summary.recommended_next_step && (
-                <div style={s.field}><strong>Next:</strong> {profile.profiling_summary.recommended_next_step}</div>
+                <Descriptions.Item label="Next">
+                  {profile.profiling_summary.recommended_next_step}
+                </Descriptions.Item>
               )}
-            </div>
-          </div>
+            </Descriptions>
+          </Card>
         )}
-      </div>
+      </Space>
     );
   };
 
-  const renderTab = (tabId: string, label: string) => (
-    <button
-      key={tabId}
-      onClick={() => setActiveTab(tabId)}
-      style={{
-        ...s.tabButton,
-        backgroundColor: activeTab === tabId ? '#1976d2' : '#e0e0e0',
-        color: activeTab === tabId ? '#fff' : '#333',
-      }}
-    >
-      {label}
-    </button>
-  );
-
-  const tabs = [
-    { id: 'profile', label: 'Profile' },
-    { id: 'json', label: 'Full JSON' },
+  const tabItems = [
+    { key: 'profile', label: 'Profile', children: renderProfile() },
+    {
+      key: 'json',
+      label: 'Full JSON',
+      children: profile ? (
+        <JsonViewer data={profile} />
+      ) : (
+        <EmptyState description="Run profiling to see JSON output." />
+      ),
+    },
   ];
 
   return (
-    <div style={s.container}>
-      <h3 style={s.title}>Dataset Profiling</h3>
-      <p style={s.description}>
-        Upload a dataset file or use the dataset referenced in the task interpretation to run profiling.
-      </p>
-
+    <PanelContainer
+      title="Dataset Profiling"
+      description="Upload a dataset file or use the dataset referenced in the task interpretation to run profiling."
+      accentColor={pipelineAccent.datasetProfile}
+    >
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" onClick={handleRunProfiling} loading={loading}>
+          {loading ? 'Running...' : 'Run Dataset Profiling'}
+        </Button>
+        {profile && (
+          <Button onClick={handleRerun} loading={loading}>
+            Re-run Profiling
+          </Button>
+        )}
+      </Space>
       <FileUpload onUploadSuccess={handleUploadSuccess} />
 
       {uploadResult && (
-        <div style={s.uploadInfo}>
-          <strong>File ready:</strong> {uploadResult.file_name}{' '}
-          ({(uploadResult.file_size_bytes / 1024).toFixed(1)} KB){' | '}
-          {uploadResult.n_rows} rows x {uploadResult.n_columns} columns
-          <table style={s.miniTable}>
-            <thead>
-              <tr>
-                {uploadResult.columns.map((col) => (
-                  <th key={col} style={s.miniTh}>{col}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {uploadResult.preview_rows.slice(0, 5).map((row, i) => (
-                <tr key={i}>
+        <Card
+          size="small"
+          title="Uploaded File"
+          style={{ marginTop: 12, marginBottom: 12 }}
+        >
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="File">{uploadResult.file_name}</Descriptions.Item>
+            <Descriptions.Item label="Size">
+              {(uploadResult.file_size_bytes / 1024).toFixed(1)} KB
+            </Descriptions.Item>
+            <Descriptions.Item label="Rows">{uploadResult.n_rows}</Descriptions.Item>
+            <Descriptions.Item label="Columns">{uploadResult.n_columns}</Descriptions.Item>
+          </Descriptions>
+          <div style={{ marginTop: 8, overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }} aria-label="Uploaded dataset preview">
+              <caption style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
+                Preview of uploaded dataset: first 5 rows of {uploadResult.columns.length} columns
+              </caption>
+              <thead>
+                <tr>
                   {uploadResult.columns.map((col) => (
-                    <td key={col} style={s.miniTd}>{String(row[col] ?? '')}</td>
+                    <th
+                      scope="col"
+                      key={col}
+                      style={{
+                        textAlign: 'left', borderBottom: '1px solid #ccc', padding: '4px 6px',
+                        maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {col}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {uploadResult.preview_rows.slice(0, 5).map((row, i) => (
+                  <tr key={i}>
+                    {uploadResult.columns.map((col) => (
+                      <td
+                        key={col}
+                        style={{
+                          borderBottom: '1px solid #eee', padding: '2px 6px',
+                          maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {String(row[col] ?? '')}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
-      <div style={s.buttonRow}>
-        <button onClick={handleRunProfiling} disabled={loading} style={s.runButton}>
-          {loading ? 'Running...' : 'Run Dataset Profiling'}
-        </button>
-        {profile && (
-          <button onClick={handleRerun} disabled={loading} style={s.rerunButton}>
-            {loading ? 'Running...' : 'Re-run Profiling'}
-          </button>
+      <Spin spinning={loading}>
+        {error && <ErrorBox message={error} />}
+
+        {profile && <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />}
+
+        {!profile && !error && !loading && !uploadResult && (
+          <EmptyState description="No profile data yet. Upload a dataset and click &quot;Run Dataset Profiling&quot; to start." />
         )}
-      </div>
-
-      {error && (
-        <div style={s.errorBox}>
-          <strong>Error:</strong> {error}
-        </div>
-      )}
-
-      {profile && (
-        <div style={s.resultBox}>
-          <h4 style={s.resultTitle}>Profile Result</h4>
-
-          <div style={s.tabBar}>
-            {tabs.map(t => renderTab(t.id, t.label))}
-          </div>
-
-          <div style={s.tabContent}>
-            {activeTab === 'profile' && renderProfile()}
-            {activeTab === 'json' && (
-              <div style={s.card}>
-                <h4 style={s.cardTitle}>Full JSON</h4>
-                <pre style={s.json}>{JSON.stringify(profile, null, 2)}</pre>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+      </Spin>
+    </PanelContainer>
   );
-};
-
-const s: Record<string, React.CSSProperties> = {
-  container: {
-    marginTop: '24px',
-    padding: '16px',
-    border: '1px solid #e0e0e0',
-    borderRadius: '8px',
-    backgroundColor: '#fafafa',
-  },
-  title: { margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600 },
-  description: { margin: '0 0 16px 0', color: '#666', fontSize: '13px', lineHeight: 1.5 },
-  uploadInfo: {
-    marginTop: '12px', marginBottom: '12px',
-    padding: '12px', backgroundColor: '#fff', border: '1px solid #e0e0e0',
-    borderRadius: '6px', fontSize: '13px',
-  },
-  miniTable: {
-    width: '100%', marginTop: '8px', borderCollapse: 'collapse' as const, fontSize: '12px',
-  },
-  miniTh: {
-    textAlign: 'left' as const, borderBottom: '1px solid #ccc', padding: '4px 6px',
-    maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
-  },
-  miniTd: {
-    borderBottom: '1px solid #eee', padding: '2px 6px',
-    maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
-  },
-  buttonRow: { display: 'flex', gap: '8px', marginBottom: '16px' },
-  runButton: {
-    padding: '10px 20px', backgroundColor: '#1976d2', color: '#fff',
-    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-  },
-  rerunButton: {
-    padding: '10px 20px', backgroundColor: '#f57c00', color: '#fff',
-    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-  },
-  errorBox: {
-    padding: '12px', backgroundColor: '#ffebee', border: '1px solid #f44336',
-    borderRadius: '4px', color: '#c62828', marginBottom: '16px',
-  },
-  resultBox: {
-    padding: '16px', backgroundColor: '#fff', border: '1px solid #e0e0e0',
-    borderRadius: '8px', marginTop: '12px',
-  },
-  resultTitle: { margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600 },
-  badge: {
-    display: 'inline-block', padding: '2px 8px', borderRadius: '12px',
-    color: '#fff', fontSize: '12px', fontWeight: 600, margin: '0 4px',
-  },
-  tabBar: { display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '16px' },
-  tabButton: {
-    padding: '6px 14px', border: 'none', borderRadius: '16px',
-    fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-  },
-  tabContent: { minHeight: '200px', maxHeight: '60vh', overflowY: 'auto' as const },
-  card: {
-    padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px',
-    marginBottom: '12px', border: '1px solid #e0e0e0',
-    overflowX: 'auto' as const,
-  },
-  cardTitle: { margin: '0 0 10px 0', fontSize: '15px', fontWeight: 600 },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' },
-  field: { fontSize: '14px' },
-  json: {
-    backgroundColor: '#263238', color: '#aed581', padding: '12px',
-    borderRadius: '4px', overflow: 'auto', fontSize: '11px',
-  },
 };
 
 export default DatasetProfilePanel;

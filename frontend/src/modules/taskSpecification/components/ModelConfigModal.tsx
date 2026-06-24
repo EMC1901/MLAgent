@@ -149,10 +149,10 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({ visible, onClose, o
   const isValidated = validation?.valid === true;
 
   return (
-    <div style={s.overlay} onClick={handleOverlayClick}>
-      <div style={s.modal}>
+    <div style={s.overlay} onClick={handleOverlayClick} role="presentation">
+      <div style={s.modal} role="dialog" aria-labelledby="model-config-title">
         <div style={s.header}>
-          <h2 style={s.title}>Model Configuration</h2>
+          <h2 id="model-config-title" style={s.title}>Model Configuration</h2>
           <button style={s.closeButton} onClick={onClose} type="button" aria-label="Close">
             &times;
           </button>
@@ -179,8 +179,9 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({ visible, onClose, o
           )}
 
           <div style={s.fieldGroup}>
-            <label style={s.label}>Model Name <span style={s.required}>*</span></label>
+            <label htmlFor="model-name-input" style={s.label}>Model Name <span style={s.required} aria-hidden="true">*</span></label>
             <input
+              id="model-name-input"
               style={{
                 ...s.input,
                 ...(fieldErrors.modelName ? s.inputError : {}),
@@ -194,13 +195,17 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({ visible, onClose, o
               }}
               placeholder="e.g., deepseek-v4-pro, gpt-4.1"
               disabled={applying}
+              aria-required="true"
+              aria-invalid={!!fieldErrors.modelName}
+              aria-describedby={fieldErrors.modelName ? 'error-modelName' : undefined}
             />
-            {fieldErrors.modelName && <div style={s.fieldError}>{fieldErrors.modelName}</div>}
+            {fieldErrors.modelName && <div id="error-modelName" style={s.fieldError} role="alert">{fieldErrors.modelName}</div>}
           </div>
 
           <div style={s.fieldGroup}>
-            <label style={s.label}>API Key <span style={s.required}>*</span></label>
+            <label htmlFor="api-key-input" style={s.label}>API Key <span style={s.required} aria-hidden="true">*</span></label>
             <input
+              id="api-key-input"
               style={{
                 ...s.input,
                 ...(fieldErrors.apiKey ? s.inputError : {}),
@@ -214,13 +219,17 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({ visible, onClose, o
               }}
               placeholder="Enter your API key"
               disabled={applying}
+              aria-required="true"
+              aria-invalid={!!fieldErrors.apiKey}
+              aria-describedby={fieldErrors.apiKey ? 'error-apiKey' : undefined}
             />
-            {fieldErrors.apiKey && <div style={s.fieldError}>{fieldErrors.apiKey}</div>}
+            {fieldErrors.apiKey && <div id="error-apiKey" style={s.fieldError} role="alert">{fieldErrors.apiKey}</div>}
           </div>
 
           <div style={s.fieldGroup}>
-            <label style={s.label}>Base URL <span style={s.hint}>(optional — auto-detected if empty)</span></label>
+            <label htmlFor="base-url-input" style={s.label}>Base URL <span style={s.hint}>(optional — auto-detected if empty)</span></label>
             <input
+              id="base-url-input"
               style={s.input}
               type="text"
               value={baseUrl}

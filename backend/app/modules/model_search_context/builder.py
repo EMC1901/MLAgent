@@ -287,7 +287,7 @@ def _apply_llm_trial_allocation(
     max_total_trials: int,
 ) -> List[TrialAllocationItem]:
     """Use LLM-provided trial allocation, mapped from model_family to model_id."""
-    # Build family → rationale lookup from LLM
+    # Build family-to-rationale lookup from LLM
     llm_map: dict = {}
     for alloc in llm_allocations:
         family = alloc.get("model_family", "")
@@ -303,7 +303,7 @@ def _apply_llm_trial_allocation(
         allocations.append(TrialAllocationItem(
             model_id=b["model_id"],
             max_trials=0,
-            allocation_rationale="Baseline model — fixed defaults, no HPO needed.",
+            allocation_rationale="Baseline model uses fixed defaults; no HPO needed.",
         ))
 
     # Handle HPO baselines + candidates with LLM allocation
@@ -387,9 +387,16 @@ def _allocate_trials(
 
 def build_validation_plan(updated_validation_strategy: dict) -> ValidationPlan:
     """Build validation plan from updated strategy."""
+    def _optional_float(value):
+        return None if value is None else float(value)
+
     return ValidationPlan(
         split_strategy=updated_validation_strategy.get("split_strategy", "k_fold_cross_validation"),
         n_splits=int(updated_validation_strategy.get("n_splits", 5)),
+        test_size=_optional_float(updated_validation_strategy.get("test_size")),
+        external_test_enabled=bool(updated_validation_strategy.get("external_test_enabled") or updated_validation_strategy.get("use_external_test", False)),
+        external_test_size=_optional_float(updated_validation_strategy.get("external_test_size")),
+        cv_strategy=updated_validation_strategy.get("cv_strategy") or updated_validation_strategy.get("inner_split_strategy"),
         random_state=int(updated_validation_strategy.get("random_state", 42)),
         shuffle=bool(updated_validation_strategy.get("shuffle", True)),
         stratification_required=bool(updated_validation_strategy.get("stratification_required", False)),

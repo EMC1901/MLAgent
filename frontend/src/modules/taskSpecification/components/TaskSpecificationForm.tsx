@@ -14,7 +14,7 @@ import FormField from './FormField';
 import TaskFieldGroup from './TaskFieldGroup';
 import TaskHistoryList from './TaskHistoryList';
 import TaskResultDisplay from './TaskResultDisplay';
-import TaskPanelOrchestrator from './TaskPanelOrchestrator';
+import PanelSidebar from './PanelSidebar';
 import { createTask, getTask, TaskSpecificationResponse } from '../../../api/taskApi';
 import { getLatestInterpretation } from '../../../api/taskInterpretationApi';
 import { getLatestDatasetProfileByTaskId } from '../../../api/datasetProfileApi';
@@ -202,6 +202,12 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
     setPanelResults(results);
   };
 
+  const handleNewTaskCreated = async (newTaskId: string) => {
+    setActiveTaskId(newTaskId);
+    const results = await fetchAllPanels(newTaskId);
+    setPanelResults(results);
+  };
+
   const handleNewTask = () => {
     reset(defaultValues);
     setResult(null);
@@ -219,6 +225,7 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
         currentTaskId={activeTaskId || undefined}
       />
 
+      {!activeTaskId && <>
       <form onSubmit={handleSubmit(onSubmit)}>
         <TaskFieldGroup title="Basic Task Information">
           <FormField
@@ -311,19 +318,21 @@ const TaskSpecificationForm: React.FC<TaskSpecificationFormProps> = ({ onSubmitS
       </form>
 
       {error && (
-        <div style={errorBoxStyle}>
+        <div style={errorBoxStyle} role="alert">
           <strong>Error:</strong>{' '}
           <span style={{ whiteSpace: 'pre-wrap' }}>{error}</span>
         </div>
       )}
 
       {result && <TaskResultDisplay result={result} />}
+      </>}
 
       {activeTaskId && (
-        <TaskPanelOrchestrator
+        <PanelSidebar
           activeTaskId={activeTaskId}
           panelResults={panelResults}
           onRerunComplete={handleRerunComplete}
+          onNewTaskCreated={handleNewTaskCreated}
         />
       )}
     </div>

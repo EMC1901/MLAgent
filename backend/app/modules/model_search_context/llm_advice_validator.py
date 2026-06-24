@@ -4,7 +4,7 @@ from app.shared.config.settings import settings
 from app.shared.registry.model_registry import is_valid_model_family, MODEL_FAMILIES
 from app.shared.registry.hpo_registry import is_valid_hpo_method
 
-# Build display-name → family-name fallback mapping for LLM naming mistakes
+# Build display-name 鈫?family-name fallback mapping for LLM naming mistakes
 _DISPLAY_NAME_TO_FAMILY: Dict[str, str] = {}
 for mf in MODEL_FAMILIES:
     _DISPLAY_NAME_TO_FAMILY[mf["display_name"].lower()] = mf["family"]
@@ -16,7 +16,7 @@ def _resolve_model_family(name: str) -> str:
     """Resolve a model family name to its registry key, with fallback mapping."""
     if is_valid_model_family(name):
         return name
-    # Try display-name → family-name fallback
+    # Try display-name 鈫?family-name fallback
     return _DISPLAY_NAME_TO_FAMILY.get(name.lower().strip(), name)
 from app.modules.model_search_context.schemas import SystemValidationResult
 
@@ -33,7 +33,7 @@ _VALID_FIELD_PATHS = {
         "model_selection_rationale_summary",
     },
     "hpo": {"enabled", "search_method", "budget_level", "max_trials", "search_space_width"},
-    "validation": {"split_strategy", "n_splits", "test_size", "random_state", "stratification_required"},
+    "validation": {"split_strategy", "n_splits", "test_size", "external_test_enabled", "external_test_size", "cv_strategy", "random_state", "stratification_required"},
     "evaluation": {"primary_metric", "secondary_metrics", "metric_direction"},
 }
 
@@ -72,7 +72,7 @@ def validate_llm_advice(parsed_advice: dict, task_type: str) -> dict:
             change_errors.append(f"{change_key}: invalid strategy_area '{strategy_area}'")
             fallback_applied = True
 
-        # Normalize LLM's dotted prefix (e.g. "model_strategy.baseline_models" → "baseline_models")
+        # Normalize LLM's dotted prefix (e.g. "model_strategy.baseline_models" 鈫?"baseline_models")
         prefix = f"{strategy_area}_strategy."
         if field_path.startswith(prefix):
             field_path = field_path[len(prefix):]
@@ -113,7 +113,7 @@ def validate_llm_advice(parsed_advice: dict, task_type: str) -> dict:
                     if is_valid_model_family(resolved):
                         valid_families.append(resolved)
                         if resolved != str(family):
-                            warnings.append(f"{change_key}: resolved '{family}' → '{resolved}' via display name mapping")
+                            warnings.append(f"{change_key}: resolved '{family}' 鈫?'{resolved}' via display name mapping")
                     else:
                         rejected.append(f"model_family: '{family}' is not in Model Registry")
                         fallback_applied = True
@@ -133,7 +133,7 @@ def validate_llm_advice(parsed_advice: dict, task_type: str) -> dict:
                     if is_valid_model_family(resolved):
                         valid_baselines.append(resolved)
                         if resolved != str(m):
-                            warnings.append(f"{change_key}: resolved baseline '{m}' → '{resolved}' via display name mapping")
+                            warnings.append(f"{change_key}: resolved baseline '{m}' 鈫?'{resolved}' via display name mapping")
                     else:
                         rejected.append(f"baseline_model: '{m}' is not in Model Registry")
                 change["updated_value"] = list(dict.fromkeys(valid_baselines))  # dedupe preserving order

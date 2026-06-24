@@ -74,7 +74,13 @@ const TaskHistoryList: React.FC<TaskHistoryListProps> = ({
 
   return (
     <div style={s.container}>
-      <button type="button" onClick={handleToggle} style={s.toggleButton}>
+      <button
+        type="button"
+        onClick={handleToggle}
+        style={s.toggleButton}
+        aria-expanded={expanded}
+        aria-controls="task-history-panel"
+      >
         {expanded ? 'Hide Historical Tasks' : 'Load Historical Tasks'}
       </button>
 
@@ -93,7 +99,7 @@ const TaskHistoryList: React.FC<TaskHistoryListProps> = ({
       />
 
       {expanded && (
-        <div style={s.panel}>
+        <div id="task-history-panel" style={s.panel}>
           {fetching && <div style={s.loadingText}>Loading tasks...</div>}
           {fetchError && <div style={s.errorText}>{fetchError}</div>}
 
@@ -103,14 +109,14 @@ const TaskHistoryList: React.FC<TaskHistoryListProps> = ({
 
           {tasks.length > 0 && (
             <div style={s.tableWrapper}>
-              <table style={s.table}>
+              <table style={s.table} aria-label="Historical Tasks">
                 <thead>
                   <tr>
-                    <th style={s.th}>Task Name</th>
-                    <th style={s.th}>Type</th>
-                    <th style={s.th}>Target</th>
-                    <th style={s.th}>Status</th>
-                    <th style={s.th}>Created</th>
+                    <th scope="col" style={s.th}>Task Name</th>
+                    <th scope="col" style={s.th}>Type</th>
+                    <th scope="col" style={s.th}>Target</th>
+                    <th scope="col" style={s.th}>Status</th>
+                    <th scope="col" style={s.th}>Created</th>
                   </tr>
                 </thead>
                 <tbody>

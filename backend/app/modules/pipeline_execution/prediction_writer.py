@@ -1,4 +1,4 @@
-"""Prediction Writer — saves validation predictions to parquet."""
+"""Prediction Writer - saves validation and test predictions to parquet."""
 
 import logging
 import os
@@ -20,6 +20,9 @@ def save_predictions(
     task_type: str = "regression",
     y_pred_proba=None,
     class_labels=None,
+    split: str = "validation",
+    filename: str = None,
+    extra_columns: dict = None,
 ) -> str:
     """Save prediction results as a parquet file.
 
@@ -42,9 +45,13 @@ def save_predictions(
         "fold_index": fold_index,
         "y_true": y_true_vals,
         "y_pred": y_pred_vals,
-        "split": "validation",
+        "split": split,
         "model_id": model_id,
     })
+
+    if extra_columns:
+        for key, value in extra_columns.items():
+            df[key] = value
 
     if task_type == "classification":
         df["y_pred_label"] = y_pred_vals
@@ -61,7 +68,7 @@ def save_predictions(
         if class_labels is not None:
             df["class_labels"] = str(list(class_labels))
 
-    filename = f"{trial_id}_fold_{fold_index}.parquet"
+    filename = filename or f"{trial_id}_fold_{fold_index}.parquet"
     filepath = os.path.join(output_dir, filename)
 
     try:

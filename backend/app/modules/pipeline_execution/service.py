@@ -1,4 +1,4 @@
-"""Pipeline Execution Service — main orchestrator."""
+"""Pipeline Execution Service - main orchestrator."""
 
 import logging
 import os
@@ -28,9 +28,13 @@ from app.modules.pipeline_execution.data_matrix_loader import (
     resolve_fold_pipeline_spec_path,
 )
 from app.modules.feature_preprocessing.artifact_manager import load_fold_pipeline_spec
-from app.modules.pipeline_execution.validation_splitter import create_validation_splits
+from app.modules.pipeline_execution.validation_splitter import create_validation_splits, create_external_test_split
 from app.modules.pipeline_execution.execution_planner import expand_execution_plan
 from app.modules.pipeline_execution.controlled_executor import execute_training
+from app.modules.pipeline_execution.final_external_test_runner import (
+    run_final_external_test,
+    select_best_trial_for_external_test,
+)
 from app.modules.pipeline_execution.metric_input_builder import build_metric_evaluation_input
 from app.modules.pipeline_execution.training_artifact_manager import (
     TRAINING_ARTIFACT_ROOT,
@@ -93,6 +97,34 @@ def _setup_execution_logging(exec_dir: str):
     return handler, _cleanup
 
 
+def _make_external_split_summary(external_test_split: Optional[dict]) -> Optional[dict]:
+    if not external_test_split:
+        return None
+    return {
+        "train_pool_size": external_test_split.get("train_pool_size"),
+        "external_test_size": external_test_split.get("external_test_size"),
+        "test_size": external_test_split.get("test_size"),
+    }
+
+def _external_test_enabled(validation_plan: dict) -> bool:
+    return bool(
+        validation_plan
+        and (
+            validation_plan.get("external_test_enabled")
+            or validation_plan.get("use_external_test")
+        )
+    )
+
+
+def _cv_validation_plan(validation_plan: dict) -> dict:
+    plan = dict(validation_plan or {})
+    cv_strategy = plan.get("cv_strategy") or plan.get("inner_split_strategy")
+    if cv_strategy:
+        plan["split_strategy"] = cv_strategy
+    for key in ("external_test_enabled", "use_external_test", "external_test_size", "cv_strategy", "inner_split_strategy"):
+        plan.pop(key, None)
+    return plan
+
 class PipelineExecutionService:
 
     def __init__(self):
@@ -110,25 +142,25 @@ class PipelineExecutionService:
         warnings = []
         pe_id = f"pe_{uuid.uuid4().hex[:8]}"
 
-        # ── Set up per-execution logging before any step runs ──
+        # 閳光偓閳光偓 Set up per-execution logging before any step runs 閳光偓閳光偓
         exec_dir = os.path.join(TRAINING_ARTIFACT_ROOT, pe_id)
         log_handler, _cleanup_logging = _setup_execution_logging(exec_dir)
 
         try:
-            logger.info("=== Pipeline Execution — task=%s pe=%s mode=%s ===",
+            logger.info("=== Pipeline Execution -task=%s pe=%s mode=%s ===",
                          task_id, pe_id, request.execution_mode)
             logger.info("[1/12] Building execution context ...")
             t0 = time.time()
             pg = build_execution_context(
                 session, task_id, request.pipeline_generation_id,
             )
-            logger.info("[1/12] Done — pg_id=%s status=%s (%.1fs)", pg.id, pg.status, time.time() - t0)
+            logger.info("[1/12] Done -pg_id=%s status=%s (%.1fs)", pg.id, pg.status, time.time() - t0)
 
             # Step 2: Load and validate execution_input
             logger.info("[2/12] Loading execution input ...")
             t0 = time.time()
             ei = load_execution_input(pg.execution_input_json)
-            logger.info("[2/12] Done — task_type=%s target=%s n_specs=%d (%.1fs)",
+            logger.info("[2/12] Done -task_type=%s target=%s n_specs=%d (%.1fs)",
                   ei.task_type, ei.target_column, len(ei.pipeline_specs or []), time.time() - t0)
 
             # Step 3: Load model-ready matrix
@@ -142,24 +174,45 @@ class PipelineExecutionService:
                 feature_columns=ei.feature_columns,
                 target_column=ei.target_column,
             )
-            logger.info("[3/12] Done — n_samples=%d n_features=%d (%.1fs)", len(X), len(X.columns), time.time() - t0)
+            logger.info("[3/12] Done -n_samples=%d n_features=%d (%.1fs)", len(X), len(X.columns), time.time() - t0)
 
             # Step 3b: Check for fold pipeline spec (fold-safe preprocessing)
             fold_spec_path = getattr(ei, "fold_pipeline_spec_path", None) or resolve_fold_pipeline_spec_path(matrix_path)
             fold_pipeline_spec = None
             if fold_spec_path:
-                logger.info("[3b/12] Loading fold pipeline spec — %d ops",
+                logger.info("[3b/12] Loading fold pipeline spec -%d ops",
                            len(load_fold_pipeline_spec(fold_spec_path).operations) if (fold_pipeline_spec := load_fold_pipeline_spec(fold_spec_path)) else 0)
             else:
-                logger.info("[3b/12] No fold_pipeline_spec — proceeding without fold preprocessing")
+                logger.info("[3b/12] No fold_pipeline_spec -proceeding without fold preprocessing")
 
-            # Step 4: Create validation splits
+            # Step 3c: Optionally isolate the final external test set before CV/HPO
+            validation_plan = dict(ei.validation_plan or {})
+            external_test_split = None
+            X_train_exec, y_train_exec = X, y
+            X_external_test = y_external_test = external_test_indices = None
+            external_test_result = None
+            if _external_test_enabled(validation_plan):
+                logger.info("[3c/12] Creating external test split before CV/HPO ...")
+                external_test_split = create_external_test_split(X, y, validation_plan)
+                train_pool_idx = external_test_split["train_pool_indices"]
+                external_test_indices = external_test_split["test_indices"]
+                X_train_exec = X.iloc[train_pool_idx] if hasattr(X, "iloc") else X[train_pool_idx]
+                y_train_exec = y.iloc[train_pool_idx] if hasattr(y, "iloc") else y[train_pool_idx]
+                X_external_test = X.iloc[external_test_indices] if hasattr(X, "iloc") else X[external_test_indices]
+                y_external_test = y.iloc[external_test_indices] if hasattr(y, "iloc") else y[external_test_indices]
+                logger.info(
+                    "[3c/12] Done - train_pool=%d external_test=%d",
+                    len(X_train_exec), len(X_external_test),
+                )
+
+            # Step 4: Create validation splits on the train pool
             logger.info("[4/12] Creating validation splits ...")
             t0 = time.time()
-            validation_splits = create_validation_splits(X, y, ei.validation_plan)
-            logger.info("[4/12] Done — n_splits=%d (%.1fs)", len(validation_splits), time.time() - t0)
+            cv_plan = _cv_validation_plan(validation_plan) if external_test_split else validation_plan
+            validation_splits = create_validation_splits(X_train_exec, y_train_exec, cv_plan)
+            logger.info("[4/12] Done -n_splits=%d (%.1fs)", len(validation_splits), time.time() - t0)
 
-            # Step 5: Expand execution plan (pipeline_specs + trial_plan → trial plans)
+            # Step 5: Expand execution plan (pipeline_specs + trial_plan -trial plans)
             logger.info("[5/12] Expanding execution plan ...")
             t0 = time.time()
             trial_plans = expand_execution_plan(
@@ -167,20 +220,20 @@ class PipelineExecutionService:
                 trial_plan=ei.trial_plan,
                 max_trials_override=request.max_trials_override,
             )
-            logger.info("[5/12] Done — n_trials=%d (%.1fs)", len(trial_plans), time.time() - t0)
+            logger.info("[5/12] Done -n_trials=%d (%.1fs)", len(trial_plans), time.time() - t0)
 
             # Step 6: Setup artifact directory
             logger.info("[6/12] Setting up artifact directory ...")
             t0 = time.time()
             exec_dir = ensure_execution_dir(pe_id)
-            logger.info("[6/12] Done — %s (%.1fs)", exec_dir, time.time() - t0)
+            logger.info("[6/12] Done -%s (%.1fs)", exec_dir, time.time() - t0)
 
             # Step 7: Execute training (controlled executor)
-            logger.info("[7/12] Executing training — %d trials, %d folds, %d samples ...",
-                  len(trial_plans), len(validation_splits), len(X))
+            logger.info("[7/12] Executing training -%d trials, %d folds, %d samples ...",
+                  len(trial_plans), len(validation_splits), len(X_train_exec))
             t0_train = datetime.utcnow()
             execution_output = execute_training(
-                X=X, y=y,
+                X=X_train_exec, y=y_train_exec,
                 trial_plans=trial_plans,
                 validation_splits=validation_splits,
                 task_type=ei.task_type or "regression",
@@ -198,7 +251,7 @@ class PipelineExecutionService:
             trial_results = execution_output["trial_results"]
             pipeline_run_results = execution_output["pipeline_run_results"]
             warnings.extend(execution_output.get("warnings", []))
-            logger.info("[7/12] Done — %d completed / %d failed in %.1fs",
+            logger.info("[7/12] Done -%d completed / %d failed in %.1fs",
                   execution_output["n_completed"], execution_output["n_failed"], train_dur)
 
             # Step 8: Collect prediction and model artifacts
@@ -223,7 +276,7 @@ class PipelineExecutionService:
                 from app.modules.metric_evaluation.metric_registry import get_metric_direction
                 _metric_direction = get_metric_direction(_primary_metric)
                 logger.warning(
-                    "metric_direction missing from evaluation_plan — "
+                    "metric_direction missing from evaluation_plan -"
                     "inferred '%s' from primary_metric='%s'",
                     _metric_direction, _primary_metric,
                 )
@@ -235,13 +288,44 @@ class PipelineExecutionService:
                 _metric_direction = "minimize"
                 logger.warning(
                     "metric_direction and primary_metric both missing from "
-                    "evaluation_plan — falling back to 'minimize'"
+                    "evaluation_plan -falling back to 'minimize'"
                 )
                 warnings.append(
                     "metric_direction and primary_metric both missing from "
                     "evaluation_plan; defaulting to 'minimize'."
                 )
 
+            if external_test_split and request.save_predictions:
+                try:
+                    best_trial_for_test = select_best_trial_for_external_test(
+                        trial_results,
+                        _primary_metric,
+                        _metric_direction,
+                    )
+                    if best_trial_for_test is not None:
+                        logger.info("[8/12] Building final external test predictions ...")
+                        external_test_result = run_final_external_test(
+                            X_train_pool=X_train_exec,
+                            y_train_pool=y_train_exec,
+                            X_test=X_external_test,
+                            y_test=y_external_test,
+                            test_indices=external_test_indices,
+                            best_trial=best_trial_for_test,
+                            task_type=ei.task_type or "regression",
+                            exec_dir=exec_dir,
+                            fold_pipeline_spec=fold_pipeline_spec,
+                        )
+                        logger.info(
+                            "[8/12] Final external test predictions saved: %s",
+                            external_test_result.get("prediction_artifact_path"),
+                        )
+                    else:
+                        warnings.append(
+                            "External test was enabled, but no completed trial was available for final test prediction."
+                        )
+                except Exception as e:
+                    logger.error("Final external test prediction failed: %s", e)
+                    warnings.append(f"Final external test prediction failed: {e}")
             metric_input = build_metric_evaluation_input(
                 pipeline_execution_id=pe_id,
                 pipeline_generation_id=pg.id,
@@ -278,6 +362,8 @@ class PipelineExecutionService:
                 "n_trials": len(trial_results),
                 "n_completed": sum(1 for t in trial_results if t.status == "completed"),
                 "n_failed": sum(1 for t in trial_results if t.status == "failed"),
+                "external_test_split": _make_external_split_summary(external_test_split),
+                "external_test_result": external_test_result,
             }
             exec_result_path = save_execution_result(exec_dir, exec_result)
 
@@ -297,6 +383,14 @@ class PipelineExecutionService:
                 "log_path": get_execution_log_path(exec_dir),
                 "split_metadata_path": f"{exec_dir}/splits/split_metadata.json",
                 "metric_evaluation_input_path": metric_input_path,
+                "external_test_prediction_path": (
+                    external_test_result.get("prediction_artifact_path")
+                    if external_test_result else None
+                ),
+                "external_test_metadata": {
+                    "split": _make_external_split_summary(external_test_split),
+                    "result": external_test_result,
+                } if external_test_split else None,
             }
 
             finished_at = datetime.utcnow()
@@ -366,7 +460,7 @@ class PipelineExecutionService:
             )
             self.repo.create(session, db_record)
             total_dur = time.time() - start_ts
-            logger.info("[12/12] Done — status=%s n_models=%d | TOTAL %.1fs",
+            logger.info("[12/12] Done -status=%s n_models=%d | TOTAL %.1fs",
                        response.status, response.n_models_trained, total_dur)
 
             return response

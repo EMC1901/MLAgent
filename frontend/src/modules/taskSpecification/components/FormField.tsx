@@ -47,22 +47,31 @@ function FormField<T extends FieldValues>({
   name, control, label, type = 'input', placeholder, rows,
   options, error, required,
 }: FormFieldProps<T>) {
+  const fieldId = `field-${name}`;
+  const errorId = `error-${name}`;
+
   return (
     <div style={styles.fieldContainer}>
-      <label style={styles.label}>
+      <label htmlFor={fieldId} style={styles.label}>
         {label}
-        {required && <span style={styles.required}>*</span>}
+        {required && <span style={styles.required} aria-hidden="true">*</span>}
       </label>
       <Controller
         name={name}
         control={control}
         render={({ field }) => {
+          const ariaProps = {
+            id: fieldId,
+            'aria-required': required || undefined,
+            'aria-invalid': error ? true as const : undefined,
+            'aria-describedby': error ? errorId : undefined,
+          };
           if (type === 'textarea') {
-            return <textarea {...field} style={styles.textarea} placeholder={placeholder} rows={rows ?? 3} />;
+            return <textarea {...field} {...ariaProps} style={styles.textarea} placeholder={placeholder} rows={rows ?? 3} />;
           }
           if (type === 'select') {
             return (
-              <select {...field} style={styles.select} value={field.value ?? ''}>
+              <select {...field} {...ariaProps} style={styles.select} value={field.value ?? ''}>
                 <option value="" disabled>{placeholder ?? `Select ${label.toLowerCase()}`}</option>
                 {options?.map((opt) => (
                   <option key={opt.value} value={opt.value} disabled={opt.disabled}>
@@ -74,31 +83,36 @@ function FormField<T extends FieldValues>({
           }
           if (type === 'checkbox-group') {
             return (
-              <div style={styles.checkboxGroup}>
-                {options?.map((opt) => (
-                  <label key={opt.value} style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={(field.value as string[])?.includes(opt.value) ?? false}
-                      onChange={(e) => {
-                        const current = (field.value as string[]) || [];
-                        field.onChange(
-                          e.target.checked
-                            ? [...current, opt.value]
-                            : current.filter((v: string) => v !== opt.value)
-                        );
-                      }}
-                    />
-                    <span style={styles.checkboxText}>{opt.label}</span>
-                  </label>
-                ))}
-              </div>
+              <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                <legend style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
+                  {label}
+                </legend>
+                <div style={styles.checkboxGroup}>
+                  {options?.map((opt) => (
+                    <label key={opt.value} style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={(field.value as string[])?.includes(opt.value) ?? false}
+                        onChange={(e) => {
+                          const current = (field.value as string[]) || [];
+                          field.onChange(
+                            e.target.checked
+                              ? [...current, opt.value]
+                              : current.filter((v: string) => v !== opt.value)
+                          );
+                        }}
+                      />
+                      <span style={styles.checkboxText}>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             );
           }
-          return <input {...field} style={styles.input} placeholder={placeholder} />;
+          return <input {...field} {...ariaProps} style={styles.input} placeholder={placeholder} />;
         }}
       />
-      {error && <span style={styles.error}>{error}</span>}
+      {error && <span id={errorId} style={styles.error} role="alert">{error}</span>}
     </div>
   );
 }

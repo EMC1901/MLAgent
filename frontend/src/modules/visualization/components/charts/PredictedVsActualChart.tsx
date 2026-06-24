@@ -1,13 +1,30 @@
 import React, { useMemo } from 'react';
-import {
-  Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, Cell, ComposedChart,
-  Label,
-} from 'recharts';
 import { PredictedVsActualData } from '../../types';
+import { CHART_COLORS, PUBLICATION_CHART_STYLE } from '../../constants';
 
-// ---- Number formatting helpers ----
-/** Snap a value to a nice round number for axis domain edges. */
+interface Props {
+  data: PredictedVsActualData | null;
+  modelId?: string | null;
+  modelFamily?: string | null;
+  modelTrialId?: string | null;
+}
+
+interface PlotPoint {
+  actual: number;
+  predicted: number;
+  residual: number;
+  split: string;
+}
+
+const WIDTH = 860;
+const HEIGHT = 720;
+const MARGIN = { top: 72, right: 60, bottom: 82, left: 92 };
+const PLOT_WIDTH = WIDTH - MARGIN.left - MARGIN.right;
+const PLOT_HEIGHT = HEIGHT - MARGIN.top - MARGIN.bottom;
+const TRAIN_COLOR = '#315BE8';
+const TEST_COLOR = '#E41A1C';
+const UNKNOWN_COLOR = '#6f6f6f';
+
 function niceNumber(x: number, round: boolean): number {
   if (x === 0) return 0;
   const exp = Math.floor(Math.log10(Math.abs(x)));
@@ -27,289 +44,276 @@ function niceNumber(x: number, round: boolean): number {
   return nice * Math.pow(10, exp) * (x >= 0 ? 1 : -1);
 }
 
-/** Compute a nice domain [min, max] with a suggested tick count. */
-function niceDomain(minVal: number, maxVal: number, tickCount: number = 6): [number, number] {
+function niceDomain(minVal: number, maxVal: number, tickCount = 8): [number, number] {
+  if (!Number.isFinite(minVal) || !Number.isFinite(maxVal)) return [0, 1];
   if (minVal === maxVal) return [minVal - 1, maxVal + 1];
   const range = niceNumber(maxVal - minVal, false);
   const interval = niceNumber(range / (tickCount - 1), true);
-  const niceMin = Math.floor(minVal / interval) * interval;
-  const niceMax = Math.ceil(maxVal / interval) * interval;
-  return [niceMin, niceMax];
+  return [Math.floor(minVal / interval) * interval, Math.ceil(maxVal / interval) * interval];
 }
 
-/** Generate explicit tick values at nice round positions. */
-function generateTicks(minVal: number, maxVal: number, tickCount: number = 6): number[] {
+function generateTicks(minVal: number, maxVal: number, tickCount = 8): number[] {
   const [dMin, dMax] = niceDomain(minVal, maxVal, tickCount);
   const step = (dMax - dMin) / (tickCount - 1);
-  const ticks: number[] = [];
-  for (let i = 0; i < tickCount; i++) {
-    ticks.push(parseFloat((dMin + i * step).toFixed(8)));
-  }
-  return ticks;
+  return Array.from({ length: tickCount }, (_, i) => Number((dMin + i * step).toFixed(10)));
 }
 
-/** Format a tick value: strip trailing zeros and floating-point noise. */
 function formatTick(value: number): string {
   if (value === 0) return '0';
   const absVal = Math.abs(value);
   if (absVal >= 100) return value.toFixed(0);
-  if (absVal >= 0.1) {
-    // 1-3 meaningful decimal places, stripping trailing zeros
-    const s = value.toFixed(3);
-    return parseFloat(s).toString();
-  }
-  if (absVal >= 0.001) return parseFloat(value.toFixed(5)).toString();
-  return parseFloat(value.toFixed(6)).toString();
+  if (absVal >= 1) return Number(value.toFixed(2)).toString();
+  if (absVal >= 0.001) return Number(value.toFixed(4)).toString();
+  return value.toExponential(2);
 }
 
-/** Format metric value with appropriate precision. */
 function formatMetric(value: number): string {
   const absVal = Math.abs(value);
   if (absVal >= 100) return value.toFixed(0);
-  if (absVal >= 1) return value.toFixed(2);
-  if (absVal >= 0.01) return value.toFixed(4);
-  if (absVal >= 0.0001) return value.toFixed(5);
-  return value.toExponential(3);
+  if (absVal >= 10) return value.toFixed(1);
+  if (absVal >= 1) return value.toFixed(3);
+  if (absVal >= 0.01) return value.toFixed(3);
+  if (absVal >= 0.0001) return value.toFixed(4);
+  return value.toExponential(2);
 }
 
-interface Props {
-  data: PredictedVsActualData | null;
-  modelId?: string | null;
-  modelFamily?: string | null;
-  modelTrialId?: string | null;
+function metricLabel(metric?: string | null): string {
+  const raw = (metric || 'R2').trim();
+  const normalised = raw.toLowerCase().replace(/[\s.-]/g, '_');
+  if (normalised === 'r2' || normalised === 'r_squared' || normalised === 'rsquared') return 'R\u00b2';
+  return raw.toUpperCase();
 }
 
-// Color gradient stops: green (small error) → yellow → orange → red (large error)
-const ERROR_COLORS = [
-  { threshold: 0.0, color: '#2e7d32' },   // dark green
-  { threshold: 0.25, color: '#66bb6a' },   // light green
-  { threshold: 0.5, color: '#fdd835' },    // yellow
-  { threshold: 0.75, color: '#ff9800' },   // orange
-  { threshold: 1.0, color: '#c62828' },    // dark red
-];
+function canonicalSplit(split?: string): 'train' | 'test' | 'unknown' {
+  const value = (split || 'test').toLowerCase();
+  if (['train', 'training'].includes(value)) return 'train';
+  if (['test', 'testing', 'validation', 'valid', 'val', 'holdout'].includes(value)) return 'test';
+  return 'unknown';
+}
 
-function residualColor(absError: number, maxError: number): string {
-  if (maxError === 0) return ERROR_COLORS[0].color;
-  const ratio = Math.min(absError / maxError, 1.0);
-  for (let i = ERROR_COLORS.length - 1; i >= 0; i--) {
-    if (ratio >= ERROR_COLORS[i].threshold) return ERROR_COLORS[i].color;
+function splitColor(split?: string): string {
+  const kind = canonicalSplit(split);
+  if (kind === 'train') return TRAIN_COLOR;
+  if (kind === 'test') return TEST_COLOR;
+  return UNKNOWN_COLOR;
+}
+
+function modelTitle(modelFamily?: string | null, modelId?: string | null): string {
+  const label = modelFamily || modelId || 'Model';
+  return `Prediction vs Actual - ${label}`;
+}
+
+function buildMetricLines(data: PredictedVsActualData): string[] {
+  const displayMetric = metricLabel(data.primary_metric || 'R2');
+  const splitMetrics = data.split_metrics || [];
+  const trainMetric = splitMetrics.find(m => canonicalSplit(m.split) === 'train');
+  const testMetric = splitMetrics.find(m => canonicalSplit(m.split) === 'test');
+  const lines: string[] = [];
+
+  if (trainMetric) {
+    lines.push(`${displayMetric} Train: ${formatMetric(trainMetric.metric_value)}`);
   }
-  return ERROR_COLORS[0].color;
+  if (testMetric) {
+    lines.push(`${displayMetric} External Test: ${formatMetric(testMetric.metric_value)}`);
+  } else if (typeof data.primary_metric_value === 'number') {
+    lines.push(`${displayMetric} External Test: ${formatMetric(data.primary_metric_value)}`);
+  }
+
+  if (lines.length === 0) {
+    lines.push(`${displayMetric} External Test: ${formatMetric(data.r_squared)}`);
+  }
+  return lines;
 }
 
-// ---- Chart ----
 const PredictedVsActualChart: React.FC<Props> = ({ data, modelId, modelFamily, modelTrialId }) => {
-  const {
-    enrichedPoints, maxAbsError,
-    metrics, domain, ticks, modelLabel,
-  } = useMemo(() => {
-    if (!data || !data.points || data.points.length === 0) {
-      return {
-        enrichedPoints: [] as any[],
-        maxAbsError: 0,
-        metrics: null,
-        domain: [0, 1] as [number, number],
-        ticks: [0, 1],
-        modelLabel: null as string | null,
-      };
+  const chart = useMemo(() => {
+    const points: PlotPoint[] = (data?.points || [])
+      .filter(p => Number.isFinite(p.actual) && Number.isFinite(p.predicted))
+      .map(p => ({ ...p, split: p.split || 'test' }));
+
+    if (!data || points.length === 0) {
+      return null;
     }
 
-    const allActual = data.points.map(p => p.actual);
-    const minVal = Math.min(...allActual);
-    const maxVal = Math.max(...allActual);
-
-    const absErrors = data.points.map(p => Math.abs(p.residual));
-    const maxAbs = Math.max(...absErrors, 1e-10);
-
-    // Scatter in ComposedChart reads x/y from data items.
-    // Map actual→x, predicted→y for correct positioning.
-    const enriched = data.points.map((p, i) => ({
-      x: p.actual,
-      y: p.predicted,
-      ...p,
-      absError: absErrors[i],
-    }));
-
-    // Model label
-    const parts: string[] = [];
-    if (modelFamily) parts.push(modelFamily);
-    if (modelId) parts.push(modelId);
-    if (modelTrialId) parts.push(`trial: ${modelTrialId}`);
-    const label = parts.length > 0 ? parts.join('  ·  ') : null;
+    const allValues = points.flatMap(p => [p.actual, p.predicted]);
+    const [domainMin, domainMax] = niceDomain(Math.min(...allValues), Math.max(...allValues));
+    const ticks = generateTicks(domainMin, domainMax);
+    const xScale = (value: number) => MARGIN.left + ((value - domainMin) / (domainMax - domainMin)) * PLOT_WIDTH;
+    const yScale = (value: number) => MARGIN.top + PLOT_HEIGHT - ((value - domainMin) / (domainMax - domainMin)) * PLOT_HEIGHT;
+    const hasTrain = points.some(p => canonicalSplit(p.split) === 'train');
+    const hasTest = points.some(p => canonicalSplit(p.split) === 'test');
 
     return {
-      enrichedPoints: enriched,
-      maxAbsError: maxAbs,
-      metrics: {
-        rSquared: data.r_squared,
-        rmse: data.rmse,
-        mae: data.mae,
-        resMean: data.residual_mean,
-        resStd: data.residual_std,
-      },
-      domain: niceDomain(minVal, maxVal) as [number, number],
-      ticks: generateTicks(minVal, maxVal),
-      modelLabel: label,
+      points,
+      ticks,
+      domainMin,
+      domainMax,
+      xScale,
+      yScale,
+      hasTrain,
+      hasTest,
+      metricLines: buildMetricLines(data),
     };
-  }, [data, modelId, modelFamily, modelTrialId]);
+  }, [data]);
 
-  if (!data || !data.points || data.points.length === 0) {
+  if (!data || !chart) {
     return <p style={{ color: '#999' }}>No prediction vs actual data available.</p>;
   }
 
-  const [dMin, dMax] = domain;
+  const metricBoxHeight = 46 + Math.max(0, chart.metricLines.length - 1) * 22;
+  const legendItems = [
+    ...(chart.hasTrain ? [{ type: 'point', color: TRAIN_COLOR, label: 'Training Set' }] : []),
+    ...(chart.hasTest ? [{ type: 'point', color: TEST_COLOR, label: 'External Test Set' }] : []),
+    { type: 'line', color: CHART_COLORS.axis, label: 'Perfect Prediction' },
+  ];
+  const legendWidth = 250;
+  const legendHeight = 34 + legendItems.length * 28;
+  const legendX = MARGIN.left + PLOT_WIDTH - legendWidth - 12;
+  const legendY = MARGIN.top + PLOT_HEIGHT - legendHeight - 12;
 
   return (
-    <div>
-      {/* Model label */}
-      {modelLabel && (
-        <div style={{
-          fontSize: 12, color: '#555', marginBottom: 6,
-          padding: '4px 10px', backgroundColor: '#f5f5f5',
-          borderRadius: 4, display: 'inline-block',
-        }}>
-          <strong>Model:</strong> {modelLabel}
-        </div>
+    <svg
+      className="publication-svg"
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      role="img"
+      aria-label="Predicted versus actual regression chart"
+      style={{ width: '100%', height: 'auto', background: '#fff', display: 'block' }}
+    >
+      <rect x={0} y={0} width={WIDTH} height={HEIGHT} fill="#fff" />
+      <text
+        x={WIDTH / 2}
+        y={34}
+        textAnchor="middle"
+        fontFamily={PUBLICATION_CHART_STYLE.fontFamily}
+        fontSize={24}
+        fontWeight={600}
+        fill={CHART_COLORS.axis}
+      >
+        {modelTitle(modelFamily, modelId)}
+      </text>
+      {modelTrialId && (
+        <text
+          x={WIDTH / 2}
+          y={58}
+          textAnchor="middle"
+          fontFamily={PUBLICATION_CHART_STYLE.fontFamily}
+          fontSize={12}
+          fill="#666"
+        >
+          Trial: {modelTrialId}
+        </text>
       )}
 
-      {/* Metrics */}
-      {metrics && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 12, fontSize: 13 }}>
-          <span style={{ color: '#2e7d32', fontWeight: 600 }}>
-            R&sup2;: {formatMetric(metrics.rSquared)}
-          </span>
-          <span style={{ color: '#e65100', fontWeight: 600 }}>
-            RMSE: {formatMetric(metrics.rmse)}
-          </span>
-          <span style={{ color: '#6a1b9a', fontWeight: 600 }}>
-            MAE: {formatMetric(metrics.mae)}
-          </span>
-          <span style={{ color: '#555' }}>
-            Residual Mean: <strong>{formatMetric(metrics.resMean)}</strong>
-          </span>
-          <span style={{ color: '#555' }}>
-            1&sigma;: <strong>±{formatMetric(metrics.resStd)}</strong>
-          </span>
-        </div>
-      )}
+      <rect
+        x={MARGIN.left}
+        y={MARGIN.top}
+        width={PLOT_WIDTH}
+        height={PLOT_HEIGHT}
+        fill="#fff"
+        stroke="#444"
+        strokeWidth={1.8}
+      />
 
-      {/* Legend above chart */}
-      <div style={{
-        display: 'flex', justifyContent: 'flex-end', marginBottom: -8,
-        fontSize: 11, color: '#666',
-      }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{
-            display: 'inline-block', width: 20, height: 2,
-            backgroundColor: '#555', verticalAlign: 'middle',
-          }} />
-          Identity (y=x)
-        </span>
-      </div>
+      {chart.ticks.map(tick => {
+        const x = chart.xScale(tick);
+        const y = chart.yScale(tick);
+        return (
+          <g key={`grid-${tick}`}>
+            <line x1={x} y1={MARGIN.top} x2={x} y2={MARGIN.top + PLOT_HEIGHT} stroke={CHART_COLORS.grid} strokeWidth={1} opacity={0.7} />
+            <line x1={MARGIN.left} y1={y} x2={MARGIN.left + PLOT_WIDTH} y2={y} stroke={CHART_COLORS.grid} strokeWidth={1} opacity={0.7} />
+            <line x1={x} y1={MARGIN.top + PLOT_HEIGHT} x2={x} y2={MARGIN.top + PLOT_HEIGHT + 6} stroke="#333" strokeWidth={1.3} />
+            <line x1={MARGIN.left - 6} y1={y} x2={MARGIN.left} y2={y} stroke="#333" strokeWidth={1.3} />
+            <text x={x} y={MARGIN.top + PLOT_HEIGHT + 28} textAnchor="middle" fontFamily={PUBLICATION_CHART_STYLE.fontFamily} fontSize={14} fill="#333">
+              {formatTick(tick)}
+            </text>
+            <text x={MARGIN.left - 14} y={y + 5} textAnchor="end" fontFamily={PUBLICATION_CHART_STYLE.fontFamily} fontSize={14} fill="#333">
+              {formatTick(tick)}
+            </text>
+          </g>
+        );
+      })}
 
-      {/* Scatter chart */}
-      <ResponsiveContainer width="100%" height={420}>
-        <ComposedChart margin={{ top: 8, right: 12, left: 0, bottom: 16 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-          <XAxis
-            type="number"
-            dataKey="actual"
-            name="Actual"
-            tick={{ fontSize: 11 }}
-            tickFormatter={formatTick}
-            ticks={ticks}
-            domain={domain}
+      <line
+        x1={chart.xScale(chart.domainMin)}
+        y1={chart.yScale(chart.domainMin)}
+        x2={chart.xScale(chart.domainMax)}
+        y2={chart.yScale(chart.domainMax)}
+        stroke={CHART_COLORS.axis}
+        strokeWidth={3}
+        strokeDasharray="11 8"
+        strokeLinecap="round"
+      />
+
+      {chart.points.map((point, index) => (
+        <circle
+          key={`${point.actual}-${point.predicted}-${index}`}
+          cx={chart.xScale(point.actual)}
+          cy={chart.yScale(point.predicted)}
+          r={5.2}
+          fill="none"
+          stroke={splitColor(point.split)}
+          strokeWidth={1.8}
+        >
+          <title>{`Actual: ${formatMetric(point.actual)}, Predicted: ${formatMetric(point.predicted)}, Residual: ${formatMetric(point.residual)}`}</title>
+        </circle>
+      ))}
+
+      <text
+        x={MARGIN.left + PLOT_WIDTH / 2}
+        y={HEIGHT - 24}
+        textAnchor="middle"
+        fontFamily={PUBLICATION_CHART_STYLE.fontFamily}
+        fontSize={18}
+        fill={CHART_COLORS.axis}
+      >
+        Actual Values
+      </text>
+      <text
+        transform={`translate(28 ${MARGIN.top + PLOT_HEIGHT / 2}) rotate(-90)`}
+        textAnchor="middle"
+        fontFamily={PUBLICATION_CHART_STYLE.fontFamily}
+        fontSize={18}
+        fill={CHART_COLORS.axis}
+      >
+        Predicted Values
+      </text>
+
+      <g transform={`translate(${MARGIN.left + 22} ${MARGIN.top + 22})`}>
+        <rect width={196} height={metricBoxHeight} rx={6} fill="#FFF4D9" stroke="#777" strokeWidth={1.6} />
+        {chart.metricLines.map((line, index) => (
+          <text
+            key={line}
+            x={14}
+            y={index === 0 ? 27 : 49 + (index - 1) * 22}
+            fontFamily={PUBLICATION_CHART_STYLE.fontFamily}
+            fontSize={17}
+            fontWeight={700}
+            fill="#333"
           >
-            <Label value="Actual" offset={-4} position="insideBottomRight" fontSize={12} />
-          </XAxis>
-          <YAxis
-            type="number"
-            dataKey="predicted"
-            name="Predicted"
-            tick={{ fontSize: 11 }}
-            tickFormatter={formatTick}
-            ticks={ticks}
-            domain={domain}
-          >
-            <Label value="Predicted" angle={-90} offset={6} position="insideLeft" fontSize={12} />
-          </YAxis>
-          <Tooltip content={<CustomTooltip />} />
+            {line}
+          </text>
+        ))}
+      </g>
 
-          {/* Identity line */}
-          <ReferenceLine
-            segment={[{ x: dMin, y: dMin }, { x: dMax, y: dMax }]}
-            stroke="#555"
-            strokeWidth={1.5}
-          />
-
-          {/* Scatter with error-coloring */}
-          <Scatter name="Samples" data={enrichedPoints} opacity={0.6}>
-            {enrichedPoints.map((p: any, i: number) => (
-              <Cell key={i} fill={residualColor(p.absError, maxAbsError)} />
-            ))}
-          </Scatter>
-        </ComposedChart>
-      </ResponsiveContainer>
-
-      {/* Color legend for residual magnitude */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        justifyContent: 'center', marginTop: 6, fontSize: 11, color: '#666',
-      }}>
-        <span>|Residual|</span>
-        <svg width={180} height={14}>
-          <defs>
-            <linearGradient id="errorGrad" x1="0" y1="0" x2="1" y2="0">
-              {ERROR_COLORS.map((s, i) => (
-                <stop key={i} offset={s.threshold} stopColor={s.color} />
-              ))}
-            </linearGradient>
-          </defs>
-          <rect x={0} y={2} width={180} height={10} rx={2} fill="url(#errorGrad)" />
-        </svg>
-      </div>
-    </div>
-  );
-};
-
-// ---- Custom Tooltip ----
-interface TooltipPayloadItem {
-  name: string;
-  value: number;
-  dataKey: string;
-  payload?: {
-    actual: number;
-    predicted: number;
-    residual: number;
-    absError: number;
-  };
-}
-
-const CustomTooltip: React.FC<{ active?: boolean; payload?: TooltipPayloadItem[] }> = ({ active, payload }) => {
-  if (!active || !payload || payload.length === 0) return null;
-
-  // Find the scatter payload with actual/predicted/residual data
-  const sample = payload.find(p => p.payload?.actual !== undefined)?.payload;
-  if (!sample) return null;
-
-  const errPct = sample.actual !== 0
-    ? (Math.abs(sample.residual) / Math.abs(sample.actual) * 100).toFixed(1)
-    : 'N/A';
-
-  return (
-    <div style={{
-      backgroundColor: '#fff', border: '1px solid #ccc',
-      borderRadius: 4, padding: '8px 12px', fontSize: 12,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-    }}>
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>Sample</div>
-      <div>Actual: <strong>{sample.actual.toFixed(4)}</strong></div>
-      <div>Predicted: <strong>{sample.predicted.toFixed(4)}</strong></div>
-      <div>Residual: <strong style={{ color: sample.residual > 0 ? '#c62828' : '#2e7d32' }}>
-        {sample.residual > 0 ? '+' : ''}{sample.residual.toFixed(4)}
-      </strong></div>
-      <div>|Error|: <strong>{errPct}%</strong></div>
-    </div>
+      <g transform={`translate(${legendX} ${legendY})`}>
+        <rect width={legendWidth} height={legendHeight} rx={3} fill="#fff" stroke="#d0d0d0" strokeWidth={1.4} />
+        {legendItems.map((item, index) => {
+          const y = 28 + index * 28;
+          return (
+            <g key={item.label}>
+              {item.type === 'point' ? (
+                <circle cx={28} cy={y - 5} r={5.5} fill="none" stroke={item.color} strokeWidth={1.8} />
+              ) : (
+                <line x1={16} y1={y - 5} x2={42} y2={y - 5} stroke={item.color} strokeWidth={3} strokeDasharray="9 6" strokeLinecap="round" />
+              )}
+              <text x={58} y={y} fontFamily={PUBLICATION_CHART_STYLE.fontFamily} fontSize={17} fill="#333">
+                {item.label}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    </svg>
   );
 };
 

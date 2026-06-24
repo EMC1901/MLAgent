@@ -97,6 +97,8 @@ class TrainingArtifactManifestDTO(BaseModel):
     log_path: Optional[str] = None
     split_metadata_path: Optional[str] = None
     metric_evaluation_input_path: Optional[str] = None
+    external_test_prediction_path: Optional[str] = None
+    external_test_metadata: Optional[dict] = None
 
 
 class ExecutionSummaryDTO(BaseModel):

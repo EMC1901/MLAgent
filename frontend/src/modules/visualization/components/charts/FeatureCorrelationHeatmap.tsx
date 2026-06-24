@@ -1,10 +1,13 @@
 import React from 'react';
 import { CorrelationMatrixData } from '../../types';
-import { HEATMAP_COLORS } from '../../constants';
+import { HEATMAP_COLORS, PUBLICATION_CHART_STYLE } from '../../constants';
 
 interface Props {
   data: CorrelationMatrixData | null;
 }
+
+const truncate = (value: string, max = 18): string =>
+  value.length > max ? `${value.slice(0, max - 3)}...` : value;
 
 const FeatureCorrelationHeatmap: React.FC<Props> = ({ data }) => {
   if (!data || !data.feature_names.length || !data.matrix.length) {
@@ -13,95 +16,112 @@ const FeatureCorrelationHeatmap: React.FC<Props> = ({ data }) => {
 
   const { feature_names, matrix } = data;
   const n = feature_names.length;
-  const cellSize = Math.max(14, Math.min(40, 600 / n));
+  const cellSize = Math.max(16, Math.min(34, 720 / n));
+  const left = 152;
+  const top = 120;
+  const right = 36;
+  const bottom = 54;
+  const legendHeight = 28;
+  const width = left + n * cellSize + right;
+  const height = top + n * cellSize + bottom + legendHeight;
 
   const colorFor = (v: number): string => {
-    // map [-1, 1] -> [0, 8]
     const t = (v + 1) / 2;
     const idx = Math.round(t * (HEATMAP_COLORS.length - 1));
     return HEATMAP_COLORS[Math.max(0, Math.min(HEATMAP_COLORS.length - 1, idx))];
   };
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: Math.max(8, cellSize * 0.35),
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    maxWidth: 120,
-  };
+  const legendX = left;
+  const legendY = top + n * cellSize + 26;
+  const legendWidth = Math.min(260, n * cellSize);
+  const legendStep = legendWidth / HEATMAP_COLORS.length;
 
   return (
-    <div style={{ overflowX: 'auto', fontSize: '12px' }}>
-      <div style={{ display: 'flex' }}>
-        {/* Y-axis labels */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', paddingRight: 4, minWidth: 100 }}>
-          <div style={{ height: cellSize }} />
-          {feature_names.map((name, i) => (
-            <div key={i} style={{ height: cellSize, display: 'flex', alignItems: 'center' }} title={name}>
-              <span style={labelStyle}>{name}</span>
-            </div>
-          ))}
-        </div>
-        {/* Heatmap grid */}
-        <div>
-          {/* X-axis labels */}
-          <div style={{ display: 'flex', paddingLeft: 0 }}>
-            {feature_names.map((name, i) => (
-              <div
-                key={i}
-                style={{
-                  width: cellSize,
-                  height: cellSize,
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  justifyContent: 'center',
-                  transform: 'rotate(-45deg)',
-                  transformOrigin: 'bottom left',
-                  marginLeft: i === 0 ? 0 : 0,
-                }}
-                title={name}
-              >
-                <span style={{ ...labelStyle, marginBottom: 2 }}>{name}</span>
-              </div>
-            ))}
-          </div>
-          {/* Cells */}
-          {matrix.map((row, ri) => (
-            <div key={ri} style={{ display: 'flex' }}>
-              {row.map((val, ci) => (
-                <div
-                  key={ci}
-                  title={`${feature_names[ri]} × ${feature_names[ci]}: ${val.toFixed(3)}`}
-                  style={{
-                    width: cellSize,
-                    height: cellSize,
-                    backgroundColor: colorFor(val),
-                    border: '1px solid #fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: Math.max(7, cellSize * 0.25),
-                    color: Math.abs(val) > 0.7 ? '#fff' : '#333',
-                    fontWeight: Math.abs(val) > 0.5 ? 600 : 400,
-                  }}
+    <div style={{ overflowX: 'auto', background: '#fff' }}>
+      <svg
+        className="publication-svg"
+        width="100%"
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={`Feature correlation heatmap with ${n} features`}
+        style={{ fontFamily: PUBLICATION_CHART_STYLE.fontFamily, background: '#fff' }}
+      >
+        <rect x={0} y={0} width={width} height={height} fill="#fff" />
+        <text x={left + (n * cellSize) / 2} y={24} textAnchor="middle" fontSize={14} fontWeight={700} fill="#111">
+          Feature correlation matrix
+        </text>
+        {feature_names.map((name, i) => {
+          const x = left + i * cellSize + cellSize / 2;
+          return (
+            <text
+              key={`x-${name}-${i}`}
+              x={x}
+              y={top - 10}
+              transform={`rotate(-45 ${x} ${top - 10})`}
+              textAnchor="start"
+              fontSize={10}
+              fill="#222"
+            >
+              <title>{name}</title>
+              {truncate(name, 22)}
+            </text>
+          );
+        })}
+        {feature_names.map((name, i) => (
+          <text
+            key={`y-${name}-${i}`}
+            x={left - 8}
+            y={top + i * cellSize + cellSize * 0.66}
+            textAnchor="end"
+            fontSize={10}
+            fill="#222"
+          >
+            <title>{name}</title>
+            {truncate(name, 23)}
+          </text>
+        ))}
+        {matrix.map((row, ri) =>
+          row.map((val, ci) => {
+            const x = left + ci * cellSize;
+            const y = top + ri * cellSize;
+            return (
+              <g key={`${ri}-${ci}`}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={cellSize}
+                  height={cellSize}
+                  fill={colorFor(val)}
+                  stroke="#fff"
+                  strokeWidth={0.75}
                 >
-                  {cellSize > 20 ? val.toFixed(1) : ''}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* Legend */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 11, color: '#666' }}>
-        <span>-1</span>
-        <div style={{ display: 'flex', height: 12, width: 200 }}>
-          {HEATMAP_COLORS.map((c, i) => (
-            <div key={i} style={{ flex: 1, backgroundColor: c }} />
-          ))}
-        </div>
-        <span>+1</span>
-      </div>
+                  <title>{`${feature_names[ri]} x ${feature_names[ci]}: ${val.toFixed(3)}`}</title>
+                </rect>
+                {cellSize >= 24 && (
+                  <text
+                    x={x + cellSize / 2}
+                    y={y + cellSize * 0.64}
+                    textAnchor="middle"
+                    fontSize={8.5}
+                    fontWeight={Math.abs(val) > 0.5 ? 700 : 400}
+                    fill={Math.abs(val) > 0.72 ? '#fff' : '#222'}
+                  >
+                    {val.toFixed(1)}
+                  </text>
+                )}
+              </g>
+            );
+          })
+        )}
+        <text x={legendX} y={legendY - 7} fontSize={10} fill="#222">Correlation coefficient</text>
+        {HEATMAP_COLORS.map((color, i) => (
+          <rect key={color} x={legendX + i * legendStep} y={legendY} width={legendStep + 0.5} height={10} fill={color} />
+        ))}
+        <text x={legendX} y={legendY + 24} fontSize={10} textAnchor="middle" fill="#222">-1</text>
+        <text x={legendX + legendWidth / 2} y={legendY + 24} fontSize={10} textAnchor="middle" fill="#222">0</text>
+        <text x={legendX + legendWidth} y={legendY + 24} fontSize={10} textAnchor="middle" fill="#222">+1</text>
+      </svg>
     </div>
   );
 };

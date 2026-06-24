@@ -1,25 +1,42 @@
 export const CHART_COLORS = {
-  primary: '#1976d2',
-  secondary: '#7b1fa2',
-  positive: '#4caf50',
-  negative: '#f44336',
-  warning: '#ff9800',
-  neutral: '#9e9e9e',
-  series: ['#1976d2', '#7b1fa2', '#4caf50', '#ff9800', '#f44336', '#00bcd4', '#795548', '#607d8b'],
+  primary: '#0072B2',
+  secondary: '#CC79A7',
+  positive: '#009E73',
+  negative: '#D55E00',
+  warning: '#E69F00',
+  neutral: '#6f6f6f',
+  grid: '#d8d8d8',
+  axis: '#222222',
+  series: ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#E69F00', '#56B4E9', '#F0E442', '#000000'],
 };
 
-export const HEATMAP_COLORS = ['#d73027', '#f46d43', '#fdae61', '#fee090', '#ffffbf', '#e0f3f8', '#abd9e9', '#74add1', '#4575b4'];
+export const HEATMAP_COLORS = ['#3B4CC0', '#688AE2', '#9EBEFF', '#D5E5FF', '#F7F7F7', '#F6C6A8', '#E6865A', '#C94741', '#8B1A1A'];
 
 export const FEATURE_GROUP_COLORS: Record<string, string> = {
-  composition_descriptor: '#1976d2',
-  structure_descriptor: '#7b1fa2',
-  statistical_descriptor: '#4caf50',
-  elemental_descriptor: '#ff9800',
-  derived_feature: '#00bcd4',
-  other: '#9e9e9e',
+  composition_descriptor: '#0072B2',
+  structure_descriptor: '#CC79A7',
+  statistical_descriptor: '#009E73',
+  elemental_descriptor: '#E69F00',
+  derived_feature: '#56B4E9',
+  other: '#6f6f6f',
 };
 
 export const TASK_TYPE_LABELS: Record<string, string> = {
   regression: 'Regression',
   classification: 'Classification',
+};
+
+export const PUBLICATION_EXPORT_SIZES = {
+  single: { label: 'Single column', widthMm: 85 },
+  double: { label: 'Double column', widthMm: 178 },
+};
+
+export const PUBLICATION_CHART_STYLE = {
+  fontFamily: 'Arial, Helvetica, sans-serif',
+  axisColor: '#222222',
+  gridColor: '#d8d8d8',
+  background: '#ffffff',
+  axisFontSize: 11,
+  labelFontSize: 12,
+  legendFontSize: 11,
 };

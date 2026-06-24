@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
+import { Button, Space, Card, Descriptions, Spin, Tabs, Statistic, Row, Col, Table } from 'antd';
 import {
   createPipelineExecution,
   rerunPipelineExecution,
 } from '../../../api/pipelineExecutionApi';
-import { PipelineExecutionResponse } from '../types';
-import { STATUS_COLORS, TRIAL_STATUS_COLORS, ROLE_COLORS, TRIAL_TYPE_COLORS } from '../constants';
+import { PipelineExecutionResponse, PipelineRunResultDTO, TrialResultDTO } from '../types';
+import {
+  STATUS_COLORS,
+  TRIAL_STATUS_COLORS,
+  ROLE_COLORS,
+  TRIAL_TYPE_COLORS,
+} from '../constants';
+import {
+  PanelContainer,
+  StatusBadge,
+  WarningBox,
+  ErrorBox,
+  JsonViewer,
+  EmptyState,
+} from '../../../components/shared';
+import { pipelineAccent } from '../../../theme/pipelineColors';
 
 interface PipelineExecutionPanelProps {
   taskId: string;
@@ -57,347 +72,190 @@ const PipelineExecutionPanel: React.FC<PipelineExecutionPanelProps> = ({ taskId,
     }
   };
 
-  const Badge: React.FC<{ label: string; color?: string }> = ({ label, color = '#1976d2' }) => (
-    <span style={{ ...s.badge, backgroundColor: color }}>{label}</span>
-  );
+  const runColumns: Array<{ title: string; dataIndex?: string; key: string; render?: any }> = [
+    { title: 'Run ID', dataIndex: 'pipeline_run_id', key: 'runId', render: (v: string) => <code>{v}</code> },
+    {
+      title: 'Role', dataIndex: 'pipeline_role', key: 'role',
+      render: (v: string) => <StatusBadge label={v} color={ROLE_COLORS[v]} />,
+    },
+    { title: 'Model', dataIndex: 'model_id', key: 'model' },
+    { title: 'Family', dataIndex: 'model_family', key: 'family', render: (v: string) => v || '-' },
+    {
+      title: 'HPO', dataIndex: 'hpo_enabled', key: 'hpo',
+      render: (v: boolean) => <StatusBadge label={v ? 'Yes' : 'No'} color={v ? 'success' : 'default'} />,
+    },
+    { title: 'Planned', dataIndex: 'n_trials_planned', key: 'planned' },
+    { title: 'Completed', dataIndex: 'n_trials_completed', key: 'completed', render: (v: number) => <span style={{ color: '#2e7d32' }}>{v}</span> },
+    { title: 'Failed', dataIndex: 'n_trials_failed', key: 'failed', render: (v: number) => <span style={{ color: '#c62828' }}>{v}</span> },
+    {
+      title: 'Status', dataIndex: 'status', key: 'status',
+      render: (v: string) => <StatusBadge label={v} color={STATUS_COLORS[v]} />,
+    },
+    { title: 'Duration', dataIndex: 'duration_seconds', key: 'duration', render: (v: number) => `${v.toFixed(1)}s` },
+  ];
 
-  // --- Render helpers ---
+  const trialColumns: Array<{ title: string; dataIndex?: string; key: string; render?: any }> = [
+    { title: 'Model', dataIndex: 'model_id', key: 'model' },
+    {
+      title: 'Type', dataIndex: 'trial_type', key: 'type',
+      render: (v: string) => <StatusBadge label={v} color={TRIAL_TYPE_COLORS[v]} />,
+    },
+    {
+      title: 'Params', dataIndex: 'params', key: 'params',
+      render: (params: Record<string, unknown>) => (
+        <span style={{ fontSize: 11 }}>
+          {Object.entries(params || {}).slice(0, 3).map(([k, v]) => `${k}=${v}`).join(', ') || '-'}
+        </span>
+      ),
+    },
+    { title: 'Folds', dataIndex: 'fold_results', key: 'folds', render: (v: unknown[]) => v?.length || 0 },
+    {
+      title: 'Status', dataIndex: 'status', key: 'status',
+      render: (v: string) => <StatusBadge label={v} color={TRIAL_STATUS_COLORS[v]} />,
+    },
+    {
+      title: 'Prediction', key: 'prediction',
+      render: (_: unknown, r: TrialResultDTO) =>
+        (r.prediction_artifact_paths && r.prediction_artifact_paths.length > 0)
+          ? <span style={{ fontSize: 11, color: '#2e7d32' }}>Saved ({r.prediction_artifact_paths.length})</span>
+          : '-',
+    },
+    {
+      title: 'Model Path', key: 'modelPath',
+      render: (_: unknown, r: TrialResultDTO) =>
+        (r.model_artifact_paths && r.model_artifact_paths.length > 0)
+          ? <span style={{ fontSize: 11, color: '#1565c0' }}>Saved ({r.model_artifact_paths.length})</span>
+          : '-',
+    },
+    { title: 'Duration', dataIndex: 'duration_seconds', key: 'duration', render: (v: number) => `${v.toFixed(1)}s` },
+    {
+      title: 'Error', dataIndex: 'error_message', key: 'error',
+      render: (v: string) => v
+        ? <span style={{ fontSize: 11, color: '#c62828' }}>{v.substring(0, 60)}</span>
+        : '-',
+    },
+  ];
 
-  const renderSummary = () => {
-    if (!result) return null;
-    return (
-      <div>
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Execution Progress</h4>
-          <div style={s.grid}>
-            <div style={{ ...s.countBox, border: '1px solid #e0e0e0' }}>
-              <div style={s.countNumber}>{result.n_pipeline_specs}</div>
-              <div style={s.countLabel}>Pipeline Specs</div>
-            </div>
-            <div style={{ ...s.countBox, border: '1px solid #e0e0e0' }}>
-              <div style={s.countNumber}>{result.n_trials_planned}</div>
-              <div style={s.countLabel}>Trials Planned</div>
-            </div>
-            <div style={{ ...s.countBox, border: '1px solid #c8e6c9' }}>
-              <div style={{ ...s.countNumber, color: '#2e7d32' }}>{result.n_trials_completed}</div>
-              <div style={s.countLabel}>Completed</div>
-            </div>
-            <div style={{ ...s.countBox, border: '1px solid #ffcdd2' }}>
-              <div style={{ ...s.countNumber, color: '#c62828' }}>{result.n_trials_failed}</div>
-              <div style={s.countLabel}>Failed</div>
-            </div>
-            <div style={{ ...s.countBox, border: '1px solid #bbdefb' }}>
-              <div style={{ ...s.countNumber, color: '#1565c0' }}>{result.n_models_trained}</div>
-              <div style={s.countLabel}>Models Trained</div>
-            </div>
-            <div style={{ ...s.countBox, border: '1px solid #e0e0e0' }}>
-              <div style={s.countNumber}>{result.duration_seconds.toFixed(1)}s</div>
-              <div style={s.countLabel}>Duration</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderPipelineRuns = () => {
-    if (!result?.pipeline_run_results || result.pipeline_run_results.length === 0) {
-      return <p>No pipeline runs available.</p>;
-    }
-    return (
-      <div style={s.card}>
-        <h4 style={s.cardTitle}>Pipeline Runs ({result.pipeline_run_results.length})</h4>
-        <table style={{ ...s.table, minWidth: '900px' }}>
-          <thead>
-            <tr>
-              <th style={s.th}>Run ID</th>
-              <th style={s.th}>Role</th>
-              <th style={s.th}>Model</th>
-              <th style={s.th}>Family</th>
-              <th style={s.th}>HPO</th>
-              <th style={s.th}>Planned</th>
-              <th style={s.th}>Completed</th>
-              <th style={s.th}>Failed</th>
-              <th style={s.th}>Status</th>
-              <th style={s.th}>Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.pipeline_run_results.map((pr, i) => (
-              <tr key={i}>
-                <td style={s.td}><code>{pr.pipeline_run_id}</code></td>
-                <td style={s.td}>
-                  <Badge label={pr.pipeline_role} color={ROLE_COLORS[pr.pipeline_role] || '#1976d2'} />
-                </td>
-                <td style={s.td}>{pr.model_id}</td>
-                <td style={s.td}>{pr.model_family || '-'}</td>
-                <td style={s.td}>
-                  <Badge label={pr.hpo_enabled ? 'Yes' : 'No'} color={pr.hpo_enabled ? '#2e7d32' : '#9e9e9e'} />
-                </td>
-                <td style={s.td}>{pr.n_trials_planned}</td>
-                <td style={s.td}><span style={{ color: '#2e7d32' }}>{pr.n_trials_completed}</span></td>
-                <td style={s.td}><span style={{ color: '#c62828' }}>{pr.n_trials_failed}</span></td>
-                <td style={s.td}>
-                  <Badge label={pr.status} color={STATUS_COLORS[pr.status] || '#9e9e9e'} />
-                </td>
-                <td style={s.td}>{pr.duration_seconds.toFixed(1)}s</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderTrialResults = () => {
-    if (!result?.trial_results || result.trial_results.length === 0) {
-      return <p>No trial results available.</p>;
-    }
-    return (
-      <div style={s.card}>
-        <h4 style={s.cardTitle}>Trial Results ({result.trial_results.length})</h4>
-        <table style={{ ...s.table, minWidth: '950px' }}>
-          <thead>
-            <tr>
-              <th style={s.th}>Model</th>
-              <th style={s.th}>Type</th>
-              <th style={s.th}>Params</th>
-              <th style={s.th}>Folds</th>
-              <th style={s.th}>Status</th>
-              <th style={s.th}>Prediction</th>
-              <th style={s.th}>Model Path</th>
-              <th style={s.th}>Duration</th>
-              <th style={s.th}>Error</th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.trial_results.map((t, i) => (
-              <tr key={i} style={{ backgroundColor: t.status === 'failed' ? '#ffebee' : 'transparent' }}>
-                <td style={s.td}>{t.model_id}</td>
-                <td style={s.td}>
-                  <Badge label={t.trial_type} color={TRIAL_TYPE_COLORS[t.trial_type] || '#1976d2'} />
-                </td>
-                <td style={s.td}>
-                  <span style={{ fontSize: '11px' }}>
-                    {Object.entries(t.params || {}).slice(0, 3).map(([k, v]) => `${k}=${v}`).join(', ') || '-'}
-                  </span>
-                </td>
-                <td style={s.td}>{t.fold_results?.length || 0}</td>
-                <td style={s.td}>
-                  <Badge label={t.status} color={TRIAL_STATUS_COLORS[t.status] || '#9e9e9e'} />
-                </td>
-                <td style={s.td}>
-                  {(t.prediction_artifact_paths && t.prediction_artifact_paths.length > 0) ? (
-                    <span style={{ fontSize: '10px', color: '#2e7d32' }}>Saved ({t.prediction_artifact_paths.length})</span>
-                  ) : '-'}
-                </td>
-                <td style={s.td}>
-                  {(t.model_artifact_paths && t.model_artifact_paths.length > 0) ? (
-                    <span style={{ fontSize: '10px', color: '#1565c0' }}>Saved ({t.model_artifact_paths.length})</span>
-                  ) : '-'}
-                </td>
-                <td style={s.td}>{t.duration_seconds.toFixed(1)}s</td>
-                <td style={s.td}>
-                  {t.error_message ? (
-                    <span style={{ fontSize: '10px', color: '#c62828' }}>{t.error_message.substring(0, 60)}</span>
-                  ) : '-'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderTab = (tabId: string, label: string) => (
-    <button
-      key={tabId}
-      onClick={() => setActiveTab(tabId)}
-      style={{
-        ...s.tabButton,
-        backgroundColor: activeTab === tabId ? '#1976d2' : '#e0e0e0',
-        color: activeTab === tabId ? '#fff' : '#333',
-      }}
-    >
-      {label}
-    </button>
-  );
-
-  const tabs = [
-    { id: 'summary', label: 'Summary' },
-    { id: 'runs', label: 'Pipeline Runs' },
-    { id: 'trials', label: 'Trial Results' },
-    { id: 'json', label: 'Full JSON' },
+  const tabItems = [
+    {
+      key: 'summary',
+      label: 'Summary',
+      children: result ? (
+        <Card size="small" title="Execution Progress">
+          <Row gutter={[12, 12]}>
+            <Col span={8}>
+              <Statistic title="Pipeline Specs" value={result.n_pipeline_specs} />
+            </Col>
+            <Col span={8}>
+              <Statistic title="Trials Planned" value={result.n_trials_planned} />
+            </Col>
+            <Col span={8}>
+              <Statistic title="Completed" value={result.n_trials_completed} valueStyle={{ color: '#2e7d32' }} />
+            </Col>
+            <Col span={8}>
+              <Statistic title="Failed" value={result.n_trials_failed} valueStyle={{ color: '#c62828' }} />
+            </Col>
+            <Col span={8}>
+              <Statistic title="Models Trained" value={result.n_models_trained} valueStyle={{ color: '#1565c0' }} />
+            </Col>
+            <Col span={8}>
+              <Statistic title="Duration" value={`${result.duration_seconds.toFixed(1)}s`} />
+            </Col>
+          </Row>
+        </Card>
+      ) : (
+        <EmptyState description="No execution data available." />
+      ),
+    },
+    {
+      key: 'runs',
+      label: `Pipeline Runs${result ? ` (${result.pipeline_run_results?.length || 0})` : ''}`,
+      children: result?.pipeline_run_results?.length ? (
+        <Card size="small">
+          <Table<PipelineRunResultDTO>
+            columns={runColumns}
+            dataSource={result.pipeline_run_results.map((pr, i) => ({ ...pr, key: i }))}
+            size="small"
+            scroll={{ x: 900 }}
+            pagination={false}
+          />
+        </Card>
+      ) : (
+        <EmptyState description="No pipeline runs available." />
+      ),
+    },
+    {
+      key: 'trials',
+      label: `Trial Results${result ? ` (${result.trial_results?.length || 0})` : ''}`,
+      children: result?.trial_results?.length ? (
+        <Card size="small">
+          <Table<TrialResultDTO>
+            columns={trialColumns}
+            dataSource={result.trial_results.map((t, i) => ({ ...t, key: i }))}
+            size="small"
+            scroll={{ x: 950 }}
+            pagination={false}
+            rowClassName={(record) => record.status === 'failed' ? 'ant-table-row-error' : ''}
+          />
+        </Card>
+      ) : (
+        <EmptyState description="No trial results available." />
+      ),
+    },
+    {
+      key: 'json',
+      label: 'Full JSON',
+      children: result ? <JsonViewer data={result} /> : <EmptyState description="Run training to see JSON output." />,
+    },
   ];
 
   return (
-    <div style={s.container}>
-      <h3 style={s.title}>Pipeline Execution and Training</h3>
-      <p style={s.description}>
-        Execute model training and HPO trials from the upstream Pipeline Generation output.
-        Training is performed by the system Controlled Executor using only registered models.
-        No final model ranking is performed — that is handled by Metric Evaluation.
-      </p>
-
-      <div style={s.buttonRow}>
-        <button onClick={handleRunTraining} disabled={loading} style={s.runButton}>
+    <PanelContainer
+      title="Pipeline Execution and Training"
+      description="Execute model training and HPO trials from the upstream Pipeline Generation output. Training is performed by the system Controlled Executor using only registered models."
+      accentColor={pipelineAccent.pipelineExecution}
+    >
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" onClick={handleRunTraining} loading={loading}>
           {loading ? 'Training in Progress...' : 'Run Training'}
-        </button>
-        <button onClick={handleRerun} disabled={loading} style={s.rerunButton}>
-          {loading ? 'Running...' : 'Re-run Training'}
-        </button>
-      </div>
+        </Button>
+        <Button onClick={handleRerun} loading={loading}>
+          Re-run Training
+        </Button>
+      </Space>
+      <Spin spinning={loading}>
+        {error && <ErrorBox message={error} />}
 
-      {error && (
-        <div style={s.errorBox}>
-          <strong>Error:</strong> {error}
-        </div>
-      )}
+        {result && (
+          <>
+            <Card size="small" style={{ marginBottom: 16 }}>
+              <Descriptions column={2} size="small">
+                <Descriptions.Item label="Execution ID">{result.pipeline_execution_id}</Descriptions.Item>
+                <Descriptions.Item label="Status">
+                  <StatusBadge label={result.status} color={STATUS_COLORS[result.status]} />
+                </Descriptions.Item>
+                <Descriptions.Item label="Pipeline Generation">{result.pipeline_generation_id}</Descriptions.Item>
+                <Descriptions.Item label="Ready for Metric Eval">
+                  <span style={{ color: result.ready_for_metric_evaluation ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
+                    {result.ready_for_metric_evaluation ? 'Yes' : 'No'}
+                  </span>
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
 
-      {result && (
-        <div style={s.resultBox}>
-          <h4 style={s.resultTitle}>Pipeline Execution Result</h4>
+            {result.warnings && result.warnings.length > 0 && <WarningBox warnings={result.warnings} />}
+            {result.error_message && <ErrorBox message={result.error_message} />}
 
-          {/* Execution Summary */}
-          <div style={s.fieldRow}>
-            <div style={s.field}><strong>Execution ID:</strong> {result.pipeline_execution_id}</div>
-            <div style={s.field}>
-              <strong>Status: </strong>
-              <Badge label={result.status} color={STATUS_COLORS[result.status] || '#9e9e9e'} />
-            </div>
-            <div style={s.field}><strong>Pipeline Generation:</strong> {result.pipeline_generation_id}</div>
-            <div style={s.field}>
-              <strong>Ready for Metric Eval: </strong>
-              <span style={{ color: result.ready_for_metric_evaluation ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                {result.ready_for_metric_evaluation ? 'Yes' : 'No'}
-              </span>
-            </div>
-          </div>
+            <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+          </>
+        )}
 
-          {result.warnings && result.warnings.length > 0 && (
-            <div style={s.warningBox}>
-              <strong>Warnings:</strong>
-              <ul style={s.list}>
-                {result.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {result.error_message && (
-            <div style={s.errorBox}>
-              <strong>Error:</strong> {result.error_message}
-            </div>
-          )}
-
-          {/* Tab navigation */}
-          <div style={s.tabBar}>
-            {tabs.map(t => renderTab(t.id, t.label))}
-          </div>
-
-          {/* Tab content */}
-          <div style={s.tabContent}>
-            {activeTab === 'summary' && renderSummary()}
-            {activeTab === 'runs' && renderPipelineRuns()}
-            {activeTab === 'trials' && renderTrialResults()}
-            {activeTab === 'json' && (
-              <div style={s.card}>
-                <h4 style={s.cardTitle}>Full JSON</h4>
-                <pre style={s.json}>{JSON.stringify(result, null, 2)}</pre>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+        {!result && !error && !loading && (
+          <EmptyState description="No pipeline execution result yet. Click &quot;Run Training&quot; to start." />
+        )}
+      </Spin>
+    </PanelContainer>
   );
-};
-
-const s: Record<string, React.CSSProperties> = {
-  container: {
-    marginTop: '24px',
-    padding: '16px',
-    border: '1px solid #e0e0e0',
-    borderRadius: '8px',
-    backgroundColor: '#fafafa',
-  },
-  title: { margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600 },
-  description: { margin: '0 0 16px 0', color: '#666', fontSize: '13px', lineHeight: 1.5 },
-  buttonRow: { display: 'flex', gap: '8px', marginBottom: '16px' },
-  runButton: {
-    padding: '10px 20px', backgroundColor: '#1976d2', color: '#fff',
-    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-  },
-  rerunButton: {
-    padding: '10px 20px', backgroundColor: '#f57c00', color: '#fff',
-    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-  },
-  errorBox: {
-    padding: '12px', backgroundColor: '#ffebee', border: '1px solid #f44336',
-    borderRadius: '4px', color: '#c62828', marginBottom: '16px',
-  },
-  resultBox: {
-    padding: '16px', backgroundColor: '#fff', border: '1px solid #e0e0e0',
-    borderRadius: '8px',
-  },
-  resultTitle: { margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600 },
-  fieldRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' },
-  field: { fontSize: '14px' },
-  badge: {
-    display: 'inline-block', padding: '2px 8px', borderRadius: '12px',
-    color: '#fff', fontSize: '12px', fontWeight: 600, margin: '0 4px',
-  },
-  warningBox: {
-    padding: '12px', backgroundColor: '#fff3e0', border: '1px solid #ff9800',
-    borderRadius: '4px', color: '#e65100', marginBottom: '16px',
-  },
-  list: { margin: '4px 0', paddingLeft: '20px' },
-  tabBar: { display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '16px' },
-  tabButton: {
-    padding: '6px 14px', border: 'none', borderRadius: '16px',
-    fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-  },
-  tabContent: { minHeight: '200px', maxHeight: '60vh', overflowY: 'auto' as const },
-  card: {
-    padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px',
-    marginBottom: '12px', border: '1px solid #e0e0e0',
-    overflowX: 'auto' as const,
-  },
-  cardTitle: { margin: '0 0 10px 0', fontSize: '15px', fontWeight: 600 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '8px' },
-  table: {
-    width: '100%', borderCollapse: 'collapse' as const, fontSize: '13px',
-    tableLayout: 'fixed' as const, minWidth: '700px',
-  },
-  th: {
-    textAlign: 'left' as const, padding: '6px 8px', borderBottom: '2px solid #e0e0e0',
-    fontWeight: 600, backgroundColor: '#fafafa', whiteSpace: 'nowrap' as const,
-  },
-  td: {
-    padding: '6px 8px', borderBottom: '1px solid #eee',
-    verticalAlign: 'top' as const, wordBreak: 'break-word' as const,
-  },
-  json: {
-    backgroundColor: '#263238', color: '#aed581', padding: '12px',
-    borderRadius: '4px', overflow: 'auto', fontSize: '11px',
-  },
-  countBox: {
-    textAlign: 'center' as const,
-    padding: '12px',
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-  },
-  countNumber: {
-    fontSize: '24px',
-    fontWeight: 700,
-    color: '#333',
-  },
-  countLabel: {
-    fontSize: '11px',
-    color: '#888',
-    textTransform: 'uppercase' as const,
-    marginTop: '2px',
-  },
 };
 
 export default PipelineExecutionPanel;

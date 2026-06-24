@@ -47,7 +47,7 @@ export interface PreprocessingSummary {
   feature_selection_executed: boolean;
   categorical_encoding_executed: boolean;
   preprocessing_pipeline_artifact_id?: string | null;
-  // Fold-safe execution mode â€” "global" | "fold_safe" | "none"
+  // Fold-safe execution mode â€?"global" | "fold_safe" | "none"
   imputation_execution_mode?: string | null;
   scaling_execution_mode?: string | null;
   feature_selection_execution_mode?: string | null;
@@ -64,6 +64,10 @@ export interface LLMStrategyAdvice {
   max_trials: number;
   validation_split_strategy?: string | null;
   n_splits: number;
+  test_size?: number | null;
+  external_test_enabled?: boolean;
+  external_test_size?: number | null;
+  cv_strategy?: string | null;
   adjustment_reasons: string[];
   risk_notes: string[];
   confidence_score: number;
@@ -165,6 +169,10 @@ export interface SearchSpacePlan {
 export interface ValidationPlan {
   split_strategy: string;
   n_splits: number;
+  test_size?: number | null;
+  external_test_enabled?: boolean;
+  external_test_size?: number | null;
+  cv_strategy?: string | null;
   random_state: number;
   shuffle: boolean;
   stratification_required: boolean;

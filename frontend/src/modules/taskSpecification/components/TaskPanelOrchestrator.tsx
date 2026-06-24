@@ -1,4 +1,5 @@
 import React from 'react';
+import TaskSpecificationPanel from './TaskSpecificationPanel';
 import TaskInterpretationPanel from '../../taskInterpretation/components/TaskInterpretationPanel';
 import DatasetProfilePanel from '../../datasetProfile/components/DatasetProfilePanel';
 import WorkflowPlanPanel from '../../workflowPlanning/components/WorkflowPlanPanel';
@@ -15,8 +16,9 @@ import FinalOutputPanel from '../../finalOutput/components/FinalOutputPanel';
 
 type PanelComponent = React.ComponentType<any>;
 
-interface PanelDef {
+export interface PanelDef {
   key: string;
+  label: string;
   component: PanelComponent;
   dependsOnResult?: boolean;
 }
@@ -25,30 +27,39 @@ interface TaskPanelOrchestratorProps {
   activeTaskId: string;
   panelResults: Record<string, any>;
   onRerunComplete: () => Promise<void>;
+  /** Callback when a new task is created from the Task Specification panel */
+  onNewTaskCreated?: (taskId: string) => void;
+  /** If set, only render this specific panel. Otherwise render all. */
+  selectedPanelKey?: string;
 }
 
-const PANEL_DEFS: PanelDef[] = [
-  { key: 'interpretation', component: TaskInterpretationPanel, dependsOnResult: true },
-  { key: 'datasetProfile', component: DatasetProfilePanel, dependsOnResult: true },
-  { key: 'workflowPlan', component: WorkflowPlanPanel, dependsOnResult: true },
-  { key: 'featureEngineering', component: FeatureEngineeringPanel, dependsOnResult: true },
-  { key: 'featurePreprocessing', component: FeaturePreprocessingPanel, dependsOnResult: true },
-  { key: 'modelSearchContext', component: ModelSearchContextPanel, dependsOnResult: true },
-  { key: 'pipelineGeneration', component: PipelineGenerationPanel, dependsOnResult: true },
-  { key: 'pipelineExecution', component: PipelineExecutionPanel, dependsOnResult: true },
-  { key: 'metricEvaluation', component: MetricEvaluationPanel, dependsOnResult: true },
-  { key: 'iterationDecision', component: IterationDecisionPanel, dependsOnResult: true },
-  { key: 'interpretabilityAnalysis', component: InterpretabilityAnalysisPanel, dependsOnResult: true },
-  { key: 'visualization', component: VisualizationPanel },
-  { key: 'finalOutput', component: FinalOutputPanel, dependsOnResult: true },
+export const PANEL_DEFS: PanelDef[] = [
+  { key: 'taskSpecification', label: 'Task Specification', component: TaskSpecificationPanel },
+  { key: 'interpretation', label: 'Task Interpretation', component: TaskInterpretationPanel, dependsOnResult: true },
+  { key: 'datasetProfile', label: 'Dataset Profile', component: DatasetProfilePanel, dependsOnResult: true },
+  { key: 'workflowPlan', label: 'Workflow Plan', component: WorkflowPlanPanel, dependsOnResult: true },
+  { key: 'featureEngineering', label: 'Feature Engineering', component: FeatureEngineeringPanel, dependsOnResult: true },
+  { key: 'featurePreprocessing', label: 'Data Preprocessing', component: FeaturePreprocessingPanel, dependsOnResult: true },
+  { key: 'modelSearchContext', label: 'Model Search Plan', component: ModelSearchContextPanel, dependsOnResult: true },
+  { key: 'pipelineGeneration', label: 'Pipeline Generation', component: PipelineGenerationPanel, dependsOnResult: true },
+  { key: 'pipelineExecution', label: 'Pipeline Execution', component: PipelineExecutionPanel, dependsOnResult: true },
+  { key: 'metricEvaluation', label: 'Metric Evaluation', component: MetricEvaluationPanel, dependsOnResult: true },
+  { key: 'iterationDecision', label: 'Iteration Decision', component: IterationDecisionPanel, dependsOnResult: true },
+  { key: 'interpretabilityAnalysis', label: 'Interpretability', component: InterpretabilityAnalysisPanel, dependsOnResult: true },
+  { key: 'visualization', label: 'Visualization', component: VisualizationPanel },
+  { key: 'finalOutput', label: 'Final Output', component: FinalOutputPanel, dependsOnResult: true },
 ];
 
 const TaskPanelOrchestrator: React.FC<TaskPanelOrchestratorProps> = ({
-  activeTaskId, panelResults, onRerunComplete,
+  activeTaskId, panelResults, onRerunComplete, onNewTaskCreated, selectedPanelKey,
 }) => {
+  const panelsToRender = selectedPanelKey
+    ? PANEL_DEFS.filter(p => p.key === selectedPanelKey)
+    : PANEL_DEFS;
+
   return (
     <>
-      {PANEL_DEFS.map(({ key, component: Component, dependsOnResult }) => {
+      {panelsToRender.map(({ key, component: Component, dependsOnResult }) => {
         const props: Record<string, any> = {
           taskId: activeTaskId,
           key: `${key}-${activeTaskId}`,
@@ -58,6 +69,12 @@ const TaskPanelOrchestrator: React.FC<TaskPanelOrchestratorProps> = ({
         }
         if (key === 'iterationDecision') {
           props.onRerunComplete = onRerunComplete;
+        }
+        if (key === 'taskSpecification' && onNewTaskCreated) {
+          props.onTaskSubmitted = (newTaskId: string) => {
+            onNewTaskCreated(newTaskId);
+            onRerunComplete();
+          };
         }
         return <Component {...props} />;
       })}

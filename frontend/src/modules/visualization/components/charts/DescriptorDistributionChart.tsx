@@ -40,7 +40,7 @@ const DescriptorDistributionChart: React.FC<Props> = ({ data }) => {
           onClick={() => setScaleMode('normalized')}
           style={{
             padding: '4px 12px', border: 'none', borderRadius: '12px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-            backgroundColor: scaleMode === 'normalized' ? '#1976d2' : '#e0e0e0',
+            backgroundColor: scaleMode === 'normalized' ? CHART_COLORS.primary : '#e8e8e8',
             color: scaleMode === 'normalized' ? '#fff' : '#333',
           }}
         >
@@ -50,7 +50,7 @@ const DescriptorDistributionChart: React.FC<Props> = ({ data }) => {
           onClick={() => setScaleMode('raw')}
           style={{
             padding: '4px 12px', border: 'none', borderRadius: '12px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-            backgroundColor: scaleMode === 'raw' ? '#1976d2' : '#e0e0e0',
+            backgroundColor: scaleMode === 'raw' ? CHART_COLORS.primary : '#e8e8e8',
             color: scaleMode === 'raw' ? '#fff' : '#333',
           }}
         >
@@ -59,7 +59,7 @@ const DescriptorDistributionChart: React.FC<Props> = ({ data }) => {
       </div>
       <ResponsiveContainer width="100%" height={Math.max(300, chartData.length * 28)}>
         <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 20, left: 120, bottom: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
           <XAxis type="number" tick={{ fontSize: 12 }} />
           <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={110} />
           <Tooltip labelFormatter={(label: any, payload: any) => payload?.[0]?.payload?.fullName || label} />

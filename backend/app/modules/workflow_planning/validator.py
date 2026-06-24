@@ -16,7 +16,7 @@ TASK_SUMMARY_FIELDS = ["task_type", "input_modality", "prediction_target", "mate
 DATA_STRATEGY_FIELDS = ["input_columns", "target_column", "required_cleaning_steps", "target_handling", "duplicate_handling", "missing_value_strategy"]
 FEATURE_STRATEGY_FIELDS = ["feature_type", "executable_featurizers", "selected_feature_actions", "rejected_feature_actions"]
 MODEL_STRATEGY_FIELDS = ["candidate_model_families", "baseline_models", "preferred_model_bias", "excluded_model_families", "selected_model_actions", "rejected_model_actions"]
-VALIDATION_STRATEGY_FIELDS = ["split_strategy", "n_splits", "random_state", "stratification_required"]
+VALIDATION_STRATEGY_FIELDS = ["split_strategy", "n_splits", "test_size", "external_test_enabled", "external_test_size", "cv_strategy", "random_state", "stratification_required"]
 EVALUATION_STRATEGY_FIELDS = ["primary_metric", "secondary_metrics", "metric_direction"]
 HPO_STRATEGY_FIELDS = ["enabled", "search_method", "budget_level", "max_trials"]
 INTERPRETABILITY_STRATEGY_FIELDS = ["enabled", "methods", "priority"]
@@ -42,10 +42,10 @@ FORBIDDEN_CODE_PATTERNS = [
 ]
 
 # Regex patterns for fabricated metrics: metric name followed by a numeric value
-# e.g. "MAE of 0.05" or "R¬≤ of 0.92" ‚Äî this indicates the LLM invented results.
+# e.g. "MAE of 0.05" or "RËô?of 0.92" Èà?this indicates the LLM invented results.
 # Mere mention of the metric name (e.g. "use MAE as primary_metric") is allowed.
 FORBIDDEN_METRIC_REGEX = re.compile(
-    r"(?:MAE|RMSE|R¬≤|R2)\s+of\s+[\d.\-]"
+    r"(?:MAE|RMSE|RËôè|R2)\s+of\s+[\d.\-]"
     r"|accuracy\s+of\s+[\d.\-]"
     r"|F1\s+score\s+of\s+[\d.\-]"
     r"|(?:training|validation|test)\s+loss\s*[=:]\s*[\d.\-]",
@@ -161,7 +161,7 @@ def _check_arrays(plan: Dict[str, Any], errors: List[str]):
 def _check_forbidden_content(plan: Dict[str, Any], errors: List[str]):
     plan_str = str(plan).lower()
 
-    # Code injection patterns ‚Äî simple substring match
+    # Code injection patterns Èà?simple substring match
     for forbidden in FORBIDDEN_CODE_PATTERNS:
         if forbidden.lower() in plan_str:
             errors.append(
@@ -169,7 +169,7 @@ def _check_forbidden_content(plan: Dict[str, Any], errors: List[str]):
                 "Workflow Plan must not contain executable code, training results, or fabricated metrics."
             )
 
-    # Fabricated metric patterns ‚Äî only flag when a metric name is
+    # Fabricated metric patterns Èà?only flag when a metric name is
     # followed by a numeric value (e.g. "MAE of 0.05"), not when the
     # metric is merely mentioned as a planning choice.
     metric_match = FORBIDDEN_METRIC_REGEX.search(plan_str)
@@ -317,7 +317,7 @@ def _check_feature_strategy_actions(plan: Dict[str, Any], errors: List[str]):
         # Note: required_input_columns validation is deferred to Feature Engineering
         # execution time, where the actual dataset columns are available. The
         # planner's job is to select capabilities appropriate for the task's
-        # input_modality and task_type ‚Äî not to verify dataset column names.
+        # input_modality and task_type Èà?not to verify dataset column names.
 
         # Check priority
         priority = action.get("priority", "")

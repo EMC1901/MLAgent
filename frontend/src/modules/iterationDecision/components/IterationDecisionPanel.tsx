@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { Button, Space, Card, Descriptions, Spin, Tabs, Table, Popconfirm } from 'antd';
 import {
-  createIterationDecision,
-  rerunIterationDecision,
-  adoptRevisedPlan,
-  checkNeedsFreshDecision,
+  PlayCircleOutlined, ExclamationCircleOutlined,
+} from '@ant-design/icons';
+import {
+  createIterationDecision, rerunIterationDecision,
+  adoptRevisedPlan, checkNeedsFreshDecision,
 } from '../../../api/iterationDecisionApi';
 import { createFeatureEngineering } from '../../../api/featureEngineeringApi';
 import { createFeaturePreprocessing } from '../../../api/featurePreprocessingApi';
@@ -12,36 +14,23 @@ import { createPipelineGeneration } from '../../../api/pipelineGenerationApi';
 import { createPipelineExecution } from '../../../api/pipelineExecutionApi';
 import { createMetricEvaluation } from '../../../api/metricEvaluationApi';
 import {
-  IterationDecisionResponse,
-  DecisionReasoning,
-  EvidenceItem,
-  EvidenceBundle,
-  IterationPlan,
-  StageChange,
-  RevisedWorkflowPlan,
-  IterationRerunPlan,
-  SystemChecks,
-  StopRationale,
-  AdoptRevisedPlanResult,
+  IterationDecisionResponse, DecisionReasoning, EvidenceBundle,
+  IterationPlan, RevisedWorkflowPlan, IterationRerunPlan,
+  SystemChecks, StopRationale, AdoptRevisedPlanResult,
 } from '../types';
 import {
-  STATUS_COLORS,
-  STATUS_LABELS,
-  DECISION_COLORS,
-  DECISION_LABELS,
-  CONFIDENCE_COLORS,
-  CONFIDENCE_LABELS,
-  COMPLETION_COLORS,
-  GAP_MAGNITUDE_COLORS,
-  IMPROVEMENT_COLORS,
-  STAGE_LABELS,
-  STAGE_COLORS,
-  ACTION_LABELS,
-  ACTION_COLORS,
-  DIMENSION_LABELS,
-  DIMENSION_COLORS,
-  STOP_CATEGORY_LABELS,
+  STATUS_COLORS, STATUS_LABELS, DECISION_COLORS, DECISION_LABELS,
+  CONFIDENCE_COLORS, CONFIDENCE_LABELS, COMPLETION_COLORS,
+  GAP_MAGNITUDE_COLORS, IMPROVEMENT_COLORS,
+  STAGE_LABELS, STAGE_COLORS, ACTION_LABELS, ACTION_COLORS,
+  DIMENSION_LABELS, DIMENSION_COLORS, STOP_CATEGORY_LABELS,
 } from '../constants';
+import {
+  PanelContainer, StatusBadge, WarningBox, ErrorBox,
+  JsonViewer, EmptyState,
+} from '../../../components/shared';
+import { pipelineAccent } from '../../../theme/pipelineColors';
+import { Alert } from 'antd';
 
 interface IterationDecisionPanelProps {
   taskId: string;
@@ -58,72 +47,47 @@ const IterationDecisionPanel: React.FC<IterationDecisionPanelProps> = ({ taskId,
   const [adoptResult, setAdoptResult] = useState<AdoptRevisedPlanResult | null>(null);
   const [rerunProgress, setRerunProgress] = useState<string[]>([]);
   const [rerunError, setRerunError] = useState<string | null>(null);
-  const [showAdoptConfirm, setShowAdoptConfirm] = useState(false);
 
   const handleRun = async () => {
-    setLoading(true);
-    setError(null);
-    setResult(null);
+    setLoading(true); setError(null); setResult(null);
     try {
       let forceRerun = false;
       try {
         const freshCheck = await checkNeedsFreshDecision(taskId);
-        if (freshCheck.success && freshCheck.data.needs_fresh) {
-          forceRerun = true;
-        }
-      } catch {
-        // proceed with normal run
-      }
+        if (freshCheck.success && freshCheck.data.needs_fresh) forceRerun = true;
+      } catch { /* proceed */ }
       const response = await createIterationDecision(taskId, { force_rerun: forceRerun });
-      if (response.success) {
-        setResult(response.data);
-      } else {
-        setError(response.message);
-      }
+      if (response.success) setResult(response.data);
+      else setError(response.message);
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === 'object' ? (detail?.message ?? JSON.stringify(detail)) : detail;
       setError(msg || err.message || 'Failed to run iteration decision.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleRerun = async () => {
-    setLoading(true);
-    setError(null);
-    setResult(null);
+    setLoading(true); setError(null); setResult(null);
     try {
       const response = await rerunIterationDecision(taskId);
-      if (response.success) {
-        setResult(response.data);
-      } else {
-        setError(response.message);
-      }
+      if (response.success) setResult(response.data);
+      else setError(response.message);
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === 'object' ? (detail?.message ?? JSON.stringify(detail)) : detail;
       setError(msg || err.message || 'Failed to re-run iteration decision.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleAdoptAndRerun = async () => {
     if (!result?.iteration_decision_id) return;
-    setAdopting(true);
-    setRerunError(null);
-    setRerunProgress([]);
-    setAdoptResult(null);
-    setShowAdoptConfirm(false);
-
+    setAdopting(true); setRerunError(null); setRerunProgress([]); setAdoptResult(null);
     try {
       setRerunProgress(['Adopting revised plan...']);
       const adoptResp = await adoptRevisedPlan(result.iteration_decision_id);
       if (!adoptResp.success || !adoptResp.data.adopted) {
         setRerunError(adoptResp.message || 'Failed to adopt revised plan.');
-        setAdopting(false);
-        return;
+        setAdopting(false); return;
       }
       setAdoptResult(adoptResp.data);
       setRerunProgress(prev => [...prev, 'Plan adopted as ' + adoptResp.data.adopted_workflow_plan_id]);
@@ -144,28 +108,19 @@ const IterationDecisionPanel: React.FC<IterationDecisionPanelProps> = ({ taskId,
         const stage = stages[i];
         if (stage === 'workflow_planning') continue;
         const apiFn = STAGE_API[stage];
-        if (!apiFn) {
-          setRerunProgress(prev => [...prev, `${stage}: skipped (no handler)`]);
-          continue;
-        }
+        if (!apiFn) { setRerunProgress(prev => [...prev, `${stage}: skipped (no handler)`]); continue; }
         setRerunProgress(prev => [...prev, `Running ${stage} (${i + 1}/${stages.length})...`]);
         try {
           const resp = await apiFn(taskId);
-          if (resp.success) {
-            setRerunProgress(prev => [...prev, `${stage}: completed successfully`]);
-          } else {
-            setRerunProgress(prev => [...prev, `${stage}: ${resp.message || 'completed with issues'}`]);
-          }
+          setRerunProgress(prev => [...prev, `${stage}: ${resp.success ? 'completed successfully' : resp.message || 'completed with issues'}`]);
         } catch (err: any) {
           const detail = err.response?.data?.detail;
           const msg = typeof detail === 'object' ? (detail?.message ?? JSON.stringify(detail)) : detail;
           setRerunProgress(prev => [...prev, `${stage}: FAILED - ${msg || err.message}`]);
           setRerunError(`Rerun stopped at ${stage}: ${msg || err.message}`);
-          hasError = true;
-          break;
+          hasError = true; break;
         }
       }
-
       if (!hasError) {
         setRerunProgress(prev => [...prev, 'All stages completed. Run Iteration Decision again to evaluate.']);
         onRerunComplete?.();
@@ -174,858 +129,310 @@ const IterationDecisionPanel: React.FC<IterationDecisionPanelProps> = ({ taskId,
       const detail = err.response?.data?.detail;
       const msg = typeof detail === 'object' ? (detail?.message ?? JSON.stringify(detail)) : detail;
       setRerunError(msg || err.message || 'Adopt & Rerun failed.');
-    } finally {
-      setAdopting(false);
-    }
+    } finally { setAdopting(false); }
   };
 
-  const Badge: React.FC<{ label: string; color?: string }> = ({ label, color = '#1976d2' }) => (
-    <span style={{ ...s.badge, backgroundColor: color }}>{label}</span>
-  );
+  const evidenceColumns = [
+    { title: 'Type', dataIndex: 'evidence_type', key: 'type', render: (v: string) => <StatusBadge label={v} /> },
+    { title: 'Source Module', dataIndex: 'source_module', key: 'module' },
+    { title: 'Source Field', dataIndex: 'source_field', key: 'field' },
+    { title: 'Value', dataIndex: 'value', key: 'value', render: (v: unknown) => typeof v === 'object' ? JSON.stringify(v) : String(v ?? '-') },
+    { title: 'Interpretation', dataIndex: 'interpretation', key: 'interp' },
+  ];
 
-  // --- Render helpers ---
+  const stageChangeColumns = [
+    { title: 'Stage', dataIndex: 'stage', key: 'stage', render: (v: string) => <StatusBadge label={STAGE_LABELS[v] || v} color={STAGE_COLORS[v]} /> },
+    { title: 'Action', dataIndex: 'action', key: 'action', render: (v: string) => <StatusBadge label={ACTION_LABELS[v] || v} color={ACTION_COLORS[v]} /> },
+    { title: 'Description', dataIndex: 'description', key: 'desc' },
+    { title: 'Rationale', dataIndex: 'rationale', key: 'rationale' },
+  ];
 
-  const renderDecision = () => {
-    if (!result) return null;
-    return (
-      <div style={s.card}>
-        <h4 style={s.cardTitle}>Iteration Decision</h4>
-        <div style={s.grid}>
-          <div style={s.field}>
-            <strong>Decision: </strong>
-            <Badge
-              label={DECISION_LABELS[result.decision || ''] || result.decision || 'N/A'}
-              color={DECISION_COLORS[result.decision || ''] || '#9e9e9e'}
-            />
-          </div>
-          <div style={s.field}>
-            <strong>Confidence: </strong>
-            <Badge
-              label={CONFIDENCE_LABELS[result.decision_confidence || ''] || result.decision_confidence || 'N/A'}
-              color={CONFIDENCE_COLORS[result.decision_confidence || ''] || '#9e9e9e'}
-            />
-          </div>
-          <div style={s.field}>
-            <strong>Status: </strong>
-            <Badge
-              label={STATUS_LABELS[result.status] || result.status}
-              color={STATUS_COLORS[result.status] || '#9e9e9e'}
-            />
-          </div>
-          <div style={s.field}>
-            <strong>Iteration: </strong>
-            <span>#{result.iteration_index}</span>
-          </div>
-          <div style={s.field}>
-            <strong>Ready for Iteration: </strong>
+  const tabItems = [
+    { key: 'decision', label: 'Decision', children: result ? (
+      <Card size="small" title="Iteration Decision">
+        <Descriptions column={2} size="small">
+          <Descriptions.Item label="Decision">
+            <StatusBadge label={DECISION_LABELS[result.decision || ''] || result.decision || 'N/A'} color={DECISION_COLORS[result.decision || '']} />
+          </Descriptions.Item>
+          <Descriptions.Item label="Confidence">
+            <StatusBadge label={CONFIDENCE_LABELS[result.decision_confidence || ''] || result.decision_confidence || 'N/A'} color={CONFIDENCE_COLORS[result.decision_confidence || '']} />
+          </Descriptions.Item>
+          <Descriptions.Item label="Status">
+            <StatusBadge label={STATUS_LABELS[result.status] || result.status} color={STATUS_COLORS[result.status]} />
+          </Descriptions.Item>
+          <Descriptions.Item label="Iteration">#{result.iteration_index}</Descriptions.Item>
+          <Descriptions.Item label="Ready for Iteration">
             <span style={{ color: result.ready_for_iteration ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
               {result.ready_for_iteration ? 'Yes' : 'No'}
             </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderReasoning = (reasoning: DecisionReasoning | null | undefined) => {
-    if (!reasoning) return <p>No decision reasoning available.</p>;
-    return (
-      <div>
-        {/* Task Completion */}
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Task Completion Assessment</h4>
-          <div style={s.grid}>
-            <div style={s.field}>
-              <strong>Completion: </strong>
-              <Badge
-                label={reasoning.task_completion.completion_level}
-                color={COMPLETION_COLORS[reasoning.task_completion.completion_level] || '#9e9e9e'}
-              />
-            </div>
-            <div style={s.field}>
-              <strong>Target Metric: </strong>
-              <span>{reasoning.task_completion.target_metric || 'N/A'}</span>
-            </div>
-            {reasoning.task_completion.target_value != null && (
-              <div style={s.field}>
-                <strong>Target Value: </strong>
-                <span>{reasoning.task_completion.target_value}</span>
-              </div>
-            )}
-            {reasoning.task_completion.actual_value != null && (
-              <div style={s.field}>
-                <strong>Actual Value: </strong>
-                <span>{reasoning.task_completion.actual_value}</span>
-              </div>
-            )}
-            <div style={s.field}>
-              <strong>Physics Constraints: </strong>
-              <span style={{ color: reasoning.task_completion.physics_constraints_satisfied ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                {reasoning.task_completion.physics_constraints_satisfied ? 'Satisfied' : 'Violated'}
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
+    ) : <EmptyState description="Run decision to see result." /> },
+    { key: 'reasoning', label: 'Reasoning', children: result?.reasoning ? (
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Card size="small" title="Task Completion Assessment">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Completion">
+              <StatusBadge label={result.reasoning.task_completion.completion_level} color={COMPLETION_COLORS[result.reasoning.task_completion.completion_level]} />
+            </Descriptions.Item>
+            <Descriptions.Item label="Target Metric">{result.reasoning.task_completion.target_metric || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Physics Constraints">
+              <span style={{ color: result.reasoning.task_completion.physics_constraints_satisfied ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
+                {result.reasoning.task_completion.physics_constraints_satisfied ? 'Satisfied' : 'Violated'}
               </span>
-            </div>
-          </div>
-          {reasoning.task_completion.gap_description && (
-            <p style={s.summaryText}>{reasoning.task_completion.gap_description}</p>
+            </Descriptions.Item>
+          </Descriptions>
+          {result.reasoning.task_completion.gap_description && <p style={{ marginTop: 8, fontSize: 14 }}>{result.reasoning.task_completion.gap_description}</p>}
+          {result.reasoning.task_completion.physics_violations?.length > 0 && <WarningBox warnings={result.reasoning.task_completion.physics_violations} />}
+        </Card>
+        <Card size="small" title="Performance Assessment">
+          <p style={{ fontSize: 14, lineHeight: 1.5 }}>{result.reasoning.performance_assessment || 'N/A'}</p>
+        </Card>
+        <Card size="small" title="Gap Analysis">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Primary Gap">{result.reasoning.gap_analysis.primary_gap || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Magnitude">
+              <StatusBadge label={result.reasoning.gap_analysis.gap_magnitude} color={GAP_MAGNITUDE_COLORS[result.reasoning.gap_analysis.gap_magnitude]} />
+            </Descriptions.Item>
+          </Descriptions>
+          {result.reasoning.gap_analysis.contributing_factors?.length > 0 && (
+            <div style={{ marginTop: 8 }}><strong>Contributing Factors:</strong><ul style={{ paddingLeft: 20 }}>{result.reasoning.gap_analysis.contributing_factors.map((f, i) => <li key={i}>{f}</li>)}</ul></div>
           )}
-          {reasoning.task_completion.physics_violations?.length > 0 && (
-            <div style={s.warningBox}>
-              <strong>Physics Violations:</strong>
-              <ul style={s.list}>
-                {reasoning.task_completion.physics_violations.map((v, i) => <li key={i}>{v}</li>)}
-              </ul>
-            </div>
+        </Card>
+        <Card size="small" title="Root Cause Analysis">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Primary Cause">{result.reasoning.root_cause.primary_root_cause || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Dimension">
+              <StatusBadge label={DIMENSION_LABELS[result.reasoning.root_cause.dimension] || result.reasoning.root_cause.dimension} color={DIMENSION_COLORS[result.reasoning.root_cause.dimension]} />
+            </Descriptions.Item>
+            {result.reasoning.root_cause.upstream_stage_at_fault && (
+              <Descriptions.Item label="Stage at Fault">
+                <StatusBadge label={STAGE_LABELS[result.reasoning.root_cause.upstream_stage_at_fault] || result.reasoning.root_cause.upstream_stage_at_fault} color={STAGE_COLORS[result.reasoning.root_cause.upstream_stage_at_fault]} />
+              </Descriptions.Item>
+            )}
+          </Descriptions>
+          {result.reasoning.root_cause.causal_chain && <p style={{ marginTop: 8, fontSize: 14 }}><strong>Causal Chain:</strong> {result.reasoning.root_cause.causal_chain}</p>}
+        </Card>
+        <Card size="small" title="Improvement Potential">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Estimate">
+              <StatusBadge label={result.reasoning.improvement_potential.estimate} color={IMPROVEMENT_COLORS[result.reasoning.improvement_potential.estimate]} />
+            </Descriptions.Item>
+            <Descriptions.Item label="Effort">{result.reasoning.improvement_potential.estimated_effort || 'N/A'}</Descriptions.Item>
+          </Descriptions>
+          {result.reasoning.improvement_potential.key_levers?.length > 0 && (
+            <div style={{ marginTop: 8 }}><strong>Key Levers:</strong><ul style={{ paddingLeft: 20 }}>{result.reasoning.improvement_potential.key_levers.map((l, i) => <li key={i}>{l}</li>)}</ul></div>
           )}
-        </div>
-
-        {/* Performance */}
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Performance Assessment</h4>
-          <p style={s.summaryText}>{reasoning.performance_assessment || 'N/A'}</p>
-        </div>
-
-        {/* Gap Analysis */}
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Gap Analysis</h4>
-          <div style={s.grid}>
-            <div style={s.field}>
-              <strong>Primary Gap: </strong>
-              <span>{reasoning.gap_analysis.primary_gap || 'N/A'}</span>
-            </div>
-            <div style={s.field}>
-              <strong>Magnitude: </strong>
-              <Badge
-                label={reasoning.gap_analysis.gap_magnitude}
-                color={GAP_MAGNITUDE_COLORS[reasoning.gap_analysis.gap_magnitude] || '#9e9e9e'}
-              />
-            </div>
-          </div>
-          {reasoning.gap_analysis.contributing_factors?.length > 0 && (
-            <div style={s.field}>
-              <strong>Contributing Factors:</strong>
-              <ul style={s.list}>
-                {reasoning.gap_analysis.contributing_factors.map((f, i) => <li key={i}>{f}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {/* Root Cause */}
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Root Cause Analysis</h4>
-          <div style={s.grid}>
-            <div style={s.field}>
-              <strong>Primary Cause: </strong>
-              <span>{reasoning.root_cause.primary_root_cause || 'N/A'}</span>
-            </div>
-            <div style={s.field}>
-              <strong>Dimension: </strong>
-              <Badge
-                label={DIMENSION_LABELS[reasoning.root_cause.dimension] || reasoning.root_cause.dimension}
-                color={DIMENSION_COLORS[reasoning.root_cause.dimension] || '#9e9e9e'}
-              />
-            </div>
-            <div style={s.field}>
-              <strong>Stage at Fault: </strong>
-              {reasoning.root_cause.upstream_stage_at_fault ? (
-                <Badge
-                  label={STAGE_LABELS[reasoning.root_cause.upstream_stage_at_fault] || reasoning.root_cause.upstream_stage_at_fault}
-                  color={STAGE_COLORS[reasoning.root_cause.upstream_stage_at_fault] || '#9e9e9e'}
-                />
-              ) : <span>N/A</span>}
-            </div>
-          </div>
-          {reasoning.root_cause.causal_chain && (
-            <p style={s.summaryText}><strong>Causal Chain:</strong> {reasoning.root_cause.causal_chain}</p>
-          )}
-        </div>
-
-        {/* Improvement Potential */}
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Improvement Potential</h4>
-          <div style={s.grid}>
-            <div style={s.field}>
-              <strong>Estimate: </strong>
-              <Badge
-                label={reasoning.improvement_potential.estimate}
-                color={IMPROVEMENT_COLORS[reasoning.improvement_potential.estimate] || '#9e9e9e'}
-              />
-            </div>
-            <div style={s.field}>
-              <strong>Effort: </strong>
-              <span>{reasoning.improvement_potential.estimated_effort || 'N/A'}</span>
-            </div>
-          </div>
-          {reasoning.improvement_potential.key_levers?.length > 0 && (
-            <div style={s.field}>
-              <strong>Key Levers:</strong>
-              <ul style={s.list}>
-                {reasoning.improvement_potential.key_levers.map((l, i) => <li key={i}>{l}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {/* Final Summary */}
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Final Reasoning Summary</h4>
-          <p style={s.summaryText}>{reasoning.final_reasoning_summary || 'N/A'}</p>
-        </div>
-      </div>
-    );
-  };
-
-  const renderEvidence = (bundle: EvidenceBundle | null | undefined) => {
-    if (!bundle) return <p>No evidence available.</p>;
-    const sections = [
-      { key: 'ml_performance', label: 'ML Performance Evidence', items: bundle.ml_performance },
-      { key: 'materials', label: 'Materials Science Evidence', items: bundle.materials },
-      { key: 'workflow_quality', label: 'Workflow Quality Evidence', items: bundle.workflow_quality },
-      { key: 'history_trends', label: 'History Trend Evidence', items: bundle.history_trends },
-    ];
-    return (
-      <div>
-        {sections.map(section => (
-          <div key={section.key} style={s.card}>
-            <h4 style={s.cardTitle}>{section.label} ({section.items?.length || 0})</h4>
-            {section.items && section.items.length > 0 ? (
-              <table style={s.table}>
-                <thead>
-                  <tr>
-                    <th style={s.th}>Type</th>
-                    <th style={s.th}>Source Module</th>
-                    <th style={s.th}>Source Field</th>
-                    <th style={s.th}>Value</th>
-                    <th style={s.th}>Interpretation</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {section.items.map((e, i) => (
-                    <tr key={i}>
-                      <td style={s.td}><Badge label={e.evidence_type} /></td>
-                      <td style={s.td}>{e.source_module}</td>
-                      <td style={s.td}>{e.source_field}</td>
-                      <td style={s.td}>{typeof e.value === 'object' ? JSON.stringify(e.value) : String(e.value ?? '-')}</td>
-                      <td style={s.td}>{e.interpretation}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : <p style={{ color: '#999', fontSize: '13px' }}>No evidence items.</p>}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const renderIterationPlan = (plan: IterationPlan | null | undefined) => {
-    if (!plan) return <p>No iteration plan available.</p>;
-    return (
-      <div style={s.card}>
-        <h4 style={s.cardTitle}>Iteration Plan</h4>
-        <div style={s.grid}>
-          <div style={s.field}>
-            <strong>Rerun From: </strong>
-            <Badge
-              label={STAGE_LABELS[plan.rerun_from_stage] || plan.rerun_from_stage}
-              color={STAGE_COLORS[plan.rerun_from_stage] || '#9e9e9e'}
-            />
-          </div>
-          <div style={s.field}>
-            <strong>Remaining Iterations: </strong>
-            <span>{plan.estimated_remaining_iterations}</span>
-          </div>
-        </div>
-        {plan.expected_improvement && (
-          <div style={s.field}>
-            <strong>Expected Improvement: </strong>
-            <span>{plan.expected_improvement}</span>
-          </div>
+        </Card>
+        <Card size="small" title="Final Reasoning Summary">
+          <p style={{ fontSize: 14, lineHeight: 1.5 }}>{result.reasoning.final_reasoning_summary || 'N/A'}</p>
+        </Card>
+      </Space>
+    ) : <EmptyState description="No decision reasoning available." /> },
+    { key: 'evidence', label: 'Evidence', children: result?.evidence_bundle ? (
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        {(['ml_performance', 'materials', 'workflow_quality', 'history_trends'] as const).map(section => {
+          const items = result.evidence_bundle![section];
+          const labels: Record<string, string> = { ml_performance: 'ML Performance', materials: 'Materials Science', workflow_quality: 'Workflow Quality', history_trends: 'History Trend' };
+          return items && items.length > 0 ? (
+            <Card key={section} size="small" title={`${labels[section]} Evidence (${items.length})`}>
+              <Table dataSource={items.map((e, i) => ({ ...e, key: i }))} columns={evidenceColumns} size="small" pagination={false} />
+            </Card>
+          ) : null;
+        })}
+      </Space>
+    ) : <EmptyState description="No evidence available." /> },
+    { key: 'iteration_plan', label: 'Iteration Plan', children: result?.iteration_plan ? (
+      <Card size="small" title="Iteration Plan">
+        <Descriptions column={2} size="small">
+          <Descriptions.Item label="Rerun From">
+            <StatusBadge label={STAGE_LABELS[result.iteration_plan.rerun_from_stage] || result.iteration_plan.rerun_from_stage} color={STAGE_COLORS[result.iteration_plan.rerun_from_stage]} />
+          </Descriptions.Item>
+          <Descriptions.Item label="Remaining Iterations">{result.iteration_plan.estimated_remaining_iterations}</Descriptions.Item>
+        </Descriptions>
+        {result.iteration_plan.stage_changes?.length > 0 && (
+          <Table
+            dataSource={result.iteration_plan.stage_changes.map((sc, i) => ({ ...sc, key: i }))}
+            columns={stageChangeColumns} size="small" pagination={false} style={{ marginTop: 8 }}
+          />
         )}
-        {plan.stop_condition && (
-          <div style={s.field}>
-            <strong>Stop Condition: </strong>
-            <span>{plan.stop_condition}</span>
-          </div>
+      </Card>
+    ) : <EmptyState description="No iteration plan available." /> },
+    { key: 'revised_plan', label: 'Revised Plan', children: result?.revised_workflow_plan ? (
+      <Card size="small" title="Revised Workflow Plan">
+        <Descriptions column={2} size="small">
+          <Descriptions.Item label="Status">{result.revised_workflow_plan.status}</Descriptions.Item>
+          <Descriptions.Item label="Planning Mode">{result.revised_workflow_plan.planning_mode}</Descriptions.Item>
+        </Descriptions>
+        {result.revised_workflow_plan.llm_reasoning_summary && (
+          <Card size="small" style={{ marginTop: 8 }}><strong>AI Reasoning:</strong><p style={{ marginTop: 4, fontSize: 14 }}>{result.revised_workflow_plan.llm_reasoning_summary}</p></Card>
         )}
-        {plan.preserved_stages?.length > 0 && (
-          <div style={s.subCard}>
-            <strong>Preserved Stages: </strong>
-            {plan.preserved_stages.map(st => (
-              <Badge key={st} label={STAGE_LABELS[st] || st} color="#4caf50" />
-            ))}
-          </div>
-        )}
-        {plan.stage_changes?.length > 0 && (
-          <div style={{ marginTop: '12px' }}>
-            <strong>Stage Changes ({plan.stage_changes.length}):</strong>
-            <table style={{ ...s.table, marginTop: '8px' }}>
-              <colgroup>
-                <col style={{ width: '140px' }} />
-                <col style={{ width: '80px' }} />
-                <col style={{ width: '200px' }} />
-                <col style={{ width: '200px' }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th style={s.th}>Stage</th>
-                  <th style={s.th}>Action</th>
-                  <th style={s.th}>Description</th>
-                  <th style={s.th}>Rationale</th>
-                </tr>
-              </thead>
-              <tbody>
-                {plan.stage_changes.map((sc, i) => (
-                  <tr key={i}>
-                    <td style={s.td}>
-                      <Badge
-                        label={STAGE_LABELS[sc.stage] || sc.stage}
-                        color={STAGE_COLORS[sc.stage] || '#9e9e9e'}
-                      />
-                    </td>
-                    <td style={s.td}>
-                      <Badge
-                        label={ACTION_LABELS[sc.action] || sc.action}
-                        color={ACTION_COLORS[sc.action] || '#9e9e9e'}
-                      />
-                    </td>
-                    <td style={s.td}>{sc.description}</td>
-                    <td style={s.td}>{sc.rationale}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderRevisedPlan = (rwp: RevisedWorkflowPlan | null | undefined) => {
-    if (!rwp) return <p>No revised workflow plan.</p>;
-    const strategies = [
-      { key: 'task_summary', label: 'Task Summary' },
-      { key: 'data_strategy', label: 'Data Strategy' },
-      { key: 'feature_strategy', label: 'Feature Strategy' },
-      { key: 'model_strategy', label: 'Model Strategy' },
-      { key: 'validation_strategy', label: 'Validation Strategy' },
-      { key: 'evaluation_strategy', label: 'Evaluation Strategy' },
-      { key: 'hpo_strategy', label: 'HPO Strategy' },
-    ];
-    return (
-      <div style={s.card}>
-        <h4 style={s.cardTitle}>Revised Workflow Plan</h4>
-        <div style={s.grid}>
-          <div style={s.field}><strong>Status: </strong><span>{rwp.status}</span></div>
-          <div style={s.field}><strong>Planning Mode: </strong><span>{rwp.planning_mode}</span></div>
-        </div>
-        {rwp.llm_reasoning_summary && (
-          <div style={s.subCard}>
-            <strong>AI Reasoning:</strong>
-            <p style={s.summaryText}>{rwp.llm_reasoning_summary}</p>
-          </div>
-        )}
-        <div style={s.subCard}>
-          <strong>Changed Sections: </strong>
-          <span style={{ color: '#e65100' }}>{(rwp.changed_sections || []).join(', ') || 'None'}</span>
-        </div>
-        <div style={s.subCard}>
-          <strong>Preserved Sections: </strong>
-          <span style={{ color: '#2e7d32' }}>{(rwp.preserved_sections || []).join(', ') || 'None'}</span>
-        </div>
-        {rwp.planning_warnings?.length > 0 && (
-          <div style={s.warningBox}>
-            <strong>Planning Warnings:</strong>
-            <ul style={s.list}>
-              {rwp.planning_warnings.map((w, i) => <li key={i}>{w}</li>)}
-            </ul>
-          </div>
-        )}
-        <div style={s.grid}>
-          {strategies.map(({ key, label }) => (
-            <div key={key} style={s.field}>
-              <strong>{label}: </strong>
-              <span>{(rwp as any)[key] ? 'Present' : 'Not set'}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderRerunPlan = (irp: IterationRerunPlan | null | undefined) => {
-    if (!irp) return <p>No iteration rerun plan.</p>;
-    return (
-      <div style={s.card}>
-        <h4 style={s.cardTitle}>Iteration Rerun Plan</h4>
-        <div style={s.grid}>
-          <div style={s.field}><strong>Next Iteration: </strong><span>#{irp.next_iteration_index}</span></div>
-          <div style={s.field}>
-            <strong>Entry Point: </strong>
-            {irp.rerun_from_stage ? (
-              <Badge
-                label={STAGE_LABELS[irp.rerun_from_stage] || irp.rerun_from_stage}
-                color={STAGE_COLORS[irp.rerun_from_stage] || '#9e9e9e'}
-              />
-            ) : <span>N/A</span>}
-          </div>
-          <div style={s.field}>
-            <strong>Stop If No Gain: </strong>
-            <span style={{ color: irp.stop_after_next_iteration_if_no_gain ? '#c62828' : '#2e7d32', fontWeight: 600 }}>
-              {irp.stop_after_next_iteration_if_no_gain ? 'Yes' : 'No'}
+      </Card>
+    ) : <EmptyState description="No revised workflow plan." /> },
+    { key: 'rerun_plan', label: 'Rerun Plan', children: result?.iteration_rerun_plan ? (
+      <Card size="small" title="Iteration Rerun Plan">
+        <Descriptions column={2} size="small">
+          <Descriptions.Item label="Next Iteration">#{result.iteration_rerun_plan.next_iteration_index}</Descriptions.Item>
+          <Descriptions.Item label="Entry Point">
+            {result.iteration_rerun_plan.rerun_from_stage ? <StatusBadge label={STAGE_LABELS[result.iteration_rerun_plan.rerun_from_stage] || result.iteration_rerun_plan.rerun_from_stage} color={STAGE_COLORS[result.iteration_rerun_plan.rerun_from_stage]} /> : 'N/A'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Stop If No Gain">
+            <span style={{ color: result.iteration_rerun_plan.stop_after_next_iteration_if_no_gain ? '#c62828' : '#2e7d32', fontWeight: 600 }}>
+              {result.iteration_rerun_plan.stop_after_next_iteration_if_no_gain ? 'Yes' : 'No'}
             </span>
-          </div>
-          <div style={s.field}>
-            <strong>Min Improvement Threshold: </strong>
-            <span>{irp.minimum_improvement_threshold ?? 'N/A'}</span>
-          </div>
+          </Descriptions.Item>
+        </Descriptions>
+        <div style={{ marginTop: 8 }}>
+          <strong>Rerun Stages: </strong>
+          <Space wrap size={[4, 4]}>
+            {(result.iteration_rerun_plan.rerun_stages || []).map(s => <StatusBadge key={s} label={STAGE_LABELS[s] || s} color={STAGE_COLORS[s]} />)}
+          </Space>
         </div>
-        <div style={s.subCard}>
-          <strong>Rerun Stages:</strong>
-          <div style={s.field}>
-            {(irp.rerun_stages || []).map(s => (
-              <Badge key={s} label={STAGE_LABELS[s] || s} color={STAGE_COLORS[s] || '#9e9e9e'} />
-            ))}
-          </div>
-        </div>
-        <div style={s.subCard}>
-          <strong>Reuse Artifacts:</strong> {(irp.reuse_artifacts || []).join(', ') || 'None'}
-        </div>
-        <div style={s.subCard}>
-          <strong>Invalidate Artifacts:</strong> {(irp.invalidate_artifacts || []).join(', ') || 'None'}
-        </div>
-        {irp.expected_improvement_targets?.length > 0 && (
-          <div style={s.subCard}>
-            <strong>Expected Improvements:</strong>
-            <ul style={s.list}>
-              {irp.expected_improvement_targets.map((t, i) => <li key={i}>{t}</li>)}
-            </ul>
-          </div>
+      </Card>
+    ) : <EmptyState description="No rerun plan." /> },
+    { key: 'stop', label: 'Stop Rationale', children: result?.stop_rationale ? (
+      <Card size="small" title="Stop Rationale">
+        <Descriptions column={1} size="small">
+          <Descriptions.Item label="Category">{STOP_CATEGORY_LABELS[result.stop_rationale.category] || result.stop_rationale.category}</Descriptions.Item>
+        </Descriptions>
+        <p style={{ marginTop: 8, fontSize: 14 }}><strong>Primary Reason:</strong> {result.stop_rationale.primary_reason}</p>
+        {result.stop_rationale.supporting_reasons?.length > 0 && (
+          <div style={{ marginTop: 8 }}><strong>Supporting Reasons:</strong><ul style={{ paddingLeft: 20 }}>{result.stop_rationale.supporting_reasons.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
         )}
-        {irp.reasoning && (
-          <div style={s.subCard}>
-            <strong>Reasoning:</strong>
-            <p style={s.summaryText}>{irp.reasoning}</p>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderStopRationale = (sr: StopRationale | null | undefined) => {
-    if (!sr) return <p>No stop rationale.</p>;
-    return (
-      <div style={s.card}>
-        <h4 style={s.cardTitle}>Stop Rationale</h4>
-        <div style={s.grid}>
-          <div style={s.field}>
-            <strong>Category: </strong>
-            <span>{STOP_CATEGORY_LABELS[sr.category] || sr.category}</span>
-          </div>
-        </div>
-        <div style={s.field}>
-          <strong>Primary Reason: </strong>
-          <p style={s.summaryText}>{sr.primary_reason}</p>
-        </div>
-        {sr.supporting_reasons?.length > 0 && (
-          <div style={s.subCard}>
-            <strong>Supporting Reasons:</strong>
-            <ul style={s.list}>
-              {sr.supporting_reasons.map((r, i) => <li key={i}>{r}</li>)}
-            </ul>
-          </div>
-        )}
-        {sr.best_result_summary && (
-          <div style={s.subCard}>
-            <strong>Best Result:</strong>
-            <p style={s.summaryText}>{sr.best_result_summary}</p>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderSystemChecks = (checks: SystemChecks | null | undefined) => {
-    if (!checks) return null;
-    const checkGroups = [
-      {
-        label: 'ML Checks',
-        items: [
-          { key: 'weak_baseline_improvement', label: 'Weak Baseline Improvement' },
-          { key: 'high_fold_variance', label: 'High Fold Variance' },
-          { key: 'all_models_weak', label: 'All Models Weak' },
-          { key: 'hpo_budget_limited', label: 'HPO Budget Limited' },
-          { key: 'candidate_underperforms_baseline', label: 'Underperforms Baseline' },
-          { key: 'unstable_best_model', label: 'Unstable Best Model' },
-        ],
-      },
-      {
-        label: 'Data Checks',
-        items: [
-          { key: 'small_sample_warning', label: 'Small Sample' },
-          { key: 'feature_count_low', label: 'Feature Count Low' },
-          { key: 'many_features_dropped', label: 'Many Features Dropped' },
-        ],
-      },
-      {
-        label: 'Materials Checks',
-        items: [
-          { key: 'physics_constraint_violated', label: 'Physics Constraint Violated' },
-          { key: 'feature_materials_relevance_low', label: 'Feature Relevance Low' },
-          { key: 'chemical_space_coverage_low', label: 'Chemical Coverage Low' },
-        ],
-      },
-      {
-        label: 'Guard Checks',
-        items: [
-          { key: 'max_iterations_reached', label: 'Max Iterations Reached' },
-          { key: 'no_improvement_trend', label: 'No Improvement Trend' },
-          { key: 'repeated_root_cause', label: 'Repeated Root Cause' },
-        ],
-      },
-    ];
-    return (
-      <div style={s.card}>
-        <h4 style={s.cardTitle}>System Checks</h4>
-        {checkGroups.map(group => (
-          <div key={group.label} style={s.subCard}>
-            <strong>{group.label}</strong>
-            <div style={s.grid}>
-              {group.items.map(({ key, label }) => (
-                <div key={key} style={s.field}>
-                  <span>{label}: </span>
-                  <span style={{
-                    color: (checks as any)[key] ? '#c62828' : '#4caf50',
-                    fontWeight: 600,
-                  }}>
-                    {(checks as any)[key] ? 'TRIGGERED' : 'OK'}
+      </Card>
+    ) : <EmptyState description="No stop rationale." /> },
+    { key: 'system', label: 'System Checks', children: result?.system_checks ? (
+      <Card size="small" title="System Checks">
+        {[
+          { label: 'ML Checks', items: ['weak_baseline_improvement', 'high_fold_variance', 'all_models_weak', 'hpo_budget_limited', 'candidate_underperforms_baseline', 'unstable_best_model'] },
+          { label: 'Data Checks', items: ['small_sample_warning', 'feature_count_low', 'many_features_dropped'] },
+          { label: 'Materials Checks', items: ['physics_constraint_violated', 'feature_materials_relevance_low', 'chemical_space_coverage_low'] },
+          { label: 'Guard Checks', items: ['max_iterations_reached', 'no_improvement_trend', 'repeated_root_cause'] },
+        ].map(group => (
+          <Card key={group.label} size="small" style={{ marginBottom: 8 }} title={group.label}>
+            <Descriptions column={2} size="small">
+              {group.items.filter(key => (result.system_checks as any)[key] !== undefined).map(key => (
+                <Descriptions.Item key={key} label={key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}>
+                  <span style={{ color: (result.system_checks as any)[key] ? '#c62828' : '#4caf50', fontWeight: 600 }}>
+                    {(result.system_checks as any)[key] ? 'TRIGGERED' : 'OK'}
                   </span>
-                </div>
+                </Descriptions.Item>
               ))}
-            </div>
-          </div>
+            </Descriptions>
+          </Card>
         ))}
-        {checks.warnings?.length > 0 && (
-          <div style={s.warningBox}>
-            <strong>Warnings:</strong>
-            <ul style={s.list}>
-              {checks.warnings.map((w, i) => <li key={i}>{w}</li>)}
-            </ul>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderTab = (tabId: string, label: string) => (
-    <button
-      key={tabId}
-      onClick={() => setActiveTab(tabId)}
-      style={{
-        ...s.tabButton,
-        backgroundColor: activeTab === tabId ? '#1976d2' : '#e0e0e0',
-        color: activeTab === tabId ? '#fff' : '#333',
-      }}
-    >
-      {label}
-    </button>
-  );
-
-  const tabs = [
-    { id: 'decision', label: 'Decision' },
-    { id: 'reasoning', label: 'Reasoning' },
-    { id: 'evidence', label: 'Evidence' },
-    { id: 'iteration_plan', label: 'Iteration Plan' },
-    { id: 'revised_plan', label: 'Revised Plan' },
-    { id: 'rerun_plan', label: 'Rerun Plan' },
-    { id: 'stop', label: 'Stop Rationale' },
-    { id: 'system', label: 'System Checks' },
-    { id: 'json', label: 'Full JSON' },
+        {result.system_checks.warnings?.length > 0 && <WarningBox warnings={result.system_checks.warnings} />}
+      </Card>
+    ) : null },
+    { key: 'json', label: 'Full JSON', children: result ? <JsonViewer data={result} /> : <EmptyState description="Run decision to see JSON output." /> },
   ];
 
   return (
-    <div style={s.container}>
-      <h3 style={s.title}>Iteration Decision</h3>
-      <p style={s.description}>
-        Unified AI-based decision maker. Reviews materials task completion, model training results,
-        and all upstream context holistically to make a single decision: ITERATE (with detailed
-        reasoning and optimization plan) or STOP (with rationale and final pipeline selection input).
-      </p>
-
-      <div style={s.buttonRow}>
-        <button onClick={handleRun} disabled={loading} style={s.runButton}>
+    <PanelContainer
+      title="Iteration Decision"
+      description="Unified AI-based decision maker. Reviews materials task completion, model training results, and all upstream context to decide: ITERATE or STOP."
+      accentColor={pipelineAccent.iterationDecision}
+    >
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" onClick={handleRun} loading={loading}>
           {loading ? 'Deciding...' : 'Run Iteration Decision'}
-        </button>
-        <button onClick={handleRerun} disabled={loading} style={s.rerunButton}>
-          {loading ? 'Running...' : 'Re-run Decision'}
-        </button>
-      </div>
+        </Button>
+        <Button onClick={handleRerun} loading={loading}>
+          Re-run Decision
+        </Button>
+      </Space>
+      <Spin spinning={loading}>
+        {error && <ErrorBox message={error} />}
 
-      {error && (
-        <div style={s.errorBox}>
-          <strong>Error:</strong> {error}
-        </div>
-      )}
+        {result && (
+          <>
+            <Card size="small" style={{ marginBottom: 16 }}>
+              <Descriptions column={2} size="small">
+                <Descriptions.Item label="Decision ID">{result.iteration_decision_id}</Descriptions.Item>
+                <Descriptions.Item label="Status">
+                  <StatusBadge label={STATUS_LABELS[result.status] || result.status} color={STATUS_COLORS[result.status]} />
+                </Descriptions.Item>
+                <Descriptions.Item label="Decision">
+                  <StatusBadge label={DECISION_LABELS[result.decision || ''] || result.decision || 'N/A'} color={DECISION_COLORS[result.decision || '']} />
+                </Descriptions.Item>
+                <Descriptions.Item label="Iteration">#{result.iteration_index}</Descriptions.Item>
+              </Descriptions>
+            </Card>
 
-      {result && (
-        <div style={s.resultBox}>
-          <h4 style={s.resultTitle}>Iteration Decision Result</h4>
+            {result.warnings && result.warnings.length > 0 && <WarningBox warnings={result.warnings} />}
+            {result.error_message && <ErrorBox message={result.error_message} />}
 
-          {/* Summary */}
-          <div style={s.fieldRow}>
-            <div style={s.field}><strong>Decision ID:</strong> {result.iteration_decision_id}</div>
-            <div style={s.field}>
-              <strong>Status: </strong>
-              <Badge label={STATUS_LABELS[result.status] || result.status} color={STATUS_COLORS[result.status] || '#9e9e9e'} />
-            </div>
-            <div style={s.field}>
-              <strong>Decision: </strong>
-              <Badge
-                label={DECISION_LABELS[result.decision || ''] || result.decision || 'N/A'}
-                color={DECISION_COLORS[result.decision || ''] || '#9e9e9e'}
+            {result.decision === 'iterate' && result.ready_for_iteration && (
+              <Alert
+                type="warning"
+                message="Iterate: Adopt Revised Plan & Rerun Pipeline"
+                description={
+                  <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                    <span>The system recommends iteration. Adopting the revised plan creates a new WorkflowPlan and re-executes pipeline stages.</span>
+                    {result.iteration_rerun_plan && (
+                      <div>
+                        <strong>Rerun Stages: </strong>
+                        <Space wrap size={[4, 4]}>
+                          {(result.iteration_rerun_plan.rerun_stages || []).map(s => (
+                            <StatusBadge key={s} label={STAGE_LABELS[s] || s} color={STAGE_COLORS[s]} />
+                          ))}
+                        </Space>
+                      </div>
+                    )}
+                    <Popconfirm
+                      title="This will create a new WorkflowPlan and re-execute pipeline stages. Continue?"
+                      onConfirm={handleAdoptAndRerun}
+                      okText="Yes, Adopt & Rerun"
+                      cancelText="Cancel"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Button
+                        type="primary"
+                        danger
+                        icon={<PlayCircleOutlined />}
+                        loading={adopting}
+                        size="large"
+                      >
+                        {adopting ? 'Adopting...' : 'Adopt & Rerun'}
+                      </Button>
+                    </Popconfirm>
+                    {adoptResult && (
+                      <Alert type="success" message={`Plan Adopted: ${adoptResult.adopted_workflow_plan_id}`} />
+                    )}
+                    {rerunProgress.length > 0 && (
+                      <Card size="small" title="Rerun Progress">
+                        <ul style={{ paddingLeft: 20, margin: 0 }}>
+                          {rerunProgress.map((msg, i) => (
+                            <li key={i} style={{
+                              color: msg.includes('FAILED') ? '#c62828' : msg.includes('completed') ? '#2e7d32' : '#333',
+                              fontSize: 13, marginBottom: 2,
+                            }}>{msg}</li>
+                          ))}
+                        </ul>
+                      </Card>
+                    )}
+                    {rerunError && <ErrorBox message={rerunError} />}
+                    {!adopting && rerunProgress.some(m => m.includes('All stages completed')) && !rerunError && (
+                      <Alert type="success" message="Pipeline re-execution complete. Run Iteration Decision again to evaluate the new results." />
+                    )}
+                  </Space>
+                }
+                showIcon
+                icon={<ExclamationCircleOutlined />}
+                style={{ marginBottom: 16 }}
               />
-            </div>
-            <div style={s.field}><strong>Iteration:</strong> #{result.iteration_index}</div>
-          </div>
-
-          {result.warnings && result.warnings.length > 0 && (
-            <div style={s.warningBox}>
-              <strong>Warnings:</strong>
-              <ul style={s.list}>
-                {result.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {result.error_message && (
-            <div style={s.errorBox}>
-              <strong>Error:</strong> {result.error_message}
-            </div>
-          )}
-
-          {/* Adopt & Rerun section for ITERATE path */}
-          {result.decision === 'iterate' && result.ready_for_iteration && (
-            <div style={s.adoptSection}>
-              <h4 style={s.cardTitle}>Iterate: Adopt Revised Plan & Rerun Pipeline</h4>
-              <p style={s.description}>
-                The system recommends iteration. Adopting the revised plan creates a new WorkflowPlan
-                and re-executes the pipeline stages listed below.
-              </p>
-
-              {result.iteration_rerun_plan && (
-                <div style={s.subCard}>
-                  <div style={s.grid}>
-                    <div style={s.field}>
-                      <strong>Entry Point: </strong>
-                      <Badge
-                        label={STAGE_LABELS[result.iteration_rerun_plan.rerun_from_stage || ''] || result.iteration_rerun_plan.rerun_from_stage || 'N/A'}
-                        color={STAGE_COLORS[result.iteration_rerun_plan.rerun_from_stage || ''] || '#9e9e9e'}
-                      />
-                    </div>
-                    <div style={s.field}>
-                      <strong>Stop if no gain: </strong>
-                      <span style={{ color: result.iteration_rerun_plan.stop_after_next_iteration_if_no_gain ? '#c62828' : '#2e7d32', fontWeight: 600 }}>
-                        {result.iteration_rerun_plan.stop_after_next_iteration_if_no_gain ? 'Yes' : 'No'}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={s.field}>
-                    <strong>Rerun Stages: </strong>
-                    {(result.iteration_rerun_plan.rerun_stages || []).map(s => (
-                      <Badge key={s} label={STAGE_LABELS[s] || s} color={STAGE_COLORS[s] || '#9e9e9e'} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {!showAdoptConfirm ? (
-                <button onClick={() => setShowAdoptConfirm(true)} disabled={adopting} style={s.adoptButton}>
-                  {adopting ? 'Adopting...' : 'Adopt & Rerun'}
-                </button>
-              ) : (
-                <div style={s.confirmBox}>
-                  <p style={{ margin: '0 0 12px 0', fontWeight: 600, color: '#c62828' }}>
-                    This will create a new WorkflowPlan and re-execute pipeline stages. Continue?
-                  </p>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={handleAdoptAndRerun} disabled={adopting} style={s.adoptConfirmButton}>
-                      {adopting ? 'Running...' : 'Yes, Adopt & Rerun'}
-                    </button>
-                    <button onClick={() => setShowAdoptConfirm(false)} disabled={adopting} style={s.cancelButton}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {adoptResult && (
-                <div style={{ ...s.subCard, marginTop: '12px', borderLeft: '4px solid #2e7d32' }}>
-                  <strong>Plan Adopted: </strong>
-                  <code>{adoptResult.adopted_workflow_plan_id}</code>
-                </div>
-              )}
-
-              {rerunProgress.length > 0 && (
-                <div style={{ ...s.subCard, marginTop: '12px' }}>
-                  <strong>Rerun Progress:</strong>
-                  <ul style={{ ...s.list, marginTop: '8px' }}>
-                    {rerunProgress.map((msg, i) => (
-                      <li key={i} style={{
-                        color: msg.includes('FAILED') ? '#c62828' : msg.includes('completed') ? '#2e7d32' : '#333',
-                        fontSize: '13px', marginBottom: '2px',
-                      }}>
-                        {msg}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {rerunError && (
-                <div style={s.errorBox}>
-                  <strong>Rerun Error:</strong> {rerunError}
-                </div>
-              )}
-
-              {!adopting && rerunProgress.some(m => m.includes('All stages completed')) && !rerunError && (
-                <div style={s.guidanceBox}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '15px' }}>Next Steps</h4>
-                  <p style={{ margin: '4px 0', fontSize: '14px', lineHeight: 1.8 }}>
-                    Pipeline re-execution complete. Run <strong>Iteration Decision</strong> again to
-                    evaluate the new results and decide whether to iterate further or stop.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab navigation */}
-          <div style={s.tabBar}>
-            {tabs.map(t => renderTab(t.id, t.label))}
-          </div>
-
-          {/* Tab content */}
-          <div style={s.tabContent}>
-            {activeTab === 'decision' && renderDecision()}
-            {activeTab === 'reasoning' && renderReasoning(result.reasoning)}
-            {activeTab === 'evidence' && renderEvidence(result.evidence_bundle)}
-            {activeTab === 'iteration_plan' && renderIterationPlan(result.iteration_plan)}
-            {activeTab === 'revised_plan' && renderRevisedPlan(result.revised_workflow_plan)}
-            {activeTab === 'rerun_plan' && renderRerunPlan(result.iteration_rerun_plan)}
-            {activeTab === 'stop' && renderStopRationale(result.stop_rationale)}
-            {activeTab === 'system' && renderSystemChecks(result.system_checks)}
-            {activeTab === 'json' && (
-              <div style={s.card}>
-                <h4 style={s.cardTitle}>Full JSON</h4>
-                <pre style={s.json}>{JSON.stringify(result, null, 2)}</pre>
-              </div>
             )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
-const s: Record<string, React.CSSProperties> = {
-  container: {
-    marginTop: '24px',
-    padding: '16px',
-    border: '1px solid #e0e0e0',
-    borderRadius: '8px',
-    backgroundColor: '#fafafa',
-  },
-  title: { margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600 },
-  description: { margin: '0 0 16px 0', color: '#666', fontSize: '13px', lineHeight: 1.5 },
-  buttonRow: { display: 'flex', gap: '8px', marginBottom: '16px' },
-  runButton: {
-    padding: '10px 20px', backgroundColor: '#7b1fa2', color: '#fff',
-    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-  },
-  rerunButton: {
-    padding: '10px 20px', backgroundColor: '#f57c00', color: '#fff',
-    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-  },
-  errorBox: {
-    padding: '12px', backgroundColor: '#ffebee', border: '1px solid #f44336',
-    borderRadius: '4px', color: '#c62828', marginBottom: '16px',
-  },
-  resultBox: {
-    padding: '16px', backgroundColor: '#fff', border: '1px solid #e0e0e0',
-    borderRadius: '8px',
-  },
-  resultTitle: { margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600 },
-  fieldRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' },
-  field: { fontSize: '14px' },
-  badge: {
-    display: 'inline-block', padding: '2px 8px', borderRadius: '12px',
-    color: '#fff', fontSize: '12px', fontWeight: 600, margin: '0 4px',
-  },
-  warningBox: {
-    padding: '12px', backgroundColor: '#fff3e0', border: '1px solid #ff9800',
-    borderRadius: '4px', color: '#e65100', marginBottom: '16px',
-  },
-  list: { margin: '4px 0', paddingLeft: '20px' },
-  tabBar: { display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '16px' },
-  tabButton: {
-    padding: '6px 14px', border: 'none', borderRadius: '16px',
-    fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-  },
-  tabContent: { minHeight: '200px', maxHeight: '60vh', overflowY: 'auto' as const },
-  card: {
-    padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px',
-    marginBottom: '12px', border: '1px solid #e0e0e0',
-    overflowX: 'auto' as const,
-  },
-  subCard: {
-    padding: '10px', backgroundColor: '#fff', borderRadius: '4px',
-    marginBottom: '8px', border: '1px solid #eee',
-  },
-  cardTitle: { margin: '0 0 10px 0', fontSize: '15px', fontWeight: 600 },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' },
-  summaryText: { marginTop: '8px', color: '#333', fontSize: '14px', lineHeight: 1.5 },
-  table: {
-    width: '100%', borderCollapse: 'collapse' as const, fontSize: '13px',
-    tableLayout: 'fixed' as const, minWidth: '700px',
-  },
-  th: {
-    textAlign: 'left' as const, padding: '6px 8px', borderBottom: '2px solid #e0e0e0',
-    fontWeight: 600, backgroundColor: '#fafafa', whiteSpace: 'nowrap' as const,
-  },
-  td: {
-    padding: '6px 8px', borderBottom: '1px solid #eee',
-    verticalAlign: 'top' as const, wordBreak: 'break-word' as const,
-  },
-  json: {
-    backgroundColor: '#263238', color: '#aed581', padding: '12px',
-    borderRadius: '4px', fontSize: '11px',
-    overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-  },
-  adoptSection: {
-    padding: '16px', backgroundColor: '#fff8e1', border: '2px solid #ff8f00',
-    borderRadius: '8px', marginBottom: '16px',
-  },
-  adoptButton: {
-    padding: '12px 24px', backgroundColor: '#e65100', color: '#fff',
-    border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 700,
-    cursor: 'pointer', marginTop: '12px',
-  },
-  adoptConfirmButton: {
-    padding: '10px 20px', backgroundColor: '#c62828', color: '#fff',
-    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-  },
-  cancelButton: {
-    padding: '10px 20px', backgroundColor: '#9e9e9e', color: '#fff',
-    border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-  },
-  confirmBox: {
-    padding: '12px', backgroundColor: '#ffebee', borderRadius: '6px',
-    marginTop: '12px', border: '1px solid #ef9a9a',
-  },
-  guidanceBox: {
-    padding: '16px', backgroundColor: '#e8f5e9', border: '2px solid #4caf50',
-    borderRadius: '8px', marginTop: '12px',
-  },
+            <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+          </>
+        )}
+        {!result && !error && !loading && (
+          <EmptyState description="No iteration decision yet. Click &quot;Run Iteration Decision&quot; to start." />
+        )}
+      </Spin>
+    </PanelContainer>
+  );
 };
 
 export default IterationDecisionPanel;

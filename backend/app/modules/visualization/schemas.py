@@ -1,10 +1,10 @@
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CorrelationMatrixData(BaseModel):
-    feature_names: List[str] = []
-    matrix: List[List[float]] = []
+    feature_names: List[str] = Field(default_factory=list)
+    matrix: List[List[float]] = Field(default_factory=list)
 
 
 class TargetCorrelationItem(BaseModel):
@@ -33,47 +33,50 @@ class DescriptorDistributionItem(BaseModel):
 
 class FeatureAnalysisSection(BaseModel):
     correlation_matrix: Optional[CorrelationMatrixData] = None
-    target_correlations: List[TargetCorrelationItem] = []
-    feature_importance: List[FeatureImportanceItem] = []
-    descriptor_distribution: List[DescriptorDistributionItem] = []
+    target_correlations: List[TargetCorrelationItem] = Field(default_factory=list)
+    feature_importance: List[FeatureImportanceItem] = Field(default_factory=list)
+    descriptor_distribution: List[DescriptorDistributionItem] = Field(default_factory=list)
 
 
 class PredictedVsActualData(BaseModel):
-    points: List[Dict[str, float]] = []
+    points: List[Dict[str, Any]] = Field(default_factory=list)
     r_squared: float = 0.0
     rmse: float = 0.0
     mae: float = 0.0
     residual_mean: float = 0.0
     residual_std: float = 0.0
-    histogram_bins: List[Dict[str, float]] = []
+    histogram_bins: List[Dict[str, float]] = Field(default_factory=list)
+    primary_metric: str = ""
+    primary_metric_value: Optional[float] = None
+    split_metrics: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class ResidualPlotData(BaseModel):
-    points: List[Dict[str, float]] = []
+    points: List[Dict[str, Any]] = Field(default_factory=list)
     r_squared: float = 0.0
     rmse: float = 0.0
 
 
 class TrainTestComparisonData(BaseModel):
-    comparisons: List[Dict[str, Any]] = []
+    comparisons: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class CrossValidationBoxPlotData(BaseModel):
-    folds: List[Dict[str, Any]] = []
+    folds: List[Dict[str, Any]] = Field(default_factory=list)
     metric_name: str = ""
 
 
 class ConfusionMatrixData(BaseModel):
-    labels: List[str] = []
-    matrix: List[List[int]] = []
+    labels: List[str] = Field(default_factory=list)
+    matrix: List[List[int]] = Field(default_factory=list)
 
 
 class ROCCurveData(BaseModel):
-    curves: List[Dict[str, Any]] = []
+    curves: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class PRCurveData(BaseModel):
-    curves: List[Dict[str, Any]] = []
+    curves: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class ModelPerformanceSection(BaseModel):
@@ -92,5 +95,5 @@ class ModelPerformanceSection(BaseModel):
 class VisualizationDataResponse(BaseModel):
     task_id: str = ""
     task_type: str = ""
-    feature_analysis: FeatureAnalysisSection = FeatureAnalysisSection()
-    model_performance: ModelPerformanceSection = ModelPerformanceSection()
+    feature_analysis: FeatureAnalysisSection = Field(default_factory=FeatureAnalysisSection)
+    model_performance: ModelPerformanceSection = Field(default_factory=ModelPerformanceSection)

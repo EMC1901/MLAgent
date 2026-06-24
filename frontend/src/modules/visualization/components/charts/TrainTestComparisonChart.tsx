@@ -9,7 +9,7 @@ interface Props {
 
 const TrainTestComparisonChart: React.FC<Props> = ({ data }) => {
   if (!data || !data.comparisons || data.comparisons.length === 0) {
-    return <p style={{ color: '#999' }}>No train/test comparison data available.</p>;
+    return <p style={{ color: '#999' }}>No validation metric data available.</p>;
   }
 
   const chartData = data.comparisons.map(c => ({
@@ -21,7 +21,7 @@ const TrainTestComparisonChart: React.FC<Props> = ({ data }) => {
   return (
     <ResponsiveContainer width="100%" height={Math.max(250, chartData.length * 50)}>
       <BarChart data={chartData} margin={{ top: 8, right: 20, left: 16, bottom: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip formatter={(value: any) => (typeof value === 'number' ? value.toFixed(4) : value)} />

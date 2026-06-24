@@ -1,11 +1,27 @@
 import React, { useState } from 'react';
+import { Button, Space, Card, Descriptions, Spin, Tabs, Table } from 'antd';
 import { createWorkflowPlan, rerunWorkflowPlan } from '../../../api/workflowPlanningApi';
 import { WorkflowPlanResponse, FeatureStrategy, DecisionRationale, SelectedFeatureAction, RejectedFeatureAction, SelectedModelAction, RejectedModelAction, ModelDecisionRationale } from '../types';
+import {
+  PanelContainer,
+  StatusBadge,
+  WarningBox,
+  ErrorBox,
+  JsonViewer,
+  EmptyState,
+} from '../../../components/shared';
+import { pipelineAccent } from '../../../theme/pipelineColors';
 
 interface WorkflowPlanPanelProps {
   taskId: string;
   initialResult?: WorkflowPlanResponse;
 }
+
+const STATUS_COLORS: Record<string, string> = {
+  planned: 'success',
+  planned_with_warning: 'warning',
+  failed: 'error',
+};
 
 const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId, initialResult }) => {
   const [loading, setLoading] = useState(false);
@@ -39,23 +55,10 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId, initialRe
     } finally { setLoading(false); }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'planned': return '#4caf50';
-      case 'planned_with_warning': return '#ff9800';
-      case 'failed': return '#f44336';
-      default: return '#9e9e9e';
-    }
-  };
-
-  const Badge: React.FC<{ label: string; color?: string; style?: React.CSSProperties }> = ({ label, color = '#1976d2', style }) => (
-    <span style={{ ...s.badge, backgroundColor: color, ...style }}>{label}</span>
-  );
-
   const renderRationale = (r: DecisionRationale | null | undefined) => {
-    if (!r) return <span style={{ color: '#999', fontSize: '11px' }}>No rationale</span>;
+    if (!r) return <span style={{ color: '#999', fontSize: 12 }}>No rationale</span>;
     return (
-      <div style={{ fontSize: '11px', color: '#777', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+      <div style={{ fontSize: 12, color: '#777', display: 'flex', flexDirection: 'column', gap: 1 }}>
         {r.reason && <div><strong>Reason:</strong> {r.reason}</div>}
         {r.material_science_basis && <div><strong>Basis:</strong> {r.material_science_basis}</div>}
         {r.expected_benefit && <div><strong>Benefit:</strong> {r.expected_benefit}</div>}
@@ -67,9 +70,9 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId, initialRe
   };
 
   const renderModelRationale = (r: ModelDecisionRationale | null | undefined) => {
-    if (!r) return <span style={{ color: '#999', fontSize: '11px' }}>No rationale</span>;
+    if (!r) return <span style={{ color: '#999', fontSize: 12 }}>No rationale</span>;
     return (
-      <div style={{ fontSize: '11px', color: '#777', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+      <div style={{ fontSize: 12, color: '#777', display: 'flex', flexDirection: 'column', gap: 1 }}>
         {r.reason && <div><strong>Reason:</strong> {r.reason}</div>}
         {r.expected_performance && <div><strong>Expected Perf:</strong> {r.expected_performance}</div>}
         {r.risk && <div><strong>Risk:</strong> {r.risk}</div>}
@@ -79,374 +82,363 @@ const WorkflowPlanPanel: React.FC<WorkflowPlanPanelProps> = ({ taskId, initialRe
   };
 
   const renderSummary = () => (
-    <div>
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       {result?.task_summary && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Task Summary</h4>
-          <div style={s.grid}>
-            <div style={s.field}><strong>Type:</strong> {result.task_summary.task_type}</div>
-            <div style={s.field}><strong>Input Modality:</strong> {result.task_summary.input_modality}</div>
-            <div style={s.field}><strong>Prediction Target:</strong> {result.task_summary.prediction_target}</div>
-            <div style={s.field}><strong>Material Domain:</strong> {result.task_summary.material_domain}</div>
-            <div style={s.field}><strong>Primary Goal:</strong> {result.task_summary.primary_goal}</div>
-          </div>
-        </div>
+        <Card size="small" title="Task Summary">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Type">{result.task_summary.task_type}</Descriptions.Item>
+            <Descriptions.Item label="Input Modality">{result.task_summary.input_modality}</Descriptions.Item>
+            <Descriptions.Item label="Prediction Target">{result.task_summary.prediction_target}</Descriptions.Item>
+            <Descriptions.Item label="Material Domain">{result.task_summary.material_domain}</Descriptions.Item>
+            <Descriptions.Item label="Primary Goal">{result.task_summary.primary_goal}</Descriptions.Item>
+          </Descriptions>
+        </Card>
       )}
       {result?.data_strategy && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Data Strategy</h4>
-          <div style={s.grid}>
-            <div style={s.field}><strong>Target Column:</strong> {result.data_strategy.target_column}</div>
-            <div style={s.field}><strong>Input Columns:</strong> {result.data_strategy.input_columns?.join(', ')}</div>
-            <div style={s.field}><strong>Duplicate Handling:</strong> {result.data_strategy.duplicate_handling}</div>
-            <div style={s.field}><strong>Missing Value Strategy:</strong> {result.data_strategy.missing_value_strategy}</div>
-          </div>
+        <Card size="small" title="Data Strategy">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Target Column">{result.data_strategy.target_column}</Descriptions.Item>
+            <Descriptions.Item label="Input Columns">{result.data_strategy.input_columns?.join(', ')}</Descriptions.Item>
+            <Descriptions.Item label="Duplicate Handling">{result.data_strategy.duplicate_handling}</Descriptions.Item>
+            <Descriptions.Item label="Missing Value Strategy">{result.data_strategy.missing_value_strategy}</Descriptions.Item>
+          </Descriptions>
           {result.data_strategy.target_handling && (
-            <div style={s.field}>
+            <p style={{ marginTop: 8 }}>
               <strong>Target Handling:</strong>{' '}
               {result.data_strategy.target_handling.requires_transformation_check
                 ? `Transform (${result.data_strategy.target_handling.recommended_transformation})`
                 : 'No transformation needed'}
-            </div>
+            </p>
           )}
-        </div>
+        </Card>
       )}
       {result?.preprocessing_intent && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Preprocessing Intent</h4>
+        <Card size="small" title="Preprocessing Intent">
           {result.preprocessing_intent.high_level_goals?.length > 0 && (
-            <div style={s.field}><strong>High-Level Goals:</strong>
-              <ul style={s.list}>{result.preprocessing_intent.high_level_goals.map((g, i) => <li key={i}>{g}</li>)}</ul>
+            <div style={{ marginBottom: 8 }}>
+              <strong>High-Level Goals:</strong>
+              <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
+                {result.preprocessing_intent.high_level_goals.map((g, i) => <li key={i}>{g}</li>)}
+              </ul>
             </div>
           )}
           {result.preprocessing_intent.risks_to_check_after_feature_engineering?.length > 0 && (
-            <div style={s.field}><strong>Risks to Check:</strong>
-              <ul style={s.list}>{result.preprocessing_intent.risks_to_check_after_feature_engineering.map((r, i) => <li key={i}>{r}</li>)}</ul>
+            <div>
+              <strong>Risks to Check:</strong>
+              <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
+                {result.preprocessing_intent.risks_to_check_after_feature_engineering.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
             </div>
           )}
-        </div>
+        </Card>
       )}
-    </div>
+    </Space>
   );
 
   const renderFeatureStrategy = () => (
-    <div>
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       {result?.feature_strategy && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Feature Strategy</h4>
-          <div style={s.grid}>
-            <div style={s.field}><strong>Feature Type:</strong> {result.feature_strategy.feature_type}</div>
-            <div style={s.field}><strong>Structure Features:</strong> {result.feature_strategy.requires_structure_features ? 'Yes' : 'No'}</div>
-            <div style={s.field}><strong>Feature Selection:</strong> {result.feature_strategy.feature_selection_required ? 'Yes' : 'No'}</div>
-            <div style={s.field}><strong>Feature Scaling:</strong> {result.feature_strategy.feature_scaling_required ? 'Yes' : 'No'}</div>
-          </div>
+        <Card size="small" title="Feature Strategy">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Feature Type">{result.feature_strategy.feature_type}</Descriptions.Item>
+            <Descriptions.Item label="Structure Features">{result.feature_strategy.requires_structure_features ? 'Yes' : 'No'}</Descriptions.Item>
+            <Descriptions.Item label="Feature Selection">{result.feature_strategy.feature_selection_required ? 'Yes' : 'No'}</Descriptions.Item>
+            <Descriptions.Item label="Feature Scaling">{result.feature_strategy.feature_scaling_required ? 'Yes' : 'No'}</Descriptions.Item>
+          </Descriptions>
 
           {(result.feature_strategy.selected_feature_actions?.length ?? 0) > 0 && (
-            <div style={s.subCard}>
+            <Card size="small" style={{ marginTop: 12, overflow: 'hidden' }}>
               <strong style={{ color: '#2e7d32' }}>Selected Feature Actions:</strong>
-              <table style={{ ...s.innerTable, marginTop: '8px' }}>
-                <thead>
-                  <tr><th style={{...s.th, width: '10%'}}>Action</th><th style={{...s.th, width: '14%'}}>Capability</th><th style={{...s.th, width: '7%'}}>Priority</th><th style={{...s.th, width: '14%'}}>Output Group</th><th style={{...s.th, width: '55%'}}>Rationale</th></tr>
-                </thead>
-                <tbody>
-                  {result.feature_strategy.selected_feature_actions?.map((a: SelectedFeatureAction, i: number) => (
-                    <tr key={i}>
-                      <td style={s.td}>{a.action_id}</td>
-                      <td style={{...s.td, overflow: 'hidden'}}><Badge label={a.capability_id} color="#2e7d32" style={{ maxWidth: '100%', overflowWrap: 'break-word', whiteSpace: 'normal' }} /></td>
-                      <td style={s.td}>{a.priority}</td>
-                      <td style={s.td}>{a.output_feature_group}</td>
-                      <td style={s.td}>{renderRationale(a.decision_rationale)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              <Table<SelectedFeatureAction>
+                dataSource={result.feature_strategy.selected_feature_actions?.map((a, i) => ({ ...a, key: i })) || []}
+                columns={[
+                  { title: 'Action', dataIndex: 'action_id', key: 'action', width: 100 },
+                  { title: 'Capability', dataIndex: 'capability_id', key: 'capability', width: 140, render: (v: string) => <StatusBadge label={v} color="success" /> },
+                  { title: 'Priority', dataIndex: 'priority', key: 'priority', width: 80 },
+                  { title: 'Output Group', dataIndex: 'output_feature_group', key: 'group', width: 120 },
+                  { title: 'Rationale', key: 'rationale', render: (_: unknown, r: SelectedFeatureAction) => renderRationale(r.decision_rationale) },
+                ]}
+                size="small"
+                pagination={false}
+                scroll={{ x: 800 }}
+                style={{ marginTop: 8 }}
+              />
+            </Card>
           )}
 
           {(result.feature_strategy.rejected_feature_actions?.length ?? 0) > 0 && (
-            <div style={s.subCard}>
+            <Card size="small" style={{ marginTop: 12 }}>
               <strong style={{ color: '#c62828' }}>Rejected Feature Actions:</strong>
               {result.feature_strategy.rejected_feature_actions?.map((a: RejectedFeatureAction, i: number) => (
-                <div key={i} style={{ fontSize: '12px', marginLeft: '8px' }}>{a.capability_id}: {a.reason}</div>
+                <div key={i} style={{ fontSize: 12, marginLeft: 8 }}>{a.capability_id}: {a.reason}</div>
               ))}
-            </div>
+            </Card>
           )}
 
           {(result.feature_strategy.executable_featurizers?.length ?? 0) > 0 && (
-            <div style={s.field}><strong>Executable Featurizers:</strong>{' '}
-              {result.feature_strategy.executable_featurizers?.map((f, i) => <Badge key={i} label={f} color="#2e7d32" />)}</div>
+            <div style={{ marginTop: 8 }}>
+              <strong>Executable Featurizers: </strong>
+              <Space wrap size={[4, 4]}>
+                {result.feature_strategy.executable_featurizers?.map((f, i) => <StatusBadge key={i} label={f} color="success" />)}
+              </Space>
+            </div>
           )}
-        </div>
+        </Card>
       )}
-    </div>
+    </Space>
   );
 
   const renderModelStrategy = () => (
-    <div>
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       {result?.model_strategy && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Model Strategy</h4>
-          <div style={s.field}><strong>Preferred Bias:</strong> {result.model_strategy.preferred_model_bias}</div>
+        <Card size="small" title="Model Strategy">
+          <p><strong>Preferred Bias:</strong> {result.model_strategy.preferred_model_bias}</p>
 
           {result.model_strategy.model_selection_rationale_summary && (
-            <div style={s.subCard}><strong>Selection Rationale:</strong>
-              <p style={s.summaryText}>{result.model_strategy.model_selection_rationale_summary}</p>
-            </div>
+            <Card size="small" style={{ marginBottom: 8 }}>
+              <strong>Selection Rationale:</strong>
+              <p style={{ marginTop: 4, color: '#333', fontSize: 14, lineHeight: 1.5 }}>
+                {result.model_strategy.model_selection_rationale_summary}
+              </p>
+            </Card>
           )}
 
           {(result.model_strategy.selected_model_actions?.length ?? 0) > 0 && (
-            <div style={s.subCard}>
+            <Card size="small" style={{ marginBottom: 8, overflow: 'hidden' }}>
               <strong style={{ color: '#2e7d32' }}>Selected Models:</strong>
-              <table style={{ ...s.innerTable, marginTop: '8px' }}>
-                <thead>
-                  <tr><th style={{...s.th, width: '10%'}}>Action</th><th style={{...s.th, width: '14%'}}>Family</th><th style={{...s.th, width: '7%'}}>Priority</th><th style={{...s.th, width: '14%'}}>Expected Perf</th><th style={{...s.th, width: '55%'}}>Rationale</th></tr>
-                </thead>
-                <tbody>
-                  {result.model_strategy.selected_model_actions?.map((a: SelectedModelAction, i: number) => (
-                    <tr key={i}>
-                      <td style={s.td}>{a.action_id}</td>
-                      <td style={{...s.td, overflow: 'hidden'}}><Badge label={a.model_family} color="#1565c0" style={{ maxWidth: '100%', overflowWrap: 'break-word', whiteSpace: 'normal' }} /></td>
-                      <td style={s.td}>{a.priority}</td>
-                      <td style={s.td}>{a.decision_rationale?.expected_performance || '-'}</td>
-                      <td style={s.td}>{renderModelRationale(a.decision_rationale)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              <Table<SelectedModelAction>
+                dataSource={result.model_strategy.selected_model_actions?.map((a, i) => ({ ...a, key: i })) || []}
+                columns={[
+                  { title: 'Action', dataIndex: 'action_id', key: 'action', width: 100 },
+                  { title: 'Family', dataIndex: 'model_family', key: 'family', width: 120, render: (v: string) => <StatusBadge label={v} color="#1565c0" /> },
+                  { title: 'Priority', dataIndex: 'priority', key: 'priority', width: 80 },
+                  { title: 'Expected Perf', key: 'perf', width: 130, render: (_: unknown, r: SelectedModelAction) => r.decision_rationale?.expected_performance || '-' },
+                  { title: 'Rationale', key: 'rationale', render: (_: unknown, r: SelectedModelAction) => renderModelRationale(r.decision_rationale) },
+                ]}
+                size="small"
+                pagination={false}
+                scroll={{ x: 700 }}
+                style={{ marginTop: 8 }}
+              />
+            </Card>
           )}
 
           {(result.model_strategy.rejected_model_actions?.length ?? 0) > 0 && (
-            <div style={s.subCard}>
+            <Card size="small" style={{ marginBottom: 8 }}>
               <strong style={{ color: '#c62828' }}>Rejected Models:</strong>
               {result.model_strategy.rejected_model_actions?.map((a: RejectedModelAction, i: number) => (
-                <div key={i} style={{ fontSize: '12px', marginLeft: '8px' }}><Badge label={a.model_family} color="#c62828" /> {a.reason}</div>
+                <div key={i} style={{ fontSize: 12, marginLeft: 8 }}>
+                  <StatusBadge label={a.model_family} color="error" /> {a.reason}
+                </div>
               ))}
-            </div>
+            </Card>
           )}
 
           {(!result.model_strategy.selected_model_actions || result.model_strategy.selected_model_actions.length === 0) && (
-            <div style={s.grid}>
-              <div style={s.field}><strong>Candidate Models:</strong>{' '}
-                {result.model_strategy.candidate_model_families?.map((m, i) => <Badge key={i} label={m} color="#1565c0" />)}</div>
-              <div style={s.field}><strong>Baseline Models:</strong>{' '}
-                {result.model_strategy.baseline_models?.map((m, i) => <Badge key={i} label={m} color="#6a1b9a" />)}</div>
-            </div>
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="Candidate Models">
+                <Space wrap size={[4, 4]}>
+                  {result.model_strategy.candidate_model_families?.map((m, i) => <StatusBadge key={i} label={m} color="#1565c0" />)}
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="Baseline Models">
+                <Space wrap size={[4, 4]}>
+                  {result.model_strategy.baseline_models?.map((m, i) => <StatusBadge key={i} label={m} color="#6a1b9a" />)}
+                </Space>
+              </Descriptions.Item>
+            </Descriptions>
           )}
-        </div>
+        </Card>
       )}
-    </div>
+    </Space>
   );
 
   const renderValidationAndMore = () => (
-    <div>
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       {result?.validation_strategy && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Validation Strategy</h4>
-          <div style={s.grid}>
-            <div style={s.field}><strong>Split:</strong> {result.validation_strategy.split_strategy}</div>
-            <div style={s.field}><strong>n_splits:</strong> {result.validation_strategy.n_splits}</div>
-            {result.validation_strategy.test_size != null && <div style={s.field}><strong>Test Size:</strong> {result.validation_strategy.test_size}</div>}
-            <div style={s.field}><strong>Stratification:</strong> {result.validation_strategy.stratification_required ? 'Yes' : 'No'}</div>
-          </div>
-        </div>
+        <Card size="small" title="Validation Strategy">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Split">{result.validation_strategy.split_strategy}</Descriptions.Item>
+            <Descriptions.Item label="n_splits">{result.validation_strategy.n_splits}</Descriptions.Item>
+            {result.validation_strategy.test_size != null && <Descriptions.Item label="Test Size">{result.validation_strategy.test_size}</Descriptions.Item>}
+            <Descriptions.Item label="Stratification">{result.validation_strategy.stratification_required ? 'Yes' : 'No'}</Descriptions.Item>
+          </Descriptions>
+        </Card>
       )}
       {result?.evaluation_strategy && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Evaluation Strategy</h4>
-          <div style={s.grid}>
-            <div style={s.field}><strong>Primary Metric:</strong> {result.evaluation_strategy.primary_metric}</div>
-            <div style={s.field}><strong>Secondary:</strong> {result.evaluation_strategy.secondary_metrics?.join(', ')}</div>
-            <div style={s.field}><strong>Direction:</strong> {result.evaluation_strategy.metric_direction}</div>
-          </div>
-        </div>
+        <Card size="small" title="Evaluation Strategy">
+          <Descriptions column={1} size="small">
+            <Descriptions.Item label="Primary Metric">{result.evaluation_strategy.primary_metric}</Descriptions.Item>
+            <Descriptions.Item label="Secondary">{result.evaluation_strategy.secondary_metrics?.join(', ')}</Descriptions.Item>
+            <Descriptions.Item label="Direction">{result.evaluation_strategy.metric_direction}</Descriptions.Item>
+          </Descriptions>
+        </Card>
       )}
       {result?.hpo_strategy && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>HPO Strategy</h4>
-          <div style={s.grid}>
-            <div style={s.field}><strong>Enabled:</strong> {result.hpo_strategy.enabled ? 'Yes' : 'No'}</div>
+        <Card size="small" title="HPO Strategy">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Enabled">{result.hpo_strategy.enabled ? 'Yes' : 'No'}</Descriptions.Item>
             {result.hpo_strategy.enabled && (
               <>
-                <div style={s.field}><strong>Search Method:</strong> {result.hpo_strategy.search_method}</div>
-                <div style={s.field}><strong>Budget:</strong> {result.hpo_strategy.budget_level} ({result.hpo_strategy.max_trials} trials)</div>
+                <Descriptions.Item label="Search Method">{result.hpo_strategy.search_method}</Descriptions.Item>
+                <Descriptions.Item label="Budget">{result.hpo_strategy.budget_level} ({result.hpo_strategy.max_trials} trials)</Descriptions.Item>
               </>
             )}
-          </div>
-        </div>
+          </Descriptions>
+        </Card>
       )}
       {result?.interpretability_strategy && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Interpretability Strategy</h4>
-          <div style={s.grid}>
-            <div style={s.field}><strong>Enabled:</strong> {result.interpretability_strategy.enabled ? 'Yes' : 'No'}</div>
+        <Card size="small" title="Interpretability Strategy">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Enabled">{result.interpretability_strategy.enabled ? 'Yes' : 'No'}</Descriptions.Item>
             {result.interpretability_strategy.enabled && (
               <>
-                <div style={s.field}><strong>Priority:</strong> {result.interpretability_strategy.priority}</div>
-                <div style={s.field}><strong>Methods:</strong>{' '}
-                  {result.interpretability_strategy.methods?.map((m, i) => <Badge key={i} label={m} color="#00838f" />)}</div>
+                <Descriptions.Item label="Priority">{result.interpretability_strategy.priority}</Descriptions.Item>
+                <Descriptions.Item label="Methods">
+                  <Space wrap size={[4, 4]}>
+                    {result.interpretability_strategy.methods?.map((m, i) => <StatusBadge key={i} label={m} color="#00838f" />)}
+                  </Space>
+                </Descriptions.Item>
               </>
             )}
-          </div>
-        </div>
+          </Descriptions>
+        </Card>
       )}
 
       {result?.pipeline_generation_input && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Pipeline Generation Input</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <Card size="small" title="Pipeline Generation Input">
+          <Space direction="vertical">
             {result.pipeline_generation_input.pipeline_steps?.map((step, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#1976d2', color: '#fff', fontSize: '11px', fontWeight: 600 }}>{i + 1}</span>
+              <Space key={i}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 20, height: 20, borderRadius: '50%', backgroundColor: '#1976d2',
+                  color: '#fff', fontSize: 11, fontWeight: 600,
+                }}>
+                  {i + 1}
+                </span>
                 <span>{step}</span>
-              </div>
+              </Space>
             ))}
-          </div>
-        </div>
+          </Space>
+        </Card>
       )}
 
       {result?.workflow_rationale && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Workflow Rationale</h4>
+        <Card size="small" title="Workflow Rationale">
           {result.workflow_rationale.overall_reasoning_summary && (
-            <p style={s.summaryText}>{result.workflow_rationale.overall_reasoning_summary}</p>
+            <p style={{ color: '#333', fontSize: 14, lineHeight: 1.5 }}>
+              {result.workflow_rationale.overall_reasoning_summary}
+            </p>
           )}
           {result.workflow_rationale.key_assumptions?.length > 0 && (
-            <div style={s.field}><strong>Key Assumptions:</strong><ul style={s.list}>{result.workflow_rationale.key_assumptions.map((a, i) => <li key={i}>{a}</li>)}</ul></div>
+            <div style={{ marginTop: 8 }}>
+              <strong>Key Assumptions:</strong>
+              <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
+                {result.workflow_rationale.key_assumptions.map((a, i) => <li key={i}>{a}</li>)}
+              </ul>
+            </div>
           )}
           {result.workflow_rationale.known_risks?.length > 0 && (
-            <div style={s.field}><strong>Known Risks:</strong><ul style={s.list}>{result.workflow_rationale.known_risks.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
+            <div style={{ marginTop: 8 }}>
+              <strong>Known Risks:</strong>
+              <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
+                {result.workflow_rationale.known_risks.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
           )}
-        </div>
+        </Card>
       )}
 
       {result?.execution_hints && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>Execution Hints</h4>
+        <Card size="small" title="Execution Hints">
           {result.execution_hints.module_order?.length > 0 && (
-            <div style={s.field}><strong>Module Order:</strong>{' '}
-              {result.execution_hints.module_order.map((m, i) => <Badge key={i} label={`${i + 1}. ${m}`} color="#00838f" />)}</div>
+            <div>
+              <strong>Module Order: </strong>
+              <Space wrap size={[4, 4]}>
+                {result.execution_hints.module_order.map((m, i) => (
+                  <StatusBadge key={i} label={`${i + 1}. ${m}`} color="#00838f" />
+                ))}
+              </Space>
+            </div>
           )}
-        </div>
+        </Card>
       )}
 
       {result?.llm_reasoning_summary && (
-        <div style={s.card}>
-          <h4 style={s.cardTitle}>AI Reasoning Summary</h4>
-          <p style={s.summaryText}>{result.llm_reasoning_summary}</p>
-        </div>
+        <Card size="small" title="AI Reasoning Summary">
+          <p style={{ color: '#333', fontSize: 14, lineHeight: 1.5 }}>{result.llm_reasoning_summary}</p>
+        </Card>
       )}
-    </div>
+    </Space>
   );
 
-  const renderTab = (tabId: string, label: string) => (
-    <button key={tabId} onClick={() => setActiveTab(tabId)} style={{
-      ...s.tabButton,
-      backgroundColor: activeTab === tabId ? '#1976d2' : '#e0e0e0',
-      color: activeTab === tabId ? '#fff' : '#333',
-    }}>{label}</button>
-  );
-
-  const tabs = [
-    { id: 'summary', label: 'Summary' },
-    { id: 'features', label: 'Feature Strategy' },
-    { id: 'model', label: 'Model Strategy' },
-    { id: 'planning', label: 'Validation & More' },
-    { id: 'json', label: 'Full JSON' },
+  const tabItems = [
+    { key: 'summary', label: 'Summary', children: renderSummary() },
+    { key: 'features', label: 'Feature Strategy', children: renderFeatureStrategy() },
+    { key: 'model', label: 'Model Strategy', children: renderModelStrategy() },
+    { key: 'planning', label: 'Validation & More', children: renderValidationAndMore() },
+    {
+      key: 'json',
+      label: 'Full JSON',
+      children: result ? <JsonViewer data={result} /> : <EmptyState description="Run planning to see JSON output." />,
+    },
   ];
 
   return (
-    <div style={s.container}>
-      <h3 style={s.title}>AI-guided Workflow Planning</h3>
-      <p style={s.description}>
-        Generate a structured machine learning workflow plan based on task specification,
-        task interpretation, and dataset profiling results.
-      </p>
-
-      <div style={s.buttonRow}>
-        <button onClick={handleRunPlanning} disabled={loading} style={s.runButton}>
+    <PanelContainer
+      title="AI-guided Workflow Planning"
+      description="Generate a structured machine learning workflow plan based on task specification, task interpretation, and dataset profiling results."
+      accentColor={pipelineAccent.workflowPlan}
+    >
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" onClick={handleRunPlanning} loading={loading}>
           {loading ? 'Planning...' : 'Run Workflow Planning'}
-        </button>
-        <button onClick={handleRerun} disabled={loading} style={s.rerunButton}>
-          {loading ? 'Planning...' : 'Re-run Planning'}
-        </button>
-      </div>
+        </Button>
+        <Button onClick={handleRerun} loading={loading}>
+          Re-run Planning
+        </Button>
+      </Space>
+      <Spin spinning={loading}>
+        {error && <ErrorBox message={error} />}
 
-      {error && <div style={s.errorBox}><strong>Error:</strong> {error}</div>}
+        {result && (
+          <>
+            <Card size="small" style={{ marginBottom: 16 }}>
+              <Descriptions column={2} size="small">
+                <Descriptions.Item label="Plan ID">{result.workflow_plan_id}</Descriptions.Item>
+                <Descriptions.Item label="Status">
+                  <StatusBadge label={result.status} color={STATUS_COLORS[result.status] || 'default'} />
+                </Descriptions.Item>
+                <Descriptions.Item label="Confidence">{result.confidence_score}</Descriptions.Item>
+                {result.fe_registry_snapshot_version && (
+                  <Descriptions.Item label="Registry">{result.fe_registry_snapshot_version}</Descriptions.Item>
+                )}
+              </Descriptions>
+            </Card>
 
-      {result && (
-        <div style={s.resultBox}>
-          <h4 style={s.resultTitle}>Workflow Plan Result</h4>
-
-          <div style={s.fieldRow}>
-            <div style={s.field}><strong>Plan ID:</strong> {result.workflow_plan_id}</div>
-            <div style={s.field}>
-              <strong>Status: </strong>
-              <Badge label={result.status} color={getStatusColor(result.status)} />
-            </div>
-            <div style={s.field}><strong>Confidence:</strong> {result.confidence_score}</div>
-            {result.fe_registry_snapshot_version && (
-              <div style={s.field}><strong>Registry:</strong> {result.fe_registry_snapshot_version}</div>
+            {result.planning_warnings && result.planning_warnings.length > 0 && (
+              <WarningBox warnings={result.planning_warnings} />
             )}
-          </div>
-
-          {(result.planning_warnings?.length ?? 0) > 0 && (
-            <div style={s.warningBox}><strong>Planning Warnings:</strong>
-              <ul style={s.list}>{result.planning_warnings?.map((w, i) => <li key={i}>{w}</li>)}</ul>
-            </div>
-          )}
-
-          {(result.planning_assumptions?.length ?? 0) > 0 && (
-            <div style={{ ...s.warningBox, backgroundColor: '#e3f2fd', border: '1px solid #90caf9', color: '#1565c0' }}>
-              <strong>Planning Assumptions:</strong>
-              <ul style={s.list}>{result.planning_assumptions?.map((a, i) => <li key={i}>{a}</li>)}</ul>
-            </div>
-          )}
-
-          <div style={s.tabBar}>{tabs.map(t => renderTab(t.id, t.label))}</div>
-
-          <div style={s.tabContent}>
-            {activeTab === 'summary' && renderSummary()}
-            {activeTab === 'features' && renderFeatureStrategy()}
-            {activeTab === 'model' && renderModelStrategy()}
-            {activeTab === 'planning' && renderValidationAndMore()}
-            {activeTab === 'json' && (
-              <div style={s.card}><h4 style={s.cardTitle}>Full JSON</h4><pre style={s.json}>{JSON.stringify(result, null, 2)}</pre></div>
+            {result.planning_assumptions && result.planning_assumptions.length > 0 && (
+              <Card size="small" style={{ marginBottom: 16, backgroundColor: '#e3f2fd', border: '1px solid #90caf9' }}>
+                <strong style={{ color: '#1565c0' }}>Planning Assumptions:</strong>
+                <ul style={{ margin: '4px 0', paddingLeft: 20, color: '#1565c0' }}>
+                  {result.planning_assumptions.map((a, i) => <li key={i}>{a}</li>)}
+                </ul>
+              </Card>
             )}
-          </div>
-        </div>
-      )}
-    </div>
+
+            <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+          </>
+        )}
+
+        {!result && !error && !loading && (
+          <EmptyState description="No workflow plan yet. Click &quot;Run Workflow Planning&quot; to generate one." />
+        )}
+      </Spin>
+    </PanelContainer>
   );
-};
-
-const s: Record<string, React.CSSProperties> = {
-  container: { marginTop: '24px', padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px', backgroundColor: '#fafafa' },
-  title: { margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600 },
-  description: { margin: '0 0 16px 0', color: '#666', fontSize: '13px', lineHeight: 1.5 },
-  buttonRow: { display: 'flex', gap: '8px', marginBottom: '16px' },
-  runButton: { padding: '10px 20px', backgroundColor: '#1976d2', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' },
-  rerunButton: { padding: '10px 20px', backgroundColor: '#f57c00', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' },
-  errorBox: { padding: '12px', backgroundColor: '#ffebee', border: '1px solid #f44336', borderRadius: '4px', color: '#c62828', marginBottom: '16px' },
-  resultBox: { padding: '16px', backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' },
-  resultTitle: { margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600 },
-  fieldRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' },
-  field: { fontSize: '14px' },
-  badge: { display: 'inline-block', padding: '2px 8px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 600, margin: '0 4px' },
-  warningBox: { padding: '12px', backgroundColor: '#fff3e0', border: '1px solid #ff9800', borderRadius: '4px', color: '#e65100', marginBottom: '16px' },
-  list: { margin: '4px 0', paddingLeft: '20px' },
-  tabBar: { display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '16px' },
-  tabButton: { padding: '6px 14px', border: 'none', borderRadius: '16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' },
-  tabContent: { minHeight: '200px', maxHeight: '60vh', overflowY: 'auto' as const },
-  card: { padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px', marginBottom: '12px', border: '1px solid #e0e0e0', overflowX: 'auto' as const },
-  subCard: { padding: '10px', backgroundColor: '#fff', borderRadius: '4px', marginBottom: '8px', border: '1px solid #eee', marginTop: '8px', overflowX: 'auto' as const },
-  cardTitle: { margin: '0 0 10px 0', fontSize: '15px', fontWeight: 600 },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' },
-  summaryText: { marginTop: '8px', color: '#333', fontSize: '14px', lineHeight: 1.5 },
-  innerTable: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '12px', tableLayout: 'fixed' as const },
-  th: { textAlign: 'left' as const, padding: '6px 8px', borderBottom: '2px solid #e0e0e0', fontWeight: 600, backgroundColor: '#fafafa', whiteSpace: 'nowrap' as const, fontSize: '12px' },
-  td: { padding: '6px 8px', borderBottom: '1px solid #eee', verticalAlign: 'top' as const, wordBreak: 'break-word' as const, fontSize: '12px' },
-  json: { backgroundColor: '#263238', color: '#aed581', padding: '12px', borderRadius: '4px', overflow: 'auto', fontSize: '11px' },
 };
 
 export default WorkflowPlanPanel;

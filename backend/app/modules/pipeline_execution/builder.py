@@ -1,4 +1,4 @@
-"""Builder — assembles the final PipelineExecutionResponse."""
+"""Builder - assembles the final PipelineExecutionResponse."""
 
 from app.modules.pipeline_execution.schemas import (
     PipelineExecutionResponse,
@@ -74,6 +74,8 @@ def build_response(
         log_path=artifact_manifest.get("log_path"),
         split_metadata_path=artifact_manifest.get("split_metadata_path"),
         metric_evaluation_input_path=artifact_manifest.get("metric_evaluation_input_path"),
+        external_test_prediction_path=artifact_manifest.get("external_test_prediction_path"),
+        external_test_metadata=artifact_manifest.get("external_test_metadata"),
     )
 
     return PipelineExecutionResponse(

@@ -1,9 +1,0 @@
-{
-  "prediction_artifact_paths": [
-    "\\app\\artifacts\\training\\pe_9877b29e\\predictions\\trial_gradient_boosting_0002_53bf9c_fold_0.parquet",
-    "\\app\\artifacts\\training\\pe_9877b29e\\predictions\\trial_gradient_boosting_0002_53bf9c_fold_1.parquet",
-    "\\app\\artifacts\\training\\pe_9877b29e\\predictions\\trial_gradient_boosting_0002_53bf9c_fold_2.parquet",
-    "\\app\\artifacts\\training\\pe_9877b29e\\predictions\\trial_gradient_boosting_0002_53bf9c_fold_3.parquet",
-    "\\app\\artifacts\\training\\pe_9877b29e\\predictions\\trial_gradient_boosting_0002_53bf9c_fold_4.parquet"
-  ]
-}

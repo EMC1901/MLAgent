@@ -1,10 +1,4 @@
-"""Validation Splitter — creates train/validation splits per the validation_plan.
-
-Supports the split strategy names used by upstream modules:
-  - train_test_split / holdout
-  - k_fold_cross_validation / k_fold
-  - stratified_k_fold
-"""
+"""Validation Splitter - creates train/validation and external test splits."""
 
 import numpy as np
 from typing import List
@@ -163,7 +157,7 @@ def _normalize_strategy(strategy: str) -> str:
 
     s = strategy.lower().strip()
 
-    # k_fold_cross_validation → k_fold
+    # k_fold_cross_validation �?k_fold
     if s in ("k_fold_cross_validation", "k_fold_cv", "kfold", "k-fold"):
         return "k_fold"
 
@@ -175,3 +169,47 @@ def _normalize_strategy(strategy: str) -> str:
         return s
 
     return s
+
+
+def create_external_test_split(X, y, validation_plan: dict) -> dict:
+    """Create the one-time external test split used before CV/HPO.
+
+    The returned indices are positions relative to the original full dataset.
+    Downstream validation splits must be created only on train_pool data.
+    """
+    n = len(X)
+    if n == 0:
+        raise ValidationSplitException("Cannot split empty dataset.")
+
+    test_size = validation_plan.get(
+        "external_test_size",
+        validation_plan.get("test_size", 0.2),
+    )
+    random_state = validation_plan.get("random_state", 42)
+    shuffle = validation_plan.get("shuffle", True)
+    stratify = None
+    if validation_plan.get("stratification_required"):
+        if y is None:
+            raise ValidationSplitException(
+                "External stratified test split requires non-null y."
+            )
+        stratify = y
+
+    try:
+        train_pool_idx, test_idx = train_test_split(
+            np.arange(n),
+            test_size=test_size,
+            random_state=random_state,
+            shuffle=shuffle,
+            stratify=stratify,
+        )
+    except Exception as e:
+        raise ValidationSplitException(f"external train_test_split failed: {e}")
+
+    return {
+        "train_pool_indices": train_pool_idx,
+        "test_indices": test_idx,
+        "train_pool_size": len(train_pool_idx),
+        "external_test_size": len(test_idx),
+        "test_size": test_size,
+    }

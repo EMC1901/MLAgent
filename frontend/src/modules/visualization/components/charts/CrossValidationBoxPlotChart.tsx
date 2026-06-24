@@ -30,7 +30,7 @@ const CrossValidationBoxPlotChart: React.FC<Props> = ({ data }) => {
       </p>
       <ResponsiveContainer width="100%" height={350}>
         <ScatterChart margin={{ top: 16, right: 20, left: 16, bottom: 16 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
           <XAxis
             type="number" dataKey="fold" name="Fold" tick={{ fontSize: 12 }}
             domain={['dataMin - 0.5', 'dataMax + 0.5']}

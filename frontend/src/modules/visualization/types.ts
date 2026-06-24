@@ -42,17 +42,20 @@ export interface FeatureAnalysisSection {
 }
 
 export interface PredictedVsActualData {
-  points: { actual: number; predicted: number; residual: number }[];
+  points: { actual: number; predicted: number; residual: number; split?: string }[];
   r_squared: number;
   rmse: number;
   mae: number;
   residual_mean: number;
   residual_std: number;
   histogram_bins: { bin_start: number; bin_end: number; count: number }[];
+  primary_metric?: string;
+  primary_metric_value?: number | null;
+  split_metrics?: { split: string; metric_name: string; metric_value: number }[];
 }
 
 export interface ResidualPlotData {
-  points: { predicted: number; residual: number }[];
+  points: { predicted: number; residual: number; split?: string }[];
   r_squared: number;
   rmse: number;
 }
