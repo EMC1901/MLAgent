@@ -46,6 +46,7 @@ htmlcov/
 postgres_data/
 
 # Private / not for upload
+.agents/
 patents/
 专利/
 .claude/
