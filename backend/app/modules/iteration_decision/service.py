@@ -3,7 +3,7 @@ import logging
 import time
 import traceback
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 from sqlmodel import Session
 
 from app.modules.iteration_decision.model import IterationDecision
@@ -92,8 +92,13 @@ class IterationDecisionService:
         # Determine iteration index
         iteration_index = request.current_iteration_index
         if iteration_index is None:
-            prev = self.repo.get_latest_by_task_id(session, task_id)
-            iteration_index = (prev.iteration_index or 0) + 1 if prev else 0
+            iteration_index = int(history.get("n_iterations_completed", 0) or 0)
+        pre_existing_decisions = self.repo.list_by_task_id(session, task_id)
+        stale_incomplete_count = sum(
+            1
+            for d in pre_existing_decisions
+            if d.status == DecisionStatus.DECIDING or not d.decision
+        )
 
         logger.info("[0/7] Done — starting iteration #%d", iteration_index)
 
@@ -111,9 +116,35 @@ class IterationDecisionService:
         )
         self.repo.create(session, record)
 
+        def mark_debug(phase: str, event: str, extra: Optional[Dict[str, Any]] = None) -> None:
+            _append_debug_trace(record, phase, event, started_at, extra)
+            try:
+                self.repo.update(session, record)
+            except Exception as debug_exc:
+                logger.warning(
+                    "Iteration decision debug progress update failed "
+                    "(id=%s phase=%s event=%s): %s",
+                    record.id, phase, event, debug_exc,
+                )
+
+        mark_debug(
+            "record_created",
+            "initial decision row committed",
+            {
+                "metric_evaluation_id": metrics.get("metric_evaluation_id"),
+                "pipeline_execution_id": metrics.get("pipeline_execution_id"),
+                "iteration_index": iteration_index,
+                "iteration_index_source": "completed_decision_count",
+                "completed_decision_count": history.get("n_iterations_completed", 0),
+                "pre_existing_decision_rows": len(pre_existing_decisions),
+                "stale_incomplete_decision_count": stale_incomplete_count,
+            },
+        )
+
         try:
             # ---- Phase 2: Extract evidence (zero LLM) ----
             logger.info("[2/7] Extracting evidence ...")
+            mark_debug("evidence", "start")
             t0 = time.time()
             evidence_ml = extract_ml_evidence(metrics)
             evidence_materials = extract_materials_evidence(upstream, metrics)
@@ -129,9 +160,21 @@ class IterationDecisionService:
                 workflow_quality=evidence_workflow,
                 history_trends=evidence_history,
             )
+            mark_debug(
+                "evidence",
+                "done",
+                {
+                    "ml_items": len(evidence_ml),
+                    "materials_items": len(evidence_materials),
+                    "workflow_items": len(evidence_workflow),
+                    "history_items": len(evidence_history),
+                    "duration_seconds": round(time.time() - t0, 3),
+                },
+            )
 
             # ---- Phase 3: System rule checks (zero LLM) ----
             logger.info("[3/7] Running system rule checks ...")
+            mark_debug("system_rules", "start")
             t0 = time.time()
             ml_checks = run_ml_rules(metrics, evidence_ml)
             materials_checks = run_materials_rules(upstream, metrics)
@@ -155,8 +198,19 @@ class IterationDecisionService:
             logger.info("[3/7] Done — %d rules triggered (%s) (%.1fs)",
                          len(triggered), ", ".join(triggered[:5]) or "none", time.time() - t0)
 
+            mark_debug(
+                "system_rules",
+                "done",
+                {
+                    "triggered_rules": triggered,
+                    "warning_count": len(system_checks.warnings),
+                    "duration_seconds": round(time.time() - t0, 3),
+                },
+            )
+
             # ---- Phase 4: Build compact LLM context ----
             logger.info("[4/7] Building compact LLM context ...")
+            mark_debug("llm_context", "start")
             t0 = time.time()
             llm_context = build_decision_context(
                 upstream=upstream,
@@ -172,14 +226,32 @@ class IterationDecisionService:
             )
             logger.info("[4/7] Done — compact context built (%.1fs)", time.time() - t0)
 
+            mark_debug(
+                "llm_context",
+                "done",
+                {
+                    "context_chars": len(str(llm_context)),
+                    "duration_seconds": round(time.time() - t0, 3),
+                },
+            )
+
             # ---- Phase 5: LLM decision (the single LLM call) ----
             logger.info("[5/7] Calling LLM for iteration decision ...")
+            mark_debug("llm_decision", "start", _build_llm_debug_payload(self.llm))
             t0 = time.time()
             user_message = build_user_message(llm_context)
             llm_result = self.llm.decide(SYSTEM_PROMPT, user_message)
             logger.info("[5/7] LLM responded in %.1fs", time.time() - t0)
             record.llm_request_json = {"system_prompt": SYSTEM_PROMPT, "user_message": user_message}
             record.llm_response_json = {"raw_response": llm_result["raw_response"]}
+            mark_debug(
+                "llm_decision",
+                "response_received",
+                {
+                    "duration_seconds": round(time.time() - t0, 3),
+                    "response_chars": len(llm_result.get("raw_response") or ""),
+                },
+            )
 
             parsed = parse_response(llm_result["raw_response"])
             is_valid, validation_issues = validate_decision(parsed)
@@ -197,6 +269,7 @@ class IterationDecisionService:
 
             # ---- Phase 6: Build plans (system, from LLM output) ----
             logger.info("[6/7] Building iteration plans ...")
+            mark_debug("plan_build", "start", {"decision": normalized.decision})
             t0 = time.time()
             iteration_plan = None
             revised_plan = None
@@ -214,7 +287,10 @@ class IterationDecisionService:
 
                 # Conflict detection
                 if normalized.iteration_plan:
-                    conflicts = detect_conflicts(normalized.iteration_plan)
+                    conflicts = detect_conflicts(
+                        normalized.iteration_plan,
+                        rerun_plan.rerun_from_stage if rerun_plan else None,
+                    )
                     if conflicts:
                         warnings_list.extend(conflicts)
 
@@ -262,8 +338,24 @@ class IterationDecisionService:
                          len(conflicts),
                          time.time() - t0)
 
+            mark_debug(
+                "plan_build",
+                "done",
+                {
+                    "decision": normalized.decision,
+                    "stage_change_count": len(normalized.iteration_plan.stage_changes) if normalized.iteration_plan else 0,
+                    "conflict_count": len(conflicts),
+                    "conflicts": conflicts,
+                    "raw_rerun_from_stage": normalized.iteration_plan.rerun_from_stage if normalized.iteration_plan else None,
+                    "effective_rerun_from_stage": rerun_plan.rerun_from_stage if rerun_plan else None,
+                    "ready_for_iteration": record.ready_for_iteration,
+                    "duration_seconds": round(time.time() - t0, 3),
+                },
+            )
+
             # ---- Phase 7: Persist and build response ----
             logger.info("[7/7] Persisting decision and building response ...")
+            mark_debug("persist", "start", {"decision": normalized.decision})
             t0 = time.time()
             record.status = DecisionStatus.DECIDED if record.status != DecisionStatus.FALLBACK else record.status
             if warnings_list:
@@ -277,7 +369,10 @@ class IterationDecisionService:
             record.iteration_plan_json = iteration_plan.model_dump() if iteration_plan else None
             record.iteration_rerun_plan_json = rerun_plan.model_dump() if rerun_plan else None
             record.stop_rationale_json = stop_rationale.model_dump() if stop_rationale else None
-            record.validation_result_json = {"is_valid": is_valid, "issues": validation_issues}
+            record.validation_result_json = _merge_debug_payload(
+                record.validation_result_json,
+                {"is_valid": is_valid, "issues": validation_issues},
+            )
             record.artifact_dir = f"/app/artifacts/iteration_decision/{id_}"
             record.updated_at = datetime.now(timezone.utc)
 
@@ -318,6 +413,13 @@ class IterationDecisionService:
             total_dur = time.time() - started_at
             logger.error("[FAIL] Iteration decision failed after %.1fs: %s\n%s",
                          total_dur, str(e), traceback.format_exc())
+            _append_debug_trace(
+                record,
+                "failed",
+                "exception",
+                started_at,
+                {"error_type": type(e).__name__, "error_message": str(e)},
+            )
             record.status = DecisionStatus.FAILED
             record.error_message = str(e)
             record.updated_at = datetime.now(timezone.utc)
@@ -531,6 +633,79 @@ def _rule_based_fallback(checks, history, request) -> dict:
             },
             "confidence": "low",
         }
+
+
+def _append_debug_trace(
+    record: IterationDecision,
+    phase: str,
+    event: str,
+    started_at: float,
+    extra: Optional[Dict[str, Any]] = None,
+) -> None:
+    payload = dict(record.validation_result_json) if isinstance(record.validation_result_json, dict) else {}
+    trace = list(payload.get("debug_trace") or [])
+    entry: Dict[str, Any] = {
+        "phase": phase,
+        "event": event,
+        "elapsed_seconds": round(time.time() - started_at, 3),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    if extra:
+        entry.update(extra)
+    trace.append(entry)
+
+    payload["debug_trace"] = trace[-80:]
+    payload["debug_last_phase"] = phase
+    payload["debug_last_event"] = event
+    payload["debug_elapsed_seconds"] = entry["elapsed_seconds"]
+    record.validation_result_json = payload
+    record.updated_at = datetime.now(timezone.utc)
+
+
+def _merge_debug_payload(
+    existing: Optional[Dict[str, Any]],
+    updates: Dict[str, Any],
+) -> Dict[str, Any]:
+    payload = existing.copy() if isinstance(existing, dict) else {}
+    payload.update(updates)
+    return payload
+
+
+def _build_llm_debug_payload(llm: LLMDecisionMaker) -> Dict[str, Any]:
+    client = getattr(llm, "llm_client", None)
+    if client is None:
+        return {}
+
+    try:
+        client._resolve_config()
+    except Exception:
+        pass
+
+    timeout = int(getattr(client, "timeout", 0) or 0)
+    max_retries = int(getattr(client, "max_retries", 0) or 0)
+    return {
+        "provider": getattr(client, "provider", ""),
+        "model": getattr(client, "model", ""),
+        "base_url": getattr(client, "base_url", ""),
+        "timeout_seconds": timeout,
+        "max_retries": max_retries,
+        "estimated_timeout_budget_seconds": _estimate_llm_timeout_budget(timeout, max_retries),
+    }
+
+
+def _estimate_llm_timeout_budget(timeout: int, max_retries: int) -> int:
+    if timeout <= 0:
+        return 0
+
+    total = 0
+    current_timeout = timeout
+    for attempt in range(max_retries + 1):
+        total += current_timeout
+        if attempt < max_retries:
+            # Mirrors LLMClient's timeout growth and approximate non-429 backoff.
+            current_timeout = min(current_timeout * 2, 600)
+            total += 2 * (2 ** attempt)
+    return total
 
 
 def _record_to_response(record: IterationDecision) -> IterationDecisionResponse:

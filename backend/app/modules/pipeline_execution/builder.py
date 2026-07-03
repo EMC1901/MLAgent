@@ -75,6 +75,7 @@ def build_response(
         split_metadata_path=artifact_manifest.get("split_metadata_path"),
         metric_evaluation_input_path=artifact_manifest.get("metric_evaluation_input_path"),
         external_test_prediction_path=artifact_manifest.get("external_test_prediction_path"),
+        final_train_test_prediction_path=artifact_manifest.get("final_train_test_prediction_path"),
         external_test_metadata=artifact_manifest.get("external_test_metadata"),
     )
 

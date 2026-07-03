@@ -88,11 +88,36 @@ class DatasetProfileService:
         context = build_dataset_loading_context(session, task_id)
         dataset_intent = context["dataset_context"]["dataset_intent"]
 
+        logger.info(
+            "Dataset profiling — task_id=%s | dataset_reference=%s | loading_hint=%s",
+            task_id,
+            dataset_intent.get("dataset_reference"),
+            dataset_intent.get("dataset_loading_hint"),
+        )
+
+        # --- DIAGNOSTIC: log full context used for profiling ---
+        logger.info(
+            "[DIAGNOSTIC] Profiling context — task_id=%s | expected_target_column=%s | "
+            "expected_input_columns=%s | expected_task_type=%s | "
+            "expected_input_modality=%s",
+            task_id,
+            context["expected_target_column"],
+            context["dataset_context"]["expected_input_columns"],
+            context["expected_task_type"],
+            context["expected_input_modality"],
+        )
+
         source = resolve_source(
             dataset_intent=dataset_intent,
             dataset_description=context["task_context"].get("dataset_description"),
             uploaded_file_id=request.uploaded_file_id,
             uploaded_file_path=request.uploaded_file_path,
+        )
+
+        logger.info(
+            "Dataset profiling — resolved source_type=%s loader_name=%s",
+            source.get("source_type"),
+            source.get("loader_name"),
         )
 
         if source["source_type"] == "unknown":
@@ -115,7 +140,21 @@ class DatasetProfileService:
 
         df, loading_result = loader.load(context, source)
 
+        # --- DIAGNOSTIC: log actual columns loaded ---
+        if df is not None:
+            logger.info(
+                "[DIAGNOSTIC] Data loaded — task_id=%s | shape=%s | actual_columns=%s",
+                task_id,
+                df.shape,
+                list(df.columns),
+            )
+
         if df is None:
+            logger.warning(
+                "Dataset profiling — load failed for task_id=%s | messages=%s",
+                task_id,
+                loading_result.get("load_messages", []),
+            )
             failed_profile = self._save_failed(
                 session, context, source, loading_result,
             )
@@ -151,6 +190,38 @@ class DatasetProfileService:
             df,
             target_column=expected_target_column,
             task_type=context["expected_task_type"] or "regression",
+        )
+
+        # --- DIAGNOSTIC: log checker result summaries ---
+        logger.info(
+            "[DIAGNOSTIC] Checker results — task_id=%s | schema_errors=%s | schema_warnings=%s",
+            task_id,
+            schema_result.get("schema_errors", []),
+            schema_result.get("schema_warnings", []),
+        )
+        logger.info(
+            "[DIAGNOSTIC] Modality result — task_id=%s | is_consistent=%s | messages=%s",
+            task_id,
+            modality_result.get("is_consistent"),
+            modality_result.get("messages", []),
+        )
+        logger.info(
+            "[DIAGNOSTIC] Quality result — task_id=%s | errors=%s | warnings=%s",
+            task_id,
+            quality_result.get("errors", []),
+            quality_result.get("warnings", []),
+        )
+        logger.info(
+            "[DIAGNOSTIC] Target result — task_id=%s | errors=%s | warnings=%s | keys=%s | "
+            "dtype=%s | min=%s | max=%s | mean=%s",
+            task_id,
+            target_result.get("errors", []),
+            target_result.get("warnings", []),
+            list(target_result.keys()),
+            target_result.get("dtype"),
+            target_result.get("min"),
+            target_result.get("max"),
+            target_result.get("mean"),
         )
 
         profile_dict = build_dataset_profile(

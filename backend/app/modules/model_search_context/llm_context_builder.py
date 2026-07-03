@@ -186,6 +186,8 @@ Guidelines for trial allocation:
 - Tree-based ensemble models (random_forest, extra_trees): allocate MODERATE trials.
 - Baseline models: allocate 0 trials (they use default parameters, no HPO).
 - The sum of all max_trials in the allocation should approximately match your recommended max_trials.
+- Moderate HPO should usually stay near 50 total trials; high-budget or wide-search cases with enough samples/features may recommend up to 100 total trials. The system enforces a hard safety cap.
+- If xgboost or lightgbm is selected outside small-sample/low-feature settings, avoid allocations below 20 trials per model unless the total HPO budget is intentionally low.
 - Each allocation_rationale MUST explain WHY that specific model gets that specific number of trials — reference the model's complexity, search space size, expected sensitivity to HPO, and the dataset characteristics (n_samples, n_final_features).
 
 **Strategy guidance:**

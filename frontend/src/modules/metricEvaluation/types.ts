@@ -145,6 +145,18 @@ export interface ResultDiagnosisInput {
   ready_for_result_diagnosis: boolean;
 }
 
+export interface FinalHoldoutEvaluation {
+  available: boolean;
+  split: string;
+  prediction_artifact_path?: string | null;
+  model_id?: string | null;
+  trial_id?: string | null;
+  n_test_samples: number;
+  r2_test?: number | null;
+  rmse_test?: number | null;
+  mae_test?: number | null;
+  notes: string[];
+}
 export interface MetricEvaluationResponse {
   metric_evaluation_id?: string | null;
   task_id?: string | null;
@@ -161,6 +173,7 @@ export interface MetricEvaluationResponse {
   best_model_id?: string | null;
   best_pipeline_spec_id?: string | null;
   metric_summary?: MetricSummary | null;
+  final_holdout_evaluation?: FinalHoldoutEvaluation | null;
   trial_metric_results: TrialMetricResult[];
   pipeline_metric_results: PipelineMetricResult[];
   fold_metric_results: FoldMetricResult[];

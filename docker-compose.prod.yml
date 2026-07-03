@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mlagent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: mlagent
+    # No port exposure — only reachable inside the Docker network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlagent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    # No port exposure — only Nginx talks to it
+    environment:
+      APP_NAME: ${APP_NAME:-MLAgent}
+      APP_ENV: production
+      DEBUG: "False"
+      DATABASE_URL: ${DATABASE_URL}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      LLM_PROVIDER: ${LLM_PROVIDER:-dashscope}
+      LLM_MODEL: ${LLM_MODEL}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-300}
+      LLM_CALL_COOLDOWN_SECONDS: ${LLM_CALL_COOLDOWN_SECONDS:-20}
+      DATASET_UPLOAD_DIR: ${DATASET_UPLOAD_DIR:-/app/uploads}
+      FEATURE_ARTIFACT_DIR: ${FEATURE_ARTIFACT_DIR:-/app/artifacts/features}
+      MODEL_READY_ARTIFACT_DIR: ${MODEL_READY_ARTIFACT_DIR:-/app/artifacts/model_ready}
+      MODEL_CONTEXT_MAX_HPO_TRIALS: ${MODEL_CONTEXT_MAX_HPO_TRIALS:-50}
+      MAX_FEATURE_DIMENSION: ${MAX_FEATURE_DIMENSION:-2000}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+      - artifacts:/app/artifacts
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  uploads:
+  artifacts:

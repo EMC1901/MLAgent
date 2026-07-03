@@ -154,6 +154,18 @@ class ResultDiagnosisInput(BaseModel):
     ready_for_result_diagnosis: bool = False
 
 
+class FinalHoldoutEvaluation(BaseModel):
+    available: bool = False
+    split: str = "test"
+    prediction_artifact_path: Optional[str] = None
+    model_id: Optional[str] = None
+    trial_id: Optional[str] = None
+    n_test_samples: int = 0
+    r2_test: Optional[float] = None
+    rmse_test: Optional[float] = None
+    mae_test: Optional[float] = None
+    notes: List[str] = []
+
 # ---- Response schemas ----
 
 class MetricEvaluationResponse(BaseModel):
@@ -172,6 +184,7 @@ class MetricEvaluationResponse(BaseModel):
     best_model_id: Optional[str] = None
     best_pipeline_spec_id: Optional[str] = None
     metric_summary: Optional[MetricSummary] = None
+    final_holdout_evaluation: Optional[FinalHoldoutEvaluation] = None
     trial_metric_results: List[TrialMetricResult] = []
     pipeline_metric_results: List[PipelineMetricResult] = []
     fold_metric_results: List[FoldMetricResult] = []

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Space, Tabs, Card, Tag, Alert } from 'antd';
+import { Button, Space, Tabs, Card, Tag, Alert, Collapse } from 'antd';
 import {
   createInterpretabilityAnalysis,
   rerunInterpretabilityAnalysis,
@@ -13,6 +13,7 @@ import {
   MaterialInsightSummary,
   LLMInterpretabilitySummary,
   MaterialPattern,
+  AcademicInsight,
 } from '../types';
 import {
   STATUS_COLORS,
@@ -172,6 +173,11 @@ const InterpretabilityAnalysisPanel: React.FC<InterpretabilityAnalysisPanelProps
 
       {error && <ErrorBox message={error} />}
 
+      {/* Show error_message directly when status is failed */}
+      {result && result.status === 'failed' && result.error_message && (
+        <ErrorBox message={result.error_message} />
+      )}
+
       {result && (
         <>
           {/* Summary bar */}
@@ -196,6 +202,18 @@ const InterpretabilityAnalysisPanel: React.FC<InterpretabilityAnalysisPanelProps
                 <span style={{ color: '#2e7d32', fontWeight: 600 }}>Ready for Final Output</span>
               </div>
             )}
+            {result.current_step && (
+              <div style={{ fontSize: 14 }}>
+                <strong>Current Step: </strong>
+                <span style={{ color: '#1976d2' }}>{result.current_step}</span>
+              </div>
+            )}
+            {result.duration_seconds != null && (
+              <div style={{ fontSize: 14 }}>
+                <strong>Duration: </strong>
+                <span>{result.duration_seconds.toFixed(1)}s</span>
+              </div>
+            )}
           </div>
 
           {/* Warnings */}
@@ -209,13 +227,14 @@ const InterpretabilityAnalysisPanel: React.FC<InterpretabilityAnalysisPanelProps
             onChange={setActiveTab}
             items={[
               { key: 'summary', label: 'Summary', children: <SummaryTab result={result} /> },
+              { key: 'materialInsight', label: 'Material Insights', children: <MaterialInsightTab insight={result.material_insight_summary} llmSummary={result.llm_interpretability_summary} /> },
               { key: 'featureImportance', label: 'Feature Importance', children: <FeatureImportanceTab items={result.global_feature_importance} /> },
               { key: 'shap', label: 'SHAP Summary', children: <ShapTab shap={result.shap_summary} /> },
               { key: 'localExplanations', label: 'Local Explanations', children: <LocalExplanationsTab items={result.local_explanations} /> },
               { key: 'highError', label: 'High Error Samples', children: <HighErrorTab items={result.high_error_sample_analysis} /> },
-              { key: 'materialInsight', label: 'Material Insights', children: <MaterialInsightTab insight={result.material_insight_summary} llmSummary={result.llm_interpretability_summary} /> },
               { key: 'riskNotes', label: 'Risk Notes', children: <RiskNotesTab risks={result.interpretability_risk_notes} warnings={result.warnings} /> },
               { key: 'finalOutputInput', label: 'Final Output Input', children: <FinalOutputInputTab input={result.final_output_input} /> },
+              { key: 'debug', label: 'Debug', children: <DebugTab result={result} /> },
               { key: 'json', label: 'Full JSON', children: <Card size="small" title="Full JSON"><JsonViewer data={result} /></Card> },
             ]}
           />
@@ -462,9 +481,11 @@ const MaterialInsightTab: React.FC<{
   llmSummary?: LLMInterpretabilitySummary;
 }> = ({ insight, llmSummary }) => {
   const patterns = insight?.top_material_patterns || llmSummary?.top_material_patterns || [];
+  const academicInsights = insight?.academic_insights || llmSummary?.academic_insights || [];
   const groups = insight?.feature_groups_interpretation || llmSummary?.feature_groups_interpretation || [];
   const hypotheses = insight?.domain_hypotheses || llmSummary?.domain_hypotheses || [];
   const limitations = insight?.limitations || llmSummary?.limitations || [];
+  const humanReviewNotes = insight?.human_review_notes || llmSummary?.human_review_notes || [];
   const confidence = insight?.confidence_level || llmSummary?.confidence_level || '';
 
   return (
@@ -485,41 +506,48 @@ const MaterialInsightTab: React.FC<{
         </Card>
       )}
 
-      {patterns.length === 0 && hypotheses.length === 0 ? (
+      {patterns.length === 0 && academicInsights.length === 0 && hypotheses.length === 0 ? (
         <EmptyState description="No material insights available (AI summary may have failed or was not requested)." />
       ) : (
         <div>
-          {patterns.length > 0 && (
-            <Card size="small" title={`Top Material Patterns (${patterns.length})`} style={{ marginBottom: 12 }}>
-              {patterns.map((p: MaterialPattern, i: number) => (
-                <Card key={i} size="small" style={{ marginBottom: 8 }}>
-                  <p style={{ fontWeight: 600, margin: '0 0 4px 0' }}>{p.pattern}</p>
-                  <p style={{ fontSize: 13, color: '#555', margin: '4px 0' }}>{p.possible_material_meaning}</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 8 }}>
-                    <span style={{ fontSize: 12, color: '#888' }}>Supporting features: </span>
-                    {p.supporting_features.map((f, j) => (
-                      <span key={j} style={chipDefault}>{f}</span>
-                    ))}
+          {academicInsights.length > 0 && (
+            <Card size="small" title={`Academic Insights (${academicInsights.length})`} style={{ marginBottom: 12 }}>
+              {academicInsights.map((insightItem: AcademicInsight, i: number) => (
+                <Card key={insightItem.claim_id || i} size="small" style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    <Tag color="blue">{insightItem.claim_type}</Tag>
+                    <Tag color={EVIDENCE_COLORS[insightItem.evidence_strength] || 'default'}>
+                      {insightItem.evidence_strength}
+                    </Tag>
+                    <Tag>{insightItem.validation_status}</Tag>
+                    <Tag>{insightItem.confidence}</Tag>
                   </div>
-                  <div style={{ marginTop: 8, fontSize: 12 }}>
-                    <span>
-                      Evidence:{' '}
-                      <span style={{
-                        color: EVIDENCE_COLORS[p.evidence_strength] || '#999',
-                        fontWeight: 600,
-                      }}>
-                        {p.evidence_strength}
-                      </span>
-                    </span>
-                  </div>
-                  <p style={{ fontSize: 11, color: '#f57c00', fontStyle: 'italic', margin: '4px 0 0 0' }}>
-                    {p.caution}
-                  </p>
+                  <p style={{ fontWeight: 600, margin: '0 0 6px 0' }}>{insightItem.claim}</p>
+                  {insightItem.material_meaning && (
+                    <p style={{ fontSize: 13, color: '#555', margin: '4px 0' }}>{insightItem.material_meaning}</p>
+                  )}
+                  {insightItem.supporting_evidence_ids?.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 8 }}>
+                      <span style={{ fontSize: 12, color: '#888' }}>Evidence IDs: </span>
+                      {insightItem.supporting_evidence_ids.slice(0, 6).map((id) => (
+                        <span key={id} style={chipDefault}>{id}</span>
+                      ))}
+                    </div>
+                  )}
+                  {insightItem.falsifiable_prediction && (
+                    <p style={{ fontSize: 12, color: '#1976d2', margin: '8px 0 0 0' }}>
+                      <strong>Falsifiable prediction:</strong> {insightItem.falsifiable_prediction}
+                    </p>
+                  )}
+                  {insightItem.counterexamples_or_risks && insightItem.counterexamples_or_risks.length > 0 && (
+                    <p style={{ fontSize: 12, color: '#f57c00', margin: '6px 0 0 0' }}>
+                      <strong>Risks:</strong> {insightItem.counterexamples_or_risks.slice(0, 2).join('; ')}
+                    </p>
+                  )}
                 </Card>
               ))}
             </Card>
           )}
-
           {hypotheses.length > 0 && (
             <Card size="small" title="Domain Hypotheses" style={{ marginBottom: 12 }}>
               <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
@@ -551,14 +579,56 @@ const MaterialInsightTab: React.FC<{
             </Card>
           )}
 
-          {llmSummary?.human_review_notes && llmSummary.human_review_notes.length > 0 && (
+          {humanReviewNotes.length > 0 && (
             <Card size="small" title="Human Review Notes" style={{ marginBottom: 12 }}>
               <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
-                {llmSummary.human_review_notes.map((n, i) => (
+                {humanReviewNotes.map((n, i) => (
                   <li key={i} style={{ marginBottom: 6 }}>{n}</li>
                 ))}
               </ul>
             </Card>
+          )}
+          {patterns.length > 0 && (
+            <Collapse
+              size="small"
+              style={{ marginBottom: 12 }}
+              items={[
+                {
+                  key: 'supporting-model-derived-rules',
+                  label: `Supporting Model-Derived Rules (${patterns.length})`,
+                  children: (
+                    <div>
+                      {patterns.map((p: MaterialPattern, i: number) => (
+                        <Card key={i} size="small" style={{ marginBottom: 8 }}>
+                          <p style={{ fontWeight: 600, margin: '0 0 4px 0' }}>{p.pattern}</p>
+                          <p style={{ fontSize: 13, color: '#555', margin: '4px 0' }}>{p.possible_material_meaning}</p>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 8 }}>
+                            <span style={{ fontSize: 12, color: '#888' }}>Supporting features: </span>
+                            {p.supporting_features.map((f, j) => (
+                              <span key={j} style={chipDefault}>{f}</span>
+                            ))}
+                          </div>
+                          <div style={{ marginTop: 8, fontSize: 12 }}>
+                            <span>
+                              Evidence:{' '}
+                              <span style={{
+                                color: EVIDENCE_COLORS[p.evidence_strength] || '#999',
+                                fontWeight: 600,
+                              }}>
+                                {p.evidence_strength}
+                              </span>
+                            </span>
+                          </div>
+                          <p style={{ fontSize: 11, color: '#f57c00', fontStyle: 'italic', margin: '4px 0 0 0' }}>
+                            {p.caution}
+                          </p>
+                        </Card>
+                      ))}
+                    </div>
+                  ),
+                },
+              ]}
+            />
           )}
         </div>
       )}
@@ -646,4 +716,178 @@ const FinalOutputInputTab: React.FC<{ input?: import('../types').FinalOutputInpu
 );
 
 
+/* ---- Debug Tab ---- */
+
+const DebugTab: React.FC<{ result: InterpretabilityAnalysisResponse }> = ({ result }) => {
+  const trace = result.debug_trace;
+  const debugWarnings = result.debug_warnings ?? [];
+  const stepLabelStyle: React.CSSProperties = {
+    display: 'inline-block',
+    minWidth: 200,
+    fontFamily: 'monospace',
+    fontSize: 12,
+  };
+  const statusChip = (status: string) => {
+    const colors: Record<string, string> = {
+      completed: '#4caf50',
+      running: '#2196f3',
+      failed: '#f44336',
+      pending: '#9e9e9e',
+    };
+    return (
+      <span style={{
+        display: 'inline-block',
+        width: 10,
+        height: 10,
+        borderRadius: '50%',
+        backgroundColor: colors[status] || '#999',
+        marginRight: 4,
+      }} />
+    );
+  };
+
+  return (
+    <div>
+      {/* Overview card */}
+      <Card size="small" title="Debug Overview" style={{ marginBottom: 12 }}>
+        <div style={{ ...grid2Col, marginBottom: 8 }}>
+          <SummaryField label="Run ID" value={trace?.run_id || result.interpretability_analysis_id} />
+          <SummaryField label="Current Step" value={result.current_step || '-'} />
+          <SummaryField label="Last Completed" value={result.last_completed_step || '-'} />
+          <SummaryField label="Duration" value={result.duration_seconds != null ? `${result.duration_seconds.toFixed(1)}s` : '-'} />
+          <SummaryField label="Started" value={result.started_at ? new Date(result.started_at).toLocaleString() : '-'} />
+          <SummaryField label="Finished" value={result.finished_at ? new Date(result.finished_at).toLocaleString() : '-'} />
+          {trace?.cache_hit && (
+            <SummaryField label="Cache Hit" value={`Yes (from ${trace.cached_from_ia_id})`} />
+          )}
+        </div>
+      </Card>
+
+      {/* Step timeline */}
+      {trace && trace.steps && trace.steps.length > 0 && (
+        <Card size="small" title={`Step Timeline (${trace.steps.length} steps)`} style={{ marginBottom: 12 }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={{ ...thStyle, width: 40 }}></th>
+                  <th style={thStyle}>Step</th>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Duration</th>
+                  <th style={thStyle}>Output</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trace.steps.map((s, i) => (
+                  <tr key={i} style={{
+                    backgroundColor: s.status === 'failed' && !s.recoverable ? '#fff5f5' :
+                                     s.status === 'failed' ? '#fffde7' : 'transparent',
+                  }}>
+                    <td style={tdStyle}>{statusChip(s.status)}</td>
+                    <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11 }}>{s.step}</td>
+                    <td style={tdStyle}>{s.step_name}</td>
+                    <td style={tdStyle}>{s.duration_seconds != null ? `${s.duration_seconds.toFixed(2)}s` : '-'}</td>
+                    <td style={{ ...tdStyle, fontSize: 11, maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {s.output_summary ? JSON.stringify(s.output_summary).slice(0, 120) : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Failed steps detail */}
+      {trace && trace.steps.filter(s => s.status === 'failed').length > 0 && (
+        <Card size="small" title="Failed Steps" style={{ marginBottom: 12 }}>
+          {trace.steps.filter(s => s.status === 'failed').map((s, i) => (
+            <Card key={i} size="small" style={{ marginBottom: 8, borderLeft: '3px solid #f44336' }}>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
+                {s.step}: {s.step_name}
+                {s.recoverable && <Tag color="orange" style={{ marginLeft: 8 }}>recoverable</Tag>}
+                {!s.recoverable && <Tag color="red" style={{ marginLeft: 8 }}>FATAL</Tag>}
+              </div>
+              {s.error_type && (
+                <div style={{ fontSize: 13, marginBottom: 4 }}>
+                  <strong>Error type: </strong>
+                  <code>{s.error_type}</code>
+                </div>
+              )}
+              {s.error_message && (
+                <div style={{ fontSize: 13, color: '#c62828', marginBottom: 4 }}>
+                  {s.error_message}
+                </div>
+              )}
+              {s.error_traceback && (
+                <details style={{ marginTop: 8 }}>
+                  <summary style={{ cursor: 'pointer', fontSize: 12, color: '#888' }}>Traceback</summary>
+                  <pre style={{
+                    fontSize: 10,
+                    backgroundColor: '#f5f5f5',
+                    padding: 8,
+                    borderRadius: 4,
+                    maxHeight: 300,
+                    overflow: 'auto',
+                    marginTop: 4,
+                  }}>
+                    {s.error_traceback}
+                  </pre>
+                </details>
+              )}
+            </Card>
+          ))}
+        </Card>
+      )}
+
+      {/* Structured warnings */}
+      {debugWarnings.length > 0 && (
+        <Card size="small" title={`Structured Warnings (${debugWarnings.length})`} style={{ marginBottom: 12 }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Step</th>
+                  <th style={thStyle}>Code</th>
+                  <th style={thStyle}>Severity</th>
+                  <th style={thStyle}>Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {debugWarnings.map((w, i) => (
+                  <tr key={i}>
+                    <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11 }}>{w.step}</td>
+                    <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11 }}>{w.code}</td>
+                    <td style={tdStyle}>
+                      <Tag color={w.severity === 'error' ? 'red' : 'orange'}>{w.severity}</Tag>
+                    </td>
+                    <td style={{ ...tdStyle, fontSize: 12, wordBreak: 'break-word' }}>{w.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Environment info */}
+      {trace && trace.environment && Object.keys(trace.environment).length > 0 && (
+        <Card size="small" title="Run Environment">
+          <pre style={{ fontSize: 11, backgroundColor: '#f5f5f5', padding: 8, borderRadius: 4, overflow: 'auto' }}>
+            {JSON.stringify(trace.environment, null, 2)}
+          </pre>
+        </Card>
+      )}
+
+      {!trace && (
+        <EmptyState description="No debug trace available for this run." />
+      )}
+    </div>
+  );
+};
+
+
 export default InterpretabilityAnalysisPanel;
+
+
+

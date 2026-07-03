@@ -44,3 +44,9 @@ htmlcov/
 
 # Docker data
 postgres_data/
+
+# Private / not for upload
+patents/
+专利/
+.claude/
+.skillopt-sleep/

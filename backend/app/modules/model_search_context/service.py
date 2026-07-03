@@ -276,6 +276,7 @@ class ModelSearchContextService:
             candidate_models=all_candidates,
             baseline_models=all_baselines,
             llm_trial_allocation=llm_trial_alloc if llm_trial_alloc else None,
+            dataset_profile=dataset_result,
         )
 
         # Build search space plan (with LLM overrides if available)

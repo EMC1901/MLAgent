@@ -1,3 +1,5 @@
+import json
+import os
 from typing import Any, Dict, Optional
 
 from sqlmodel import Session
@@ -122,6 +124,7 @@ def build_paper_evidence_package(
         _build_interpretability_analysis_evidence,
         session=session,
         task_id=task_id,
+        interpretability_analysis_id=workflow_trace.interpretability_analysis_id,
     )
 
     return {
@@ -2651,11 +2654,31 @@ def _build_iteration_decision_evidence(
 def _build_interpretability_analysis_evidence(
     session: Session,
     task_id: str,
+    interpretability_analysis_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    interpretability = InterpretabilityAnalysisRepository().get_latest_by_task_id(
-        session,
-        task_id,
-    )
+    repo = InterpretabilityAnalysisRepository()
+    interpretability = None
+    record_selection = {
+        "requested_interpretability_analysis_id_recorded": bool(
+            interpretability_analysis_id
+        ),
+        "used_requested_interpretability_analysis": False,
+        "fallback_to_latest_by_task_id": False,
+    }
+
+    if interpretability_analysis_id:
+        candidate = repo.get_by_id(session, interpretability_analysis_id)
+        if candidate and getattr(candidate, "task_id", None) == task_id:
+            interpretability = candidate
+            record_selection["used_requested_interpretability_analysis"] = True
+        elif candidate:
+            record_selection["requested_id_task_mismatch"] = True
+        else:
+            record_selection["requested_id_missing"] = True
+
+    if not interpretability:
+        interpretability = repo.get_latest_by_task_id(session, task_id)
+        record_selection["fallback_to_latest_by_task_id"] = bool(interpretability)
 
     base = {
         "module_name": "Interpretability Analysis and Materials Insight Generation",
@@ -2663,11 +2686,13 @@ def _build_interpretability_analysis_evidence(
             "Analyze the final selected model from Metric Evaluation, combine "
             "model artifacts, prediction artifacts, feature lineage, and "
             "materials context, then produce interpretable model-behavior "
-            "evidence and a structured handoff for Final Output."
+            "evidence, evidence-grounded materials insights, and a structured "
+            "handoff for Final Output."
         ),
         "source_traceability": {
             "record_source": (
-                "interpretability_analysis table latest row by task_id"
+                "Final Output bound interpretability_analysis_id when available; "
+                "otherwise latest interpretability_analysis row by task_id"
             ),
             "method_plan_source": "interpretability_analysis.methods_used_json",
             "global_feature_importance_source": (
@@ -2677,6 +2702,20 @@ def _build_interpretability_analysis_evidence(
             "material_insight_source": (
                 "interpretability_analysis.material_insight_summary_json"
             ),
+            "scientific_report_source": (
+                "interpretability_analysis.scientific_insight_report_json, "
+                "falling back to artifact_manifest.scientific_insight_report_path"
+            ),
+            "material_pattern_sources": [
+                "material_insight_summary_json.top_material_patterns",
+                "scientific_insight_report_json.material_pattern_candidates",
+                "artifact_manifest.material_patterns_path",
+            ],
+            "material_mechanism_sources": [
+                "material_insight_summary_json.mechanism_candidates",
+                "scientific_insight_report_json.material_mechanism_candidates",
+                "artifact_manifest.material_mechanisms_path",
+            ],
             "final_output_handoff_source": (
                 "interpretability_analysis.final_output_input_json"
             ),
@@ -2691,13 +2730,17 @@ def _build_interpretability_analysis_evidence(
                 "app.modules.interpretability_analysis.local_explanation_builder",
                 "app.modules.interpretability_analysis.high_error_sample_analyzer",
                 "app.modules.interpretability_analysis.feature_group_analyzer",
-                "app.modules.interpretability_analysis.cross_method_consensus",
-                "app.modules.interpretability_analysis.partial_dependence_analyzer",
-                "app.modules.interpretability_analysis.residual_analyzer",
-                "app.modules.interpretability_analysis.correlation_analyzer",
-                "app.modules.interpretability_analysis.physics_constraint_checker",
-                "app.modules.interpretability_analysis.llm_interpretability_prompt_builder",
-                "app.modules.interpretability_analysis.llm_interpretability_validator",
+                "app.modules.interpretability_analysis.evidence_normalizer",
+                "app.modules.interpretability_analysis.material_pattern_miner",
+                "app.modules.interpretability_analysis.material_pattern_validator",
+                "app.modules.interpretability_analysis.material_pattern_ranker",
+                "app.modules.interpretability_analysis.material_mechanism_mapper",
+                "app.modules.interpretability_analysis.material_mechanism_scorer",
+                "app.modules.interpretability_analysis.material_scope_analyzer",
+                "app.modules.interpretability_analysis.scientific_hypothesis_builder",
+                "app.modules.interpretability_analysis.confidence_scorer",
+                "app.modules.interpretability_analysis.llm_scientific_insight_prompt_builder",
+                "app.modules.interpretability_analysis.llm_scientific_insight_validator",
                 "app.modules.interpretability_analysis.final_output_input_builder",
             ],
         },
@@ -2719,6 +2762,7 @@ def _build_interpretability_analysis_evidence(
         return {
             **base,
             "status": "missing",
+            "record_selection": record_selection,
             "note": (
                 "No InterpretabilityAnalysis record was found for this task_id. "
                 "Interpretability evidence can be generated after the "
@@ -2757,6 +2801,9 @@ def _build_interpretability_analysis_evidence(
     physics_check = _pick_dict(
         getattr(interpretability, "physics_constraint_check_json", None)
     )
+    feature_group_summary = _pick_dict(
+        getattr(interpretability, "feature_group_summary_json", None)
+    )
     material_insight = _pick_dict(
         getattr(interpretability, "material_insight_summary_json", None)
     )
@@ -2767,13 +2814,62 @@ def _build_interpretability_analysis_evidence(
     artifact_manifest = _pick_dict(
         getattr(interpretability, "artifact_manifest_json", None)
     )
+    scientific_report = _pick_dict(
+        getattr(interpretability, "scientific_insight_report_json", None)
+    )
+    scientific_report_source = "database" if scientific_report else "missing"
+    artifact_load_notes = []
+
+    if not scientific_report:
+        loaded_report = _load_json_artifact_from_manifest(
+            artifact_manifest,
+            "scientific_insight_report_path",
+        )
+        if isinstance(loaded_report, dict) and not loaded_report.get("_artifact_load_error"):
+            scientific_report = loaded_report
+            scientific_report_source = "artifact"
+        elif isinstance(loaded_report, dict) and loaded_report.get("_artifact_load_error"):
+            artifact_load_notes.append(
+                {
+                    "artifact": "scientific_insight_report",
+                    "error": loaded_report.get("_artifact_load_error"),
+                }
+            )
+
+    material_patterns_from_artifact = _load_json_artifact_from_manifest(
+        artifact_manifest,
+        "material_patterns_path",
+    )
+    material_mechanisms_from_artifact = _load_json_artifact_from_manifest(
+        artifact_manifest,
+        "material_mechanisms_path",
+    )
+    material_pattern_validation = _pick_dict(
+        _load_json_artifact_from_manifest(
+            artifact_manifest,
+            "material_pattern_validation_path",
+        )
+    )
+
+    material_patterns = _first_non_empty_list(
+        _as_list(scientific_report.get("material_pattern_candidates")),
+        _as_list(material_patterns_from_artifact),
+        _as_list(material_insight.get("top_material_patterns")),
+    )
+    material_mechanisms = _first_non_empty_list(
+        _as_list(scientific_report.get("material_mechanism_candidates")),
+        _as_list(material_mechanisms_from_artifact),
+        _as_list(material_insight.get("mechanism_candidates")),
+    )
+
     llm_request = _pick_dict(getattr(interpretability, "llm_request_json", None))
     llm_response = _pick_dict(getattr(interpretability, "llm_response_json", None))
 
     return {
         **base,
         "status": getattr(interpretability, "status", None),
-        "analysis_summary": {
+        "record_selection": record_selection,
+        "analysis_context": {
             "interpretability_record_present": True,
             "analysis_profile": getattr(interpretability, "analysis_profile", None),
             "final_model_id": getattr(interpretability, "final_model_id", None),
@@ -2806,128 +2902,151 @@ def _build_interpretability_analysis_evidence(
                 "llm_confidence_level",
                 None,
             ),
+            "scientific_report_source": scientific_report_source,
+            "artifact_load_notes": artifact_load_notes,
             "error_message": getattr(interpretability, "error_message", None),
         },
-        "readiness_and_input_context": {
-            "input_fields_loaded": [
-                "model_artifact_path",
-                "model_ready_matrix_path",
-                "prediction_artifact_paths",
-                "feature_columns",
-                "feature_lineage",
-                "metric_summary",
-                "model_ranking",
-                "task/material/domain context",
-                "stop_rationale when Iteration Decision stopped",
-            ],
-            "artifact_path_policy": [
-                "model and prediction artifact paths are used for computation",
-                "local paths are excluded from the paper evidence package",
-                "feature matrix values are not included",
-            ],
-            "path_presence_from_final_output_input": {
-                "model_artifact_path_recorded": bool(
-                    final_output_input.get("model_artifact_path")
+        "methodological_pipeline": {
+            "readiness_and_input_context": {
+                "input_fields_loaded": [
+                    "model_artifact_path",
+                    "model_ready_matrix_path",
+                    "prediction_artifact_paths",
+                    "feature_columns",
+                    "feature_lineage",
+                    "metric_summary",
+                    "model_ranking",
+                    "task/material/domain context",
+                    "stop_rationale when Iteration Decision stopped",
+                ],
+                "artifact_path_policy": [
+                    "model and prediction artifact paths are used for computation",
+                    "local paths are excluded from the paper evidence package",
+                    "feature matrix values are not included",
+                ],
+                "path_presence_from_final_output_input": {
+                    "model_artifact_path_recorded": bool(
+                        final_output_input.get("model_artifact_path")
+                    ),
+                    "model_artifact_path_excluded": bool(
+                        final_output_input.get("model_artifact_path")
+                    ),
+                    "prediction_artifact_count": len(
+                        _as_list(final_output_input.get("prediction_artifact_paths"))
+                    ),
+                    "prediction_artifact_paths_excluded": True,
+                },
+                "metric_summary": _pick_dict(final_output_input.get("metric_summary")),
+                "selection_summary": _pick_dict(
+                    final_output_input.get("selection_summary")
                 ),
-                "model_artifact_path_excluded": bool(
-                    final_output_input.get("model_artifact_path")
-                ),
-                "prediction_artifact_count": len(
-                    _as_list(final_output_input.get("prediction_artifact_paths"))
-                ),
-                "prediction_artifact_paths_excluded": True,
             },
-            "metric_summary": _pick_dict(final_output_input.get("metric_summary")),
-            "selection_summary": _pick_dict(
-                final_output_input.get("selection_summary")
-            ),
+            "method_selection": {
+                "methods": methods_used.get("methods", []),
+                "statuses": _pick_dict(methods_used.get("statuses")),
+                "selection_policy": [
+                    "linear models use coefficient, permutation, and linear SHAP when enabled",
+                    "tree models use native importance, permutation, and tree SHAP when enabled",
+                    "kernel or distance-based models default to permutation; full profile may use sampling SHAP",
+                    "baseline or dummy models skip formal interpretability analysis",
+                    "permutation importance is used as a fallback when other importance methods fail",
+                ],
+            },
+            "llm_summary_protocol": {
+                "llm_used": getattr(interpretability, "llm_used", None),
+                "llm_request_recorded": bool(llm_request),
+                "llm_request_text_excluded": bool(llm_request),
+                "llm_response_recorded": bool(llm_response),
+                "llm_response_text_excluded": bool(llm_response),
+                "constraints": [
+                    "LLM summarizes numerical interpretability results only",
+                    "LLM must not modify feature importance values",
+                    "LLM must not modify SHAP values",
+                    "LLM must not modify predictions",
+                    "LLM must not claim causal mechanisms unless supported",
+                    "LLM must not output executable code, shell, or SQL",
+                    "LLM must not suggest model retraining or feature modifications",
+                    "all interpretations must be framed as hypotheses or model associations",
+                ],
+                "validation_checks": [
+                    "dangerous code pattern scan",
+                    "forbidden field scan",
+                    "confidence level validation",
+                    "evidence strength normalization",
+                    "fallback limitations when output is unparseable",
+                    "unsupported causal language downgrade",
+                    "invalid evidence reference rejection",
+                ],
+            },
         },
-        "method_selection": {
-            "methods": methods_used.get("methods", []),
-            "statuses": _pick_dict(methods_used.get("statuses")),
-            "selection_policy": [
-                "linear models use coefficient, permutation, and linear SHAP when enabled",
-                "tree models use native importance, permutation, and tree SHAP when enabled",
-                "kernel or distance-based models default to permutation; full profile may use sampling SHAP",
-                "baseline or dummy models skip formal interpretability analysis",
-                "permutation importance is used as a fallback when other importance methods fail",
-            ],
-        },
-        "global_feature_importance": _summarize_global_feature_importance(
-            global_importance
-        ),
-        "permutation_importance": _summarize_permutation_importance(
-            permutation_importance
-        ),
-        "shap_analysis": _summarize_shap_analysis(shap_summary),
-        "cross_method_consensus": _summarize_cross_method_consensus(consensus),
-        "feature_group_and_material_insight": {
-            "feature_group_summary": _summarize_feature_group_from_importance(
+        "model_behavior_evidence": {
+            "global_feature_importance": _summarize_global_feature_importance(
                 global_importance
             ),
-            "material_insight_summary": _summarize_material_insight(
-                material_insight
+            "permutation_importance": _summarize_permutation_importance(
+                permutation_importance
             ),
-            "llm_interpretability_summary": _summarize_llm_interpretability_summary(
-                llm_summary
+            "shap_analysis": _summarize_shap_analysis(shap_summary),
+            "cross_method_consensus": _summarize_cross_method_consensus(consensus),
+            "feature_group_summary": _summarize_feature_group_summary(
+                feature_group_summary,
+                global_importance,
+            ),
+            "local_and_high_error_explanations": {
+                "local_explanations": _summarize_local_explanations(
+                    local_explanations
+                ),
+                "high_error_sample_analysis": _summarize_high_error_samples(
+                    high_error_samples
+                ),
+            },
+            "residual_and_systematic_error_analysis": _summarize_residual_analysis(
+                residual_analysis
+            ),
+            "correlation_and_pdp": {
+                "correlation_analysis": _summarize_correlation_analysis(
+                    correlation_analysis
+                ),
+                "partial_dependence": _summarize_partial_dependence(
+                    partial_dependence
+                ),
+            },
+            "physics_constraint_check": _summarize_physics_constraint_check(
+                physics_check
             ),
         },
-        "local_and_high_error_explanations": {
-            "local_explanations": _summarize_local_explanations(
-                local_explanations
-            ),
-            "high_error_sample_analysis": _summarize_high_error_samples(
-                high_error_samples
-            ),
-        },
-        "residual_and_systematic_error_analysis": _summarize_residual_analysis(
-            residual_analysis
+        "material_insight_evidence": _summarize_material_insight(
+            material_insight
         ),
-        "correlation_and_pdp": {
-            "correlation_analysis": _summarize_correlation_analysis(
-                correlation_analysis
-            ),
-            "partial_dependence": _summarize_partial_dependence(
-                partial_dependence
-            ),
-        },
-        "physics_constraint_check": _summarize_physics_constraint_check(
-            physics_check
+        "scientific_hypotheses_and_mechanisms": _summarize_scientific_insight_report(
+            scientific_report,
+            material_patterns,
+            material_mechanisms,
         ),
-        "llm_summary_protocol": {
-            "llm_used": getattr(interpretability, "llm_used", None),
-            "llm_request_recorded": bool(llm_request),
-            "llm_request_text_excluded": bool(llm_request),
-            "llm_response_recorded": bool(llm_response),
-            "llm_response_text_excluded": bool(llm_response),
-            "constraints": [
-                "LLM summarizes numerical interpretability results only",
-                "LLM must not modify feature importance values",
-                "LLM must not modify SHAP values",
-                "LLM must not modify predictions",
-                "LLM must not claim causal mechanisms unless supported",
-                "LLM must not output executable code, shell, or SQL",
-                "LLM must not suggest model retraining or feature modifications",
-                "all interpretations must be framed as hypotheses or model associations",
-            ],
-            "validation_checks": [
-                "dangerous code pattern scan",
-                "forbidden field scan",
-                "confidence level validation",
-                "evidence strength normalization",
-                "fallback limitations when output is unparseable",
-            ],
-        },
+        "validation_and_scope": _summarize_interpretability_validation_scope(
+            material_insight=material_insight,
+            scientific_report=scientific_report,
+            material_pattern_validation=material_pattern_validation,
+            material_patterns=material_patterns,
+            material_mechanisms=material_mechanisms,
+            physics_check=physics_check,
+        ),
+        "limitations_and_claim_boundaries": _summarize_material_claim_boundaries(
+            material_insight,
+            scientific_report,
+        ),
         "final_output_handoff": _summarize_interpretability_final_output_input(
             final_output_input
         ),
-        "artifact_management": _summarize_interpretability_artifact_manifest(
+        "artifact_availability": _summarize_interpretability_artifact_manifest(
             artifact_manifest
+        ),
+        "llm_interpretability_summary_legacy_view": _summarize_llm_interpretability_summary(
+            llm_summary
         ),
         "paper_relevance": _interpretability_analysis_paper_relevance(),
         "excluded_from_evidence": _interpretability_analysis_exclusions(),
     }
-
 
 def _build_input_summary(task_spec: Optional[Any], task_spec_json: Dict[str, Any]) -> Dict[str, Any]:
     if not task_spec:
@@ -5664,22 +5783,73 @@ def _summarize_feature_group_from_importance(items: Any) -> Dict[str, Any]:
     }
 
 
+def _summarize_feature_group_summary(
+    summary: Dict[str, Any],
+    global_importance: Any,
+) -> Dict[str, Any]:
+    groups = _pick_dict(summary.get("feature_groups"))
+    if not groups:
+        derived = _summarize_feature_group_from_importance(global_importance)
+        derived["source"] = "derived_from_global_feature_importance"
+        return derived
+
+    items = []
+    for group_name, group_data in groups.items():
+        if not isinstance(group_data, dict):
+            continue
+        items.append(
+            {
+                "feature_group": group_name,
+                "feature_count": group_data.get("feature_count"),
+                "total_importance": group_data.get("total_importance"),
+                "mean_importance": group_data.get("mean_importance"),
+                "top_features": _as_list(group_data.get("top_features"))[:10],
+                "summary": group_data.get("summary"),
+            }
+        )
+
+    return {
+        "source": "interpretability_analysis.feature_group_summary_json",
+        "summary_text": summary.get("summary_text"),
+        "items": items[:20],
+        "total_groups": len(items),
+        "omitted_groups": max(len(items) - 20, 0),
+    }
+
+
+
 def _summarize_material_insight(insight: Dict[str, Any]) -> Dict[str, Any]:
     patterns = _as_list(insight.get("top_material_patterns"))
     groups = _as_list(insight.get("feature_groups_interpretation"))
+    mechanisms = _as_list(insight.get("mechanism_candidates"))
+    academic_insights = _as_list(insight.get("academic_insights"))
+    rejected_claims = _as_list(insight.get("rejected_claims"))
+    missing_evidence = _as_list(insight.get("missing_evidence"))
+
     return {
+        "academic_executive_summary": _truncate(
+            insight.get("academic_executive_summary"),
+            2400,
+        ),
+        "academic_insights": _summarize_academic_insights(academic_insights),
         "top_material_patterns": _summarize_material_patterns(patterns),
         "feature_groups_interpretation": _summarize_feature_group_interpretations(
             groups
         ),
-        "domain_hypotheses": _as_list(insight.get("domain_hypotheses")),
-        "limitations": _as_list(insight.get("limitations")),
+        "mechanism_candidates": _summarize_material_mechanisms(mechanisms),
+        "domain_hypotheses": _as_list(insight.get("domain_hypotheses"))[:20],
+        "limitations": _as_list(insight.get("limitations"))[:20],
+        "rejected_claims": _summarize_rejected_claims(rejected_claims),
+        "missing_evidence": _summarize_missing_evidence(missing_evidence),
+        "human_review_notes": _as_list(insight.get("human_review_notes"))[:20],
         "confidence_level": insight.get("confidence_level"),
         "interpretation_boundary": (
             "Material insights are model-based associations and hypotheses, "
-            "not causal physical conclusions."
+            "not causal physical conclusions unless independent validation is "
+            "explicitly recorded."
         ),
     }
+
 
 
 def _summarize_llm_interpretability_summary(summary: Dict[str, Any]) -> Dict[str, Any]:
@@ -5687,14 +5857,134 @@ def _summarize_llm_interpretability_summary(summary: Dict[str, Any]) -> Dict[str
         "top_material_patterns": _summarize_material_patterns(
             _as_list(summary.get("top_material_patterns"))
         ),
+        "academic_insights": _summarize_academic_insights(
+            _as_list(summary.get("academic_insights"))
+        ),
+        "rejected_claims": _summarize_rejected_claims(
+            _as_list(summary.get("rejected_claims"))
+        ),
+        "missing_evidence": _summarize_missing_evidence(
+            _as_list(summary.get("missing_evidence"))
+        ),
         "feature_groups_interpretation": _summarize_feature_group_interpretations(
             _as_list(summary.get("feature_groups_interpretation"))
         ),
-        "domain_hypotheses": _as_list(summary.get("domain_hypotheses")),
-        "limitations": _as_list(summary.get("limitations")),
-        "human_review_notes": _as_list(summary.get("human_review_notes")),
+        "domain_hypotheses": _as_list(summary.get("domain_hypotheses"))[:20],
+        "limitations": _as_list(summary.get("limitations"))[:20],
+        "human_review_notes": _as_list(summary.get("human_review_notes"))[:20],
         "confidence_level": summary.get("confidence_level"),
     }
+
+
+
+def _summarize_academic_insights(
+    insights: Any,
+    max_items: int = 15,
+) -> Dict[str, Any]:
+    insights = _as_list(insights)
+    items = []
+    for item in insights:
+        if not isinstance(item, dict):
+            continue
+        if len(items) < max_items:
+            items.append(
+                _pick_keys(
+                    item,
+                    [
+                        "claim_id",
+                        "claim_type",
+                        "claim",
+                        "material_meaning",
+                        "supporting_evidence_ids",
+                        "evidence_chain",
+                        "evidence_strength",
+                        "confidence",
+                        "validation_status",
+                        "falsifiable_prediction",
+                        "suggested_validation",
+                        "counterexamples_or_risks",
+                        "scope_conditions",
+                        "allowed_wording",
+                    ],
+                )
+            )
+
+    typed = [item for item in insights if isinstance(item, dict)]
+    return {
+        "items": items,
+        "claim_type_counts": _count_by_key(typed, "claim_type"),
+        "validation_status_counts": _count_by_key(typed, "validation_status"),
+        "evidence_strength_counts": _count_by_key(typed, "evidence_strength"),
+        "confidence_counts": _count_by_key(typed, "confidence"),
+        "total_academic_insights": len(insights),
+        "omitted_academic_insights": max(len(insights) - len(items), 0),
+    }
+
+
+
+def _summarize_rejected_claims(
+    claims: Any,
+    max_items: int = 15,
+) -> Dict[str, Any]:
+    claims = _as_list(claims)
+    items = []
+    for item in claims:
+        if not isinstance(item, dict):
+            continue
+        if len(items) < max_items:
+            items.append(
+                _pick_keys(
+                    item,
+                    [
+                        "claim_id",
+                        "claim",
+                        "reason",
+                        "missing_evidence",
+                        "supporting_evidence_ids",
+                    ],
+                )
+            )
+    return {
+        "items": items,
+        "reason_counts": _count_by_key(
+            [item for item in claims if isinstance(item, dict)],
+            "reason",
+        ),
+        "total_rejected_claims": len(claims),
+        "omitted_rejected_claims": max(len(claims) - len(items), 0),
+    }
+
+
+
+def _summarize_missing_evidence(
+    missing: Any,
+    max_items: int = 15,
+) -> Dict[str, Any]:
+    missing = _as_list(missing)
+    items = []
+    for item in missing:
+        if isinstance(item, dict):
+            if len(items) < max_items:
+                items.append(
+                    _pick_keys(
+                        item,
+                        [
+                            "needed_evidence",
+                            "why_it_matters",
+                            "claim_id",
+                            "suggestion",
+                            "description",
+                        ],
+                    )
+                )
+        elif len(items) < max_items:
+            items.append({"needed_evidence": str(item)})
+    return {
+        "items": items,
+        "total_missing_evidence_items": len(missing),
+        "omitted_missing_evidence_items": max(len(missing) - len(items), 0),
+    }
+
 
 
 def _summarize_material_patterns(patterns: Any, max_items: int = 10) -> Dict[str, Any]:
@@ -5705,29 +5995,98 @@ def _summarize_material_patterns(patterns: Any, max_items: int = 10) -> Dict[str
         if not isinstance(item, dict):
             continue
         if len(items) < max_items:
-            items.append(
-                _pick_keys(
-                    item,
-                    [
-                        "pattern",
-                        "supporting_features",
-                        "possible_material_meaning",
-                        "evidence_strength",
-                        "caution",
-                    ],
-                )
+            pattern = _pick_keys(
+                item,
+                [
+                    "pattern_id",
+                    "pattern",
+                    "statement",
+                    "pattern_type",
+                    "material_concepts",
+                    "supporting_features",
+                    "supporting_evidence_ids",
+                    "contradicting_evidence_ids",
+                    "possible_material_meaning",
+                    "evidence_strength",
+                    "confidence_score",
+                    "confidence_label",
+                    "caution",
+                    "validation_status",
+                    "sample_support",
+                    "validation_summary",
+                    "validation_results",
+                    "scientific_score",
+                    "predicted_effect",
+                    "conditions",
+                    "scope",
+                    "scope_conditions",
+                    "counterexamples",
+                    "validation_suggestions",
+                    "limitations",
+                ],
             )
+            if "pattern" not in pattern and item.get("statement"):
+                pattern["pattern"] = item.get("statement")
+            if "scope" not in pattern and item.get("scope_conditions"):
+                pattern["scope"] = item.get("scope_conditions")
+            items.append(pattern)
 
+    typed = [item for item in patterns if isinstance(item, dict)]
     return {
         "items": items,
-        "strength_counts": _count_by_key(
-            [item for item in patterns if isinstance(item, dict)],
-            "evidence_strength",
-        ),
+        "pattern_type_counts": _count_by_key(typed, "pattern_type"),
+        "strength_counts": _count_by_key(typed, "evidence_strength"),
+        "confidence_label_counts": _count_by_key(typed, "confidence_label"),
+        "validation_status_counts": _count_by_key(typed, "validation_status"),
         "total_patterns": len(patterns),
         "omitted_patterns": max(len(patterns) - len(items), 0),
     }
 
+
+
+def _summarize_material_mechanisms(mechanisms: Any, max_items: int = 10) -> Dict[str, Any]:
+    mechanisms = _as_list(mechanisms)
+    items = []
+    for item in mechanisms:
+        if not isinstance(item, dict):
+            continue
+        if len(items) < max_items:
+            mechanism = _pick_keys(
+                item,
+                [
+                    "mechanism_id",
+                    "mechanism_statement",
+                    "mechanism_family",
+                    "source_pattern_ids",
+                    "material_variables",
+                    "descriptor_variables",
+                    "causal_chain",
+                    "applicable_material_scope",
+                    "excluded_or_weak_scope",
+                    "supporting_evidence_ids",
+                    "supporting_pattern_validation",
+                    "counterexamples",
+                    "grounding_level",
+                    "confidence",
+                    "confidence_score",
+                    "confidence_label",
+                    "limitations",
+                    "validation_suggestions",
+                ],
+            )
+            if "confidence" not in mechanism and item.get("confidence_label"):
+                mechanism["confidence"] = item.get("confidence_label")
+            items.append(mechanism)
+
+    typed = [item for item in mechanisms if isinstance(item, dict)]
+    return {
+        "items": items,
+        "mechanism_family_counts": _count_by_key(typed, "mechanism_family"),
+        "grounding_level_counts": _count_by_key(typed, "grounding_level"),
+        "confidence_label_counts": _count_by_key(typed, "confidence_label"),
+        "total_mechanisms": len(mechanisms),
+        "omitted_mechanisms": max(len(mechanisms) - len(items), 0),
+    }
 
 def _summarize_feature_group_interpretations(
     groups: Any,
@@ -5745,6 +6104,393 @@ def _summarize_feature_group_interpretations(
         "omitted_groups": max(len(groups) - len(items), 0),
     }
 
+
+def _summarize_scientific_insight_report(
+    report: Dict[str, Any],
+    material_patterns: Any,
+    material_mechanisms: Any,
+) -> Dict[str, Any]:
+    executive = _as_list(report.get("executive_insights"))
+    ranked = _as_list(report.get("ranked_hypotheses"))
+    mechanisms = _first_non_empty_list(
+        _as_list(report.get("material_mechanism_candidates")),
+        _as_list(material_mechanisms),
+        _as_list(report.get("mechanism_candidates")),
+    )
+    patterns = _first_non_empty_list(
+        _as_list(report.get("material_pattern_candidates")),
+        _as_list(material_patterns),
+    )
+
+    return {
+        "report_present": bool(report),
+        "executive_insights": _summarize_scientific_hypotheses(executive),
+        "ranked_hypotheses": _summarize_scientific_hypotheses(ranked),
+        "rule_based_mechanism_hypotheses": _summarize_scientific_hypotheses(
+            _as_list(report.get("mechanism_candidates"))
+        ),
+        "material_pattern_candidates": _summarize_material_patterns(patterns),
+        "material_mechanism_candidates": _summarize_material_mechanisms(mechanisms),
+        "model_applicability_boundaries": _summarize_applicability_boundaries(
+            _as_list(report.get("model_applicability_boundaries"))
+        ),
+        "anomaly_or_counterexample_patterns": _summarize_anomaly_patterns(
+            _as_list(report.get("anomaly_or_counterexample_patterns"))
+        ),
+        "physics_consistency_summary": _pick_dict(
+            report.get("physics_consistency_summary")
+        ),
+        "evidence_graph_summary": _summarize_evidence_graph(
+            _pick_dict(report.get("evidence_graph"))
+        ),
+        "limitations": _as_list(report.get("limitations"))[:20],
+        "feature_profile_count": len(_as_list(report.get("feature_profiles"))),
+        "full_feature_profiles_excluded": bool(report.get("feature_profiles")),
+    }
+
+
+
+def _summarize_scientific_hypotheses(
+    hypotheses: Any,
+    max_items: int = 15,
+) -> Dict[str, Any]:
+    hypotheses = _as_list(hypotheses)
+    items = []
+    for item in hypotheses:
+        if not isinstance(item, dict):
+            continue
+        if len(items) < max_items:
+            items.append(
+                _pick_keys(
+                    item,
+                    [
+                        "hypothesis_id",
+                        "claim",
+                        "claim_type",
+                        "supporting_evidence_ids",
+                        "contradicting_evidence_ids",
+                        "confidence_score",
+                        "confidence_label",
+                        "confidence_breakdown",
+                        "scope_conditions",
+                        "validation_suggestions",
+                        "hypothesis_pattern",
+                    ],
+                )
+            )
+
+    typed = [item for item in hypotheses if isinstance(item, dict)]
+    return {
+        "items": items,
+        "claim_type_counts": _count_by_key(typed, "claim_type"),
+        "confidence_label_counts": _count_by_key(typed, "confidence_label"),
+        "total_hypotheses": len(hypotheses),
+        "omitted_hypotheses": max(len(hypotheses) - len(items), 0),
+    }
+
+
+
+def _summarize_applicability_boundaries(
+    boundaries: Any,
+    max_items: int = 10,
+) -> Dict[str, Any]:
+    boundaries = _as_list(boundaries)
+    items = []
+    for item in boundaries:
+        if not isinstance(item, dict):
+            continue
+        if len(items) < max_items:
+            items.append(
+                _pick_keys(
+                    item,
+                    [
+                        "boundary_id",
+                        "description",
+                        "feature_conditions",
+                        "error_ratio",
+                        "supporting_evidence_ids",
+                        "severity",
+                    ],
+                )
+            )
+
+    typed = [item for item in boundaries if isinstance(item, dict)]
+    return {
+        "items": items,
+        "severity_counts": _count_by_key(typed, "severity"),
+        "total_boundaries": len(boundaries),
+        "omitted_boundaries": max(len(boundaries) - len(items), 0),
+    }
+
+
+
+def _summarize_anomaly_patterns(
+    anomalies: Any,
+    max_items: int = 10,
+) -> Dict[str, Any]:
+    anomalies = _as_list(anomalies)
+    items = []
+    for item in anomalies:
+        if not isinstance(item, dict):
+            continue
+        if len(items) < max_items:
+            items.append(
+                _pick_keys(
+                    item,
+                    [
+                        "pattern_id",
+                        "description",
+                        "sample_count",
+                        "feature_signature",
+                        "supporting_evidence_ids",
+                    ],
+                )
+            )
+    return {
+        "items": items,
+        "total_anomaly_patterns": len(anomalies),
+        "omitted_anomaly_patterns": max(len(anomalies) - len(items), 0),
+    }
+
+
+
+def _summarize_evidence_graph(graph: Dict[str, Any], max_items: int = 20) -> Dict[str, Any]:
+    if not isinstance(graph, dict):
+        return {"node_count": 0, "items": []}
+
+    items = []
+    for key, value in graph.items():
+        if len(items) >= max_items:
+            break
+        if isinstance(value, list):
+            items.append({"node": key, "evidence_ids": value[:10], "evidence_count": len(value)})
+        elif isinstance(value, dict):
+            items.append({"node": key, "keys": sorted(value.keys())[:20]})
+        else:
+            items.append({"node": key, "value": value})
+
+    return {
+        "node_count": len(graph),
+        "items": items,
+        "omitted_nodes": max(len(graph) - len(items), 0),
+    }
+
+
+
+def _summarize_interpretability_validation_scope(
+    material_insight: Dict[str, Any],
+    scientific_report: Dict[str, Any],
+    material_pattern_validation: Dict[str, Any],
+    material_patterns: Any,
+    material_mechanisms: Any,
+    physics_check: Dict[str, Any],
+) -> Dict[str, Any]:
+    patterns = _as_list(material_patterns)
+    mechanisms = _as_list(material_mechanisms)
+    validation_patterns = _as_list(material_pattern_validation.get("validated_patterns"))
+    if not validation_patterns:
+        validation_patterns = patterns
+
+    return {
+        "pattern_validation": {
+            "validation_method": material_pattern_validation.get("validation_method"),
+            "warnings": _as_list(material_pattern_validation.get("warnings"))[:20],
+            "validated_patterns": _summarize_material_patterns(validation_patterns),
+        },
+        "sample_support_summary": _summarize_pattern_sample_support(patterns),
+        "scope_conditions": _collect_limited_values(
+            patterns,
+            ["scope", "scope_conditions"],
+            max_values=30,
+        ),
+        "counterexamples": _collect_limited_values(
+            patterns,
+            ["counterexamples"],
+            max_values=20,
+        ),
+        "mechanism_scope": _summarize_mechanism_scope(mechanisms),
+        "model_applicability_boundaries": _summarize_applicability_boundaries(
+            _as_list(scientific_report.get("model_applicability_boundaries"))
+        ),
+        "anomaly_or_counterexample_patterns": _summarize_anomaly_patterns(
+            _as_list(scientific_report.get("anomaly_or_counterexample_patterns"))
+        ),
+        "physics_constraint_status": {
+            "passed": physics_check.get("passed"),
+            "constraint_count": len(_as_list(physics_check.get("constraints"))),
+        },
+        "suggested_validation": _collect_suggested_validation(
+            material_insight,
+            scientific_report,
+            patterns,
+            mechanisms,
+        ),
+    }
+
+
+
+def _summarize_pattern_sample_support(patterns: Any) -> Dict[str, Any]:
+    patterns = _as_list(patterns)
+    coverages = []
+    counts = []
+    for item in patterns:
+        if not isinstance(item, dict):
+            continue
+        support = _pick_dict(item.get("sample_support"))
+        coverage = support.get("coverage")
+        if isinstance(coverage, (int, float)):
+            coverages.append(coverage)
+        in_scope = support.get("in_scope_count")
+        if isinstance(in_scope, (int, float)):
+            counts.append(in_scope)
+    return {
+        "coverage_summary": _numeric_summary(coverages),
+        "in_scope_count_summary": _numeric_summary(counts),
+        "patterns_with_sample_support": len(coverages),
+        "total_patterns": len(patterns),
+    }
+
+
+
+def _summarize_mechanism_scope(mechanisms: Any) -> Dict[str, Any]:
+    mechanisms = _as_list(mechanisms)
+    applicable = []
+    weak = []
+    for item in mechanisms:
+        if not isinstance(item, dict):
+            continue
+        applicable.extend(_as_list(item.get("applicable_material_scope")))
+        weak.extend(_as_list(item.get("excluded_or_weak_scope")))
+    return {
+        "applicable_material_scope": list(dict.fromkeys(applicable))[:30],
+        "excluded_or_weak_scope": list(dict.fromkeys(weak))[:30],
+        "mechanism_count": len(mechanisms),
+    }
+
+
+
+def _collect_suggested_validation(
+    material_insight: Dict[str, Any],
+    scientific_report: Dict[str, Any],
+    patterns: Any,
+    mechanisms: Any,
+    max_items: int = 30,
+) -> Dict[str, Any]:
+    suggestions = []
+    for item in _as_list(material_insight.get("academic_insights")):
+        if isinstance(item, dict):
+            suggestions.extend(_as_list(item.get("suggested_validation")))
+    for item in _as_list(scientific_report.get("ranked_hypotheses")):
+        if isinstance(item, dict):
+            suggestions.extend(_as_list(item.get("validation_suggestions")))
+    for item in _as_list(patterns):
+        if isinstance(item, dict):
+            suggestions.extend(_as_list(item.get("validation_suggestions")))
+    for item in _as_list(mechanisms):
+        if isinstance(item, dict):
+            suggestions.extend(_as_list(item.get("validation_suggestions")))
+
+    unique = []
+    for suggestion in suggestions:
+        text = str(suggestion).strip()
+        if text and text not in unique:
+            unique.append(text)
+        if len(unique) >= max_items:
+            break
+
+    return {
+        "items": unique,
+        "total_unique_suggestions_included": len(unique),
+    }
+
+
+
+def _summarize_material_claim_boundaries(
+    material_insight: Dict[str, Any],
+    scientific_report: Dict[str, Any],
+) -> Dict[str, Any]:
+    limitations = list(_as_list(material_insight.get("limitations")))
+    limitations.extend(_as_list(scientific_report.get("limitations")))
+    limitations_section = _as_list(material_insight.get("limitations_section"))
+
+    return {
+        "claim_boundary_policy": [
+            "Treat feature importance, SHAP, PDP, and residual patterns as model-behavior evidence.",
+            "Treat material insights as evidence-grounded hypotheses unless external validation is recorded.",
+            "Do not state causal mechanisms from model evidence alone.",
+            "Rejected claims and missing evidence must remain visible in paper-writing context.",
+        ],
+        "rejected_claims": _summarize_rejected_claims(
+            _as_list(material_insight.get("rejected_claims"))
+        ),
+        "missing_evidence": _summarize_missing_evidence(
+            _as_list(material_insight.get("missing_evidence"))
+        ),
+        "human_review_notes": _as_list(material_insight.get("human_review_notes"))[:20],
+        "limitations": list(dict.fromkeys([str(item) for item in limitations if item]))[:30],
+        "limitations_section": [
+            _pick_keys(item, ["category", "description"])
+            for item in limitations_section[:20]
+            if isinstance(item, dict)
+        ],
+    }
+
+
+
+def _collect_limited_values(
+    records: Any,
+    keys: list,
+    max_values: int = 20,
+) -> Dict[str, Any]:
+    values = []
+    for record in _as_list(records):
+        if not isinstance(record, dict):
+            continue
+        for key in keys:
+            value = record.get(key)
+            if isinstance(value, list):
+                values.extend(value)
+            elif value:
+                values.append(value)
+
+    normalized = []
+    for value in values:
+        if isinstance(value, dict):
+            rendered = value
+        else:
+            rendered = str(value)
+        if rendered not in normalized:
+            normalized.append(rendered)
+        if len(normalized) >= max_values:
+            break
+
+    return {
+        "items": normalized,
+        "total_values_included": len(normalized),
+    }
+
+
+
+def _load_json_artifact_from_manifest(
+    manifest: Dict[str, Any],
+    path_key: str,
+) -> Any:
+    path = manifest.get(path_key) if isinstance(manifest, dict) else None
+    if not path or not isinstance(path, str):
+        return None
+    try:
+        if not os.path.isfile(path):
+            return {
+                "_artifact_load_error": "artifact path is recorded but file is not readable",
+                "_artifact_path_recorded": True,
+            }
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as exc:
+        return {
+            "_artifact_load_error": str(exc),
+            "_artifact_path_recorded": True,
+        }
 
 def _summarize_local_explanations(
     items: Any,
@@ -6052,6 +6798,10 @@ def _summarize_interpretability_artifact_manifest(
         "feature_group_summary_path",
         "material_insight_summary_path",
         "llm_interpretability_summary_path",
+        "scientific_insight_report_path",
+        "material_patterns_path",
+        "material_pattern_validation_path",
+        "material_mechanisms_path",
         "final_output_input_path",
         "cross_method_consensus_path",
         "partial_dependence_path",
@@ -6079,8 +6829,9 @@ def _interpretability_analysis_paper_relevance() -> Dict[str, Any]:
             "The module combines model-family-aware method selection, "
             "multi-method feature importance, SHAP, cross-method consensus, "
             "feature-lineage grouping, residual and high-error analysis, "
-            "physics constraint checks, and LLM-constrained materials "
-            "summarization."
+            "physics constraint checks, deterministic material-pattern and "
+            "mechanism generation, scope analysis, and LLM-constrained "
+            "academic insight validation."
         ),
         "why_this_module_matters": (
             "It bridges predictive performance and scientific reporting by "
@@ -6107,6 +6858,9 @@ def _interpretability_analysis_exclusions() -> list:
         "artifact local paths",
         "complete LLM request prompt and user message",
         "complete raw LLM response",
+        "complete evidence unit arrays when large",
+        "complete feature evidence profiles",
+        "complete material pattern validation internals when large",
         "traceback strings",
         "random interpretability_analysis_id",
         "random metric_evaluation_id",

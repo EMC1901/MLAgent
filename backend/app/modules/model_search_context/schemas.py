@@ -177,8 +177,8 @@ class ValidationPlan(BaseModel):
     split_strategy: str = "k_fold_cross_validation"
     n_splits: int = 5
     test_size: Optional[float] = None
-    external_test_enabled: bool = False
-    external_test_size: Optional[float] = None
+    external_test_enabled: bool = True
+    external_test_size: Optional[float] = 0.2
     cv_strategy: Optional[str] = None
     random_state: int = 42
     shuffle: bool = True

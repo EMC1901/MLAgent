@@ -36,11 +36,35 @@ class MatbenchLoader(BaseLoader):
     def loader_name(self) -> str:
         return "matbench"
 
+    def _normalize_dataset_ref(self, dataset_ref: str) -> str:
+        """Extract a known dataset name from LLM-generated descriptive text.
+
+        LLMs may return strings like
+        ``"matbench_expt_gap (Experimental band gap)"`` instead of the short
+        identifier ``"matbench_expt_gap"``.  This helper looks for known
+        dataset-name substrings and returns the canonical name.
+        """
+        if not dataset_ref:
+            return dataset_ref
+        ref_lower = dataset_ref.lower()
+        for name in _KNOWN_DATASETS:
+            if name in ref_lower:
+                return name
+        return dataset_ref
+
     def load(self, context: dict, source_resolution: dict) -> tuple:
         dataset_ref = source_resolution.get("dataset_reference", "")
+        dataset_ref = self._normalize_dataset_ref(dataset_ref)
+
+        logger.info(
+            "MatbenchLoader.load — raw_ref=%s normalized_ref=%s",
+            source_resolution.get("dataset_reference", ""),
+            dataset_ref,
+        )
 
         try:
             from matbench import MatbenchBenchmark
+            logger.info("MatbenchLoader — using real matbench package")
             return self._load_from_matbench(dataset_ref)
         except ImportError:
             logger.warning(
@@ -54,7 +78,7 @@ class MatbenchLoader(BaseLoader):
         mb = MatbenchBenchmark()
         found = None
         for ds in mb.datasets:
-            if ds.name == dataset_ref:
+            if ds.name == dataset_ref or ds.name.lower() == dataset_ref.lower():
                 found = ds
                 break
 

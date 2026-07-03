@@ -54,6 +54,16 @@ class VisualizationService:
         try:
             records = repo.list_by_task_id(session, task_id)
             record = next((r for r in records if self._is_completed(r)), None)
+            logger.info(
+                "Visualization selected %s record: task_id=%s n_records=%d id=%s status=%s created_at=%s updated_at=%s",
+                label,
+                task_id,
+                len(records),
+                getattr(record, "id", None) if record else None,
+                getattr(record, "status", None) if record else None,
+                getattr(record, "created_at", None) if record else None,
+                getattr(record, "updated_at", None) if record else None,
+            )
         except Exception as e:
             logger.warning("Failed to query %s: %s", label, str(e))
             record = None

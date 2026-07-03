@@ -67,7 +67,7 @@ const DatasetProfilePanel: React.FC<DatasetProfilePanelProps> = ({ taskId, initi
     setLoading(true);
     setError(null);
     try {
-      const response = await rerunDatasetProfile(taskId);
+      const response = await rerunDatasetProfile(taskId, uploadResult?.file_id);
       if (response.success) {
         setProfile(response.data);
       } else {
@@ -95,6 +95,10 @@ const DatasetProfilePanel: React.FC<DatasetProfilePanelProps> = ({ taskId, initi
             </Descriptions.Item>
           </Descriptions>
         </Card>
+
+        {profile.status === 'failed' && profile.error_message && (
+          <ErrorBox message={profile.error_message} />
+        )}
 
         {profile.dataset_source && (
           <Card size="small" title="Source">

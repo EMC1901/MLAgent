@@ -259,9 +259,44 @@ def _get_search_space_params(
                 param.low = max(0.0 if param.param_type == "float" else 1, param.low - range_size * 0.3)
                 param.high = param.high + range_size * 0.3
 
+        _apply_model_specific_profile_bounds(model_id, space_width, param)
         params.append(param)
 
     return params
+
+
+def _apply_model_specific_profile_bounds(
+    model_id: str,
+    space_width: str,
+    param: SearchSpaceParameter,
+) -> None:
+    """Tune high-sensitivity tree model ranges after generic profile scaling."""
+    if model_id == "lightgbm":
+        if space_width == SearchSpaceProfile.NARROW:
+            if param.name == "num_leaves" and param.high is not None:
+                param.high = min(param.high, 31)
+            elif param.name == "max_depth" and param.high is not None:
+                param.high = min(param.high, 8)
+        elif space_width == SearchSpaceProfile.MODERATE:
+            if param.name == "num_leaves":
+                param.high = max(param.high or 0, 63)
+        elif space_width == SearchSpaceProfile.WIDE:
+            if param.name == "num_leaves":
+                param.high = max(param.high or 0, 127)
+            elif param.name == "max_depth":
+                param.high = max(param.high or 0, 16)
+            elif param.name == "n_estimators":
+                param.high = max(param.high or 0, 800)
+
+    if model_id == "xgboost":
+        if space_width == SearchSpaceProfile.NARROW:
+            if param.name == "max_depth" and param.high is not None:
+                param.high = min(param.high, 8)
+        elif space_width == SearchSpaceProfile.WIDE:
+            if param.name == "max_depth":
+                param.high = max(param.high or 0, 16)
+            elif param.name == "n_estimators":
+                param.high = max(param.high or 0, 800)
 
 
 def _apply_overrides_to_params(

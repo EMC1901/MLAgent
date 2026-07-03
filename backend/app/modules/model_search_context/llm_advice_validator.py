@@ -207,7 +207,11 @@ def validate_llm_advice(parsed_advice: dict, task_type: str) -> dict:
         # Clamp max_trials
         if field_path == "max_trials":
             updated = change.get("updated_value", 30)
-            max_allowed = getattr(settings, "MODEL_CONTEXT_MAX_HPO_TRIALS", 50)
+            max_allowed = getattr(
+                settings,
+                "MODEL_CONTEXT_HARD_MAX_HPO_TRIALS",
+                getattr(settings, "MODEL_CONTEXT_MAX_HPO_TRIALS", 50),
+            )
             if isinstance(updated, (int, float)) and updated > max_allowed:
                 rejected.append(f"max_trials: {updated} exceeds system limit of {max_allowed}")
                 change["updated_value"] = max_allowed
@@ -249,7 +253,11 @@ def validate_llm_advice(parsed_advice: dict, task_type: str) -> dict:
                 fallback_applied = True
                 continue
             trials = alloc.get("max_trials", 0)
-            max_allowed_trials = getattr(settings, "MODEL_CONTEXT_MAX_HPO_TRIALS", 50)
+            max_allowed_trials = getattr(
+                settings,
+                "MODEL_CONTEXT_HARD_MAX_HPO_TRIALS",
+                getattr(settings, "MODEL_CONTEXT_MAX_HPO_TRIALS", 50),
+            )
             if not isinstance(trials, (int, float)) or trials < 0 or trials > max_allowed_trials:
                 rejected.append(f"{alloc_key}: max_trials {trials} is out of range [0, {max_allowed_trials}]")
                 fallback_applied = True

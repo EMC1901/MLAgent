@@ -105,3 +105,72 @@ FORBIDDEN_LLM_FIELDS = [
     "modified_importance", "modified_shap_values", "causal_claim",
     "model_update", "feature_update",
 ]
+
+
+class EvidenceType:
+    SHAP_IMPORTANCE = "shap_importance"
+    PERMUTATION_IMPORTANCE = "permutation_importance"
+    COEFFICIENT_IMPORTANCE = "coefficient_importance"
+    NATIVE_IMPORTANCE = "native_importance"
+    PDP_1D = "pdp_1d"
+    CORRELATION_LINEAR = "correlation_linear"
+    CORRELATION_RANK = "correlation_rank"
+    RESIDUAL_SEGMENT = "residual_segment"
+    PHYSICS_CONSTRAINT = "physics_constraint"
+    ERROR_CONCENTRATION = "error_concentration"
+    SHAP_INTERACTION = "shap_interaction"
+    SHAP_DEPENDENCE = "shap_dependence"
+
+
+class HypothesisClaimType:
+    ASSOCIATION = "association"
+    MECHANISM_HYPOTHESIS = "mechanism_hypothesis"
+    LIMITATION = "limitation"
+    ANOMALY = "anomaly"
+
+
+class ConfidenceTier:
+    VERY_LOW = "very_low"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    VERY_HIGH = "very_high"
+
+
+CONFIDENCE_TIER_THRESHOLDS = [
+    (0.0, ConfidenceTier.VERY_LOW),
+    (0.2, ConfidenceTier.LOW),
+    (0.4, ConfidenceTier.MEDIUM),
+    (0.6, ConfidenceTier.HIGH),
+    (0.8, ConfidenceTier.VERY_HIGH),
+]
+
+VALID_CLAIM_TYPES = {
+    HypothesisClaimType.ASSOCIATION,
+    HypothesisClaimType.MECHANISM_HYPOTHESIS,
+    HypothesisClaimType.LIMITATION,
+    HypothesisClaimType.ANOMALY,
+}
+
+VALID_EVIDENCE_TYPES = {
+    EvidenceType.SHAP_IMPORTANCE,
+    EvidenceType.PERMUTATION_IMPORTANCE,
+    EvidenceType.COEFFICIENT_IMPORTANCE,
+    EvidenceType.NATIVE_IMPORTANCE,
+    EvidenceType.PDP_1D,
+    EvidenceType.CORRELATION_LINEAR,
+    EvidenceType.CORRELATION_RANK,
+    EvidenceType.RESIDUAL_SEGMENT,
+    EvidenceType.PHYSICS_CONSTRAINT,
+    EvidenceType.ERROR_CONCENTRATION,
+    EvidenceType.SHAP_INTERACTION,
+    EvidenceType.SHAP_DEPENDENCE,
+}
+
+VALID_CONFIDENCE_TIERS = {
+    ConfidenceTier.VERY_LOW,
+    ConfidenceTier.LOW,
+    ConfidenceTier.MEDIUM,
+    ConfidenceTier.HIGH,
+    ConfidenceTier.VERY_HIGH,
+}

@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import warnings
 
@@ -11,6 +12,10 @@ warnings.filterwarnings("ignore", message=".*did not converge.*")
 # handler runs, which overwrites any root-level handler we install.
 # Workaround: install a handler directly on every "app.*" logger as they are
 # created, via a small monkey-patch on logging.getLogger.
+
+# Respect LOG_LEVEL env var (default INFO)
+_LOG_LEVEL_NAME = os.environ.get("LOG_LEVEL", "INFO").upper()
+_LOG_LEVEL = getattr(logging, _LOG_LEVEL_NAME, logging.INFO)
 
 _APP_FMT = logging.Formatter(
     "%(asctime)s  %(levelname)-5s [%(name)s] %(message)s",
@@ -25,7 +30,7 @@ _orig_getLogger = logging.getLogger
 def _patched_getLogger(name=None):
     logger = _orig_getLogger(name)
     if name and (name == "app" or name.startswith("app.")):
-        logger.setLevel(logging.INFO)
+        logger.setLevel(_LOG_LEVEL)
         if _APP_HANDLER not in logger.handlers:
             logger.addHandler(_APP_HANDLER)
             _APP_HANDLER_LOGGERS.add(logger)
@@ -85,12 +90,10 @@ def on_startup():
     except ImportError:
         pass
 
-    try:
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-    except Exception as e:
-        logger.error("Failed to apply database migrations: %s", str(e))
-        raise
+    # On a fresh database, create all tables directly from SQLModel metadata.
+    # Alembic migrations are only needed when migrating from an older schema.
+    from sqlmodel import SQLModel
+    SQLModel.metadata.create_all(bind=engine)
     logger.info("MLAgent backend started successfully.")
 
 

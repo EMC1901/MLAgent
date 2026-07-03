@@ -77,13 +77,19 @@ function formatMetric(value: number): string {
   return value.toExponential(2);
 }
 
-function metricLabel(metric?: string | null): string {
-  const raw = (metric || 'R2').trim();
-  const normalised = raw.toLowerCase().replace(/[\s.-]/g, '_');
-  if (normalised === 'r2' || normalised === 'r_squared' || normalised === 'rsquared') return 'R\u00b2';
-  return raw.toUpperCase();
+function metricKey(metric?: string | null): string {
+  const normalised = (metric || '').toLowerCase().replace(/[\s.-]/g, '_');
+  if (normalised === 'r2' || normalised === 'r_2' || normalised === 'r_squared' || normalised === 'rsquared') return 'r2';
+  if (normalised === 'mean_absolute_error') return 'mae';
+  if (normalised === 'root_mean_squared_error') return 'rmse';
+  return normalised;
 }
 
+function metricLabel(metric?: string | null): string {
+  const raw = (metric || 'R2').trim();
+  if (metricKey(raw) === 'r2') return 'R\u00b2';
+  return raw.toUpperCase();
+}
 function canonicalSplit(split?: string): 'train' | 'test' | 'unknown' {
   const value = (split || 'test').toLowerCase();
   if (['train', 'training'].includes(value)) return 'train';
@@ -104,27 +110,30 @@ function modelTitle(modelFamily?: string | null, modelId?: string | null): strin
 }
 
 function buildMetricLines(data: PredictedVsActualData): string[] {
-  const displayMetric = metricLabel(data.primary_metric || 'R2');
   const splitMetrics = data.split_metrics || [];
-  const trainMetric = splitMetrics.find(m => canonicalSplit(m.split) === 'train');
-  const testMetric = splitMetrics.find(m => canonicalSplit(m.split) === 'test');
+  const primaryMetric = data.primary_metric || 'R2';
+  const primaryKey = metricKey(primaryMetric);
+  const displayMetric = metricLabel(primaryMetric);
+  const findMetric = (kind: 'train' | 'test') => splitMetrics.find(
+    m => canonicalSplit(m.split) === kind && metricKey(m.metric_name) === primaryKey
+  );
+  const trainMetric = findMetric('train');
+  const testMetric = findMetric('test');
   const lines: string[] = [];
 
   if (trainMetric) {
     lines.push(`${displayMetric} Train: ${formatMetric(trainMetric.metric_value)}`);
   }
   if (testMetric) {
-    lines.push(`${displayMetric} External Test: ${formatMetric(testMetric.metric_value)}`);
+    lines.push(`${displayMetric} Test: ${formatMetric(testMetric.metric_value)}`);
   } else if (typeof data.primary_metric_value === 'number') {
-    lines.push(`${displayMetric} External Test: ${formatMetric(data.primary_metric_value)}`);
+    lines.push(`${displayMetric} Test: ${formatMetric(data.primary_metric_value)}`);
+  } else if (primaryKey === 'r2' && typeof data.r_squared === 'number') {
+    lines.push(`${displayMetric} Test: ${formatMetric(data.r_squared)}`);
   }
 
-  if (lines.length === 0) {
-    lines.push(`${displayMetric} External Test: ${formatMetric(data.r_squared)}`);
-  }
   return lines;
 }
-
 const PredictedVsActualChart: React.FC<Props> = ({ data, modelId, modelFamily, modelTrialId }) => {
   const chart = useMemo(() => {
     const points: PlotPoint[] = (data?.points || [])
@@ -157,13 +166,13 @@ const PredictedVsActualChart: React.FC<Props> = ({ data, modelId, modelFamily, m
   }, [data]);
 
   if (!data || !chart) {
-    return <p style={{ color: '#999' }}>No prediction vs actual data available.</p>;
+    return <p style={{ color: '#999' }}>No final train/test prediction data available. Re-run Pipeline Execution with external test enabled and saved predictions.</p>;
   }
 
   const metricBoxHeight = 46 + Math.max(0, chart.metricLines.length - 1) * 22;
   const legendItems = [
     ...(chart.hasTrain ? [{ type: 'point', color: TRAIN_COLOR, label: 'Training Set' }] : []),
-    ...(chart.hasTest ? [{ type: 'point', color: TEST_COLOR, label: 'External Test Set' }] : []),
+    ...(chart.hasTest ? [{ type: 'point', color: TEST_COLOR, label: 'Test Set' }] : []),
     { type: 'line', color: CHART_COLORS.axis, label: 'Perfect Prediction' },
   ];
   const legendWidth = 250;
@@ -250,9 +259,10 @@ const PredictedVsActualChart: React.FC<Props> = ({ data, modelId, modelFamily, m
           cx={chart.xScale(point.actual)}
           cy={chart.yScale(point.predicted)}
           r={5.2}
-          fill="none"
-          stroke={splitColor(point.split)}
-          strokeWidth={1.8}
+          fill={splitColor(point.split)}
+          fillOpacity={0.78}
+          stroke="#fff"
+          strokeWidth={0.7}
         >
           <title>{`Actual: ${formatMetric(point.actual)}, Predicted: ${formatMetric(point.predicted)}, Residual: ${formatMetric(point.residual)}`}</title>
         </circle>
@@ -302,7 +312,7 @@ const PredictedVsActualChart: React.FC<Props> = ({ data, modelId, modelFamily, m
           return (
             <g key={item.label}>
               {item.type === 'point' ? (
-                <circle cx={28} cy={y - 5} r={5.5} fill="none" stroke={item.color} strokeWidth={1.8} />
+                <circle cx={28} cy={y - 5} r={5.5} fill={item.color} fillOpacity={0.78} stroke="#fff" strokeWidth={0.7} />
               ) : (
                 <line x1={16} y1={y - 5} x2={42} y2={y - 5} stroke={item.color} strokeWidth={3} strokeDasharray="9 6" strokeLinecap="round" />
               )}

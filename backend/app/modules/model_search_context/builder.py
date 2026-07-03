@@ -230,6 +230,190 @@ _DEFAULT_SECONDARY = {
     TaskType.CLASSIFICATION: ["Accuracy", "F1"],
 }
 
+_COMPLEX_HPO_MODEL_FAMILIES = {
+    "xgboost",
+    "lightgbm",
+    "gradient_boosting",
+    "mlp",
+}
+
+
+def _profile_get(dataset_profile: dict, key: str, default=None):
+    if not dataset_profile:
+        return default
+    if isinstance(dataset_profile, dict):
+        return dataset_profile.get(key, default)
+    return getattr(dataset_profile, key, default)
+
+
+def _is_resource_constrained_profile(dataset_profile: dict) -> bool:
+    if _profile_get(dataset_profile, "is_small_sample", False):
+        return True
+    if _profile_get(dataset_profile, "is_low_feature", False):
+        return True
+
+    n_samples = _profile_get(dataset_profile, "n_samples")
+    n_features = _profile_get(dataset_profile, "n_final_features")
+    small_sample_threshold = getattr(settings, "MODEL_CONTEXT_SMALL_SAMPLE_THRESHOLD", 200)
+    low_feature_threshold = getattr(settings, "MODEL_CONTEXT_LOW_FEATURE_THRESHOLD", 20)
+    return (
+        (n_samples is not None and n_samples > 0 and n_samples < small_sample_threshold)
+        or (n_features is not None and n_features > 0 and n_features < low_feature_threshold)
+    )
+
+
+def _is_large_hpo_profile(dataset_profile: dict) -> bool:
+    n_samples = _profile_get(dataset_profile, "n_samples", 0) or 0
+    n_features = _profile_get(dataset_profile, "n_final_features", 0) or 0
+    return n_samples >= 1000 and n_features >= 50
+
+
+def _resolve_max_total_trials(
+    updated_hpo_strategy: dict,
+    budget_level: str,
+    method_spec: dict,
+    max_total_trials_override: int = None,
+    dataset_profile: dict = None,
+) -> int:
+    if max_total_trials_override is not None:
+        requested = int(max_total_trials_override)
+    else:
+        requested = int(updated_hpo_strategy.get("max_trials", 30))
+
+    normal_cap = int(getattr(settings, "MODEL_CONTEXT_MAX_HPO_TRIALS", 50))
+    small_cap = int(getattr(settings, "MODEL_CONTEXT_DEFAULT_HPO_MAX_TRIALS_SMALL", 20))
+    large_cap = int(getattr(settings, "MODEL_CONTEXT_LARGE_HPO_MAX_TRIALS", 100))
+    hard_cap = int(getattr(settings, "MODEL_CONTEXT_HARD_MAX_HPO_TRIALS", 200))
+    if method_spec:
+        large_cap = max(large_cap, int(method_spec.get("default_max_trials_large", large_cap)))
+
+    if _is_resource_constrained_profile(dataset_profile):
+        adaptive_cap = min(normal_cap, small_cap)
+    elif (
+        budget_level == HPOBudgetLevel.HIGH
+        or updated_hpo_strategy.get("search_space_width") == "wide"
+        or _is_large_hpo_profile(dataset_profile)
+    ):
+        adaptive_cap = max(normal_cap, large_cap)
+    else:
+        adaptive_cap = normal_cap
+
+    max_allowed = min(adaptive_cap, hard_cap)
+    return max(1, min(requested, max_allowed))
+
+
+def _model_id(model: dict) -> str:
+    return model.get("model_id", "")
+
+
+def _model_family(model: dict) -> str:
+    return model.get("model_family") or model.get("model_id", "")
+
+
+def _priority_trial_weight(model: dict) -> int:
+    priority_weight = {"high": 3, "medium": 2, "low": 1}
+    return priority_weight.get(model.get("priority", "medium"), 2)
+
+
+def _build_trial_floors(
+    all_hpo_models: List[dict],
+    max_total_trials: int,
+    budget_level: str,
+    dataset_profile: dict = None,
+) -> dict:
+    floors = {_model_id(model): 1 for model in all_hpo_models}
+    if (
+        budget_level == HPOBudgetLevel.LOW
+        or _is_resource_constrained_profile(dataset_profile)
+        or not all_hpo_models
+    ):
+        return floors
+
+    complex_models = [
+        model
+        for model in all_hpo_models
+        if _model_family(model) in _COMPLEX_HPO_MODEL_FAMILIES
+    ]
+    if not complex_models:
+        return floors
+
+    requested_min = int(getattr(settings, "MODEL_CONTEXT_COMPLEX_MODEL_MIN_TRIALS", 20))
+    if budget_level == HPOBudgetLevel.HIGH:
+        requested_min = int(getattr(settings, "MODEL_CONTEXT_COMPLEX_MODEL_HIGH_MIN_TRIALS", 30))
+
+    non_complex_count = len(all_hpo_models) - len(complex_models)
+    reserve_for_complex = max_total_trials - non_complex_count
+    if reserve_for_complex < len(complex_models):
+        return floors
+
+    effective_min = min(requested_min, reserve_for_complex // len(complex_models))
+    if effective_min <= 1:
+        return floors
+
+    for model in complex_models:
+        floors[_model_id(model)] = effective_min
+    return floors
+
+
+def _allocate_hpo_model_trials(
+    all_hpo_models: List[dict],
+    max_total_trials: int,
+    weights_by_model: dict,
+    rationales_by_model: dict = None,
+    budget_level: str = HPOBudgetLevel.MODERATE,
+    dataset_profile: dict = None,
+) -> List[TrialAllocationItem]:
+    if not all_hpo_models:
+        return []
+
+    rationales_by_model = rationales_by_model or {}
+    floors = _build_trial_floors(
+        all_hpo_models,
+        max_total_trials,
+        budget_level,
+        dataset_profile,
+    )
+    total_floor = sum(floors.values())
+    if total_floor > max_total_trials:
+        floors = {_model_id(model): 1 for model in all_hpo_models}
+        total_floor = sum(floors.values())
+
+    allocations = dict(floors)
+    remaining = max_total_trials - total_floor
+    if remaining > 0:
+        weights = {
+            _model_id(model): max(float(weights_by_model.get(_model_id(model), 0)), 0.0)
+            for model in all_hpo_models
+        }
+        if sum(weights.values()) <= 0:
+            weights = {_model_id(model): float(_priority_trial_weight(model)) for model in all_hpo_models}
+
+        total_weight = sum(weights.values())
+        additions = []
+        used = 0
+        for index, model in enumerate(all_hpo_models):
+            mid = _model_id(model)
+            exact = remaining * weights[mid] / total_weight
+            whole = int(exact)
+            additions.append((mid, whole, exact - whole, index))
+            used += whole
+
+        for mid, whole, _, _ in additions:
+            allocations[mid] += whole
+
+        remainder = remaining - used
+        for mid, _, _, _ in sorted(additions, key=lambda item: (-item[2], item[3]))[:remainder]:
+            allocations[mid] += 1
+
+    return [
+        TrialAllocationItem(
+            model_id=_model_id(model),
+            max_trials=int(allocations.get(_model_id(model), 0)),
+            allocation_rationale=rationales_by_model.get(_model_id(model)),
+        )
+        for model in all_hpo_models
+    ]
+
 
 def build_hpo_plan(
     updated_hpo_strategy: dict,
@@ -238,6 +422,7 @@ def build_hpo_plan(
     preferred_search_method: str = None,
     max_total_trials_override: int = None,
     llm_trial_allocation: List[dict] = None,
+    dataset_profile: dict = None,
 ) -> HPOPlan:
     """Build HPO plan from the context's updated_hpo_strategy."""
     enabled = updated_hpo_strategy.get("enabled", True)
@@ -248,23 +433,33 @@ def build_hpo_plan(
         search_method = "random_search"
 
     budget_level = updated_hpo_strategy.get("budget_level", "moderate")
-
-    if max_total_trials_override:
-        max_total_trials = max_total_trials_override
-    else:
-        max_total_trials = int(updated_hpo_strategy.get("max_trials", 30))
-
-    max_allowed = getattr(settings, "MODEL_SEARCH_MAX_TOTAL_TRIALS", 50)
-    max_total_trials = min(max_total_trials, max_allowed)
+    max_total_trials = _resolve_max_total_trials(
+        updated_hpo_strategy=updated_hpo_strategy,
+        budget_level=budget_level,
+        method_spec=method_spec,
+        max_total_trials_override=max_total_trials_override,
+        dataset_profile=dataset_profile,
+    )
 
     max_parallel = getattr(settings, "MODEL_SEARCH_DEFAULT_MAX_PARALLEL_TRIALS", 1)
 
     if llm_trial_allocation:
         trial_allocation = _apply_llm_trial_allocation(
-            llm_trial_allocation, candidate_models, baseline_models, max_total_trials,
+            llm_trial_allocation,
+            candidate_models,
+            baseline_models,
+            max_total_trials,
+            budget_level,
+            dataset_profile,
         )
     else:
-        trial_allocation = _allocate_trials(candidate_models, baseline_models, max_total_trials)
+        trial_allocation = _allocate_trials(
+            candidate_models,
+            baseline_models,
+            max_total_trials,
+            budget_level,
+            dataset_profile,
+        )
 
     fallback = "random_search" if search_method != "random_search" else None
 
@@ -285,6 +480,8 @@ def _apply_llm_trial_allocation(
     candidate_models: List[dict],
     baseline_models: List[dict],
     max_total_trials: int,
+    budget_level: str = HPOBudgetLevel.MODERATE,
+    dataset_profile: dict = None,
 ) -> List[TrialAllocationItem]:
     """Use LLM-provided trial allocation, mapped from model_family to model_id."""
     # Build family-to-rationale lookup from LLM
@@ -309,39 +506,23 @@ def _apply_llm_trial_allocation(
     # Handle HPO baselines + candidates with LLM allocation
     hpo_baselines = [b for b in baseline_models if b.get("hpo_enabled")]
     all_hpo_models = hpo_baselines + candidate_models
-
-    # Sum of LLM-allocated trials (keyed by model_family, not model_id)
-    llm_total = sum(llm_map.get(m.get("model_family", ""), {}).get("max_trials", 0)
-                    for m in all_hpo_models)
-
-    # If LLM total differs from system max, scale proportionally
-    scale = (max_total_trials / llm_total) if llm_total > 0 else 1.0
-
-    allocated = 0
-    items: list = []
-    for m in all_hpo_models:
-        mid = m["model_id"]
-        family = m.get("model_family", mid)
+    weights_by_model = {}
+    rationales_by_model = {}
+    for model in all_hpo_models:
+        mid = _model_id(model)
+        family = _model_family(model)
         llm_entry = llm_map.get(mid) or llm_map.get(family, {})
-        raw = llm_entry.get("max_trials", 0) if llm_entry else 0
-        trials = int(raw * scale) if llm_entry else 0
-        trials = max(1, min(trials, max_total_trials))  # at least 1 trial for HPO models
-        rationale = llm_entry.get("allocation_rationale", "") if llm_entry else ""
-        items.append((mid, trials, rationale))
-        allocated += trials
+        weights_by_model[mid] = int(llm_entry.get("max_trials", 0)) if llm_entry else 0
+        rationales_by_model[mid] = llm_entry.get("allocation_rationale", "") if llm_entry else ""
 
-    # Redistribute remainder to the last HPO model (int() truncation may drop trials)
-    if items and allocated < max_total_trials:
-        remainder = max_total_trials - allocated
-        last_mid, last_trials, last_rationale = items[-1]
-        items[-1] = (last_mid, last_trials + remainder, last_rationale)
-
-    for mid, trials, rationale in items:
-        allocations.append(TrialAllocationItem(
-            model_id=mid,
-            max_trials=trials,
-            allocation_rationale=rationale,
-        ))
+    allocations.extend(_allocate_hpo_model_trials(
+        all_hpo_models,
+        max_total_trials,
+        weights_by_model,
+        rationales_by_model,
+        budget_level,
+        dataset_profile,
+    ))
 
     return allocations
 
@@ -350,6 +531,8 @@ def _allocate_trials(
     candidate_models: List[dict],
     baseline_models: List[dict],
     max_total_trials: int,
+    budget_level: str = HPOBudgetLevel.MODERATE,
+    dataset_profile: dict = None,
 ) -> List[TrialAllocationItem]:
     """Allocate trial budget across models, weighted by priority."""
     allocations = []
@@ -364,23 +547,14 @@ def _allocate_trials(
     if not all_hpo_models:
         return allocations
 
-    priority_weight = {"high": 3, "medium": 2, "low": 1}
-    weights = []
-    for m in all_hpo_models:
-        priority = m.get("priority", "medium")
-        weights.append(priority_weight.get(priority, 2))
-
-    total_weight = sum(weights)
-    remaining = max_total_trials
-
-    for i, m in enumerate(all_hpo_models):
-        if i == len(all_hpo_models) - 1:
-            trials = remaining
-        else:
-            trials = max(1, int(max_total_trials * weights[i] / total_weight))
-        trials = max(1, min(trials, remaining))
-        remaining -= trials
-        allocations.append(TrialAllocationItem(model_id=m["model_id"], max_trials=trials))
+    weights_by_model = {_model_id(model): _priority_trial_weight(model) for model in all_hpo_models}
+    allocations.extend(_allocate_hpo_model_trials(
+        all_hpo_models,
+        max_total_trials,
+        weights_by_model,
+        budget_level=budget_level,
+        dataset_profile=dataset_profile,
+    ))
 
     return allocations
 
@@ -394,8 +568,8 @@ def build_validation_plan(updated_validation_strategy: dict) -> ValidationPlan:
         split_strategy=updated_validation_strategy.get("split_strategy", "k_fold_cross_validation"),
         n_splits=int(updated_validation_strategy.get("n_splits", 5)),
         test_size=_optional_float(updated_validation_strategy.get("test_size")),
-        external_test_enabled=bool(updated_validation_strategy.get("external_test_enabled") or updated_validation_strategy.get("use_external_test", False)),
-        external_test_size=_optional_float(updated_validation_strategy.get("external_test_size")),
+        external_test_enabled=bool(updated_validation_strategy.get("external_test_enabled", True) or updated_validation_strategy.get("use_external_test", False)),
+        external_test_size=_optional_float(updated_validation_strategy.get("external_test_size", 0.2)),
         cv_strategy=updated_validation_strategy.get("cv_strategy") or updated_validation_strategy.get("inner_split_strategy"),
         random_state=int(updated_validation_strategy.get("random_state", 42)),
         shuffle=bool(updated_validation_strategy.get("shuffle", True)),

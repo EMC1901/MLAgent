@@ -199,7 +199,7 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({ taskId, initial
       )}
 
       {modelPerfSubTabs.length > 0 && activePerfSubTab === 'predictedVsActual' && (
-        <ChartWrapper title="Predicted vs Actual (External Test Set)" chartKey="predicted_vs_actual">
+        <ChartWrapper title="Prediction vs Actual" chartKey="predicted_vs_actual">
           <PredictedVsActualChart
             data={mp?.predicted_vs_actual ?? null}
             modelId={mp?.model_id ?? null}
@@ -210,10 +210,10 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({ taskId, initial
       )}
       {modelPerfSubTabs.length > 0 && activePerfSubTab === 'residualPlot' && (
         <>
-          <ChartWrapper title="Residuals Plot (External Test Set)" chartKey="residuals_plot">
+          <ChartWrapper title="Residuals Plot" chartKey="residuals_plot">
             <ResidualPlotChart data={mp?.residual_plot ?? null} variant="scatter" />
           </ChartWrapper>
-          <ChartWrapper title="Residuals Distribution (External Test Set)" chartKey="residuals_distribution">
+          <ChartWrapper title="Residuals Distribution" chartKey="residuals_distribution">
             <ResidualPlotChart data={mp?.residual_plot ?? null} variant="distribution" />
           </ChartWrapper>
         </>

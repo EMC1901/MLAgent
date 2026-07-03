@@ -1,7 +1,6 @@
-import logging
-import sys
-import time
 import concurrent.futures
+import logging
+import time
 import numpy as np
 from typing import List, Dict, Any, Optional
 from scipy.stats import pearsonr, spearmanr
@@ -13,8 +12,9 @@ _MAX_ROWS = 2000  # downsample to this many rows for stability + speed
 
 
 def _diag(msg, *args):
+    """Diagnostic log — uses logger.debug for unified log control."""
     formatted = msg % args if args else msg
-    print(f"DIAG     [ia-corr] {formatted}", file=sys.stderr, flush=True)
+    logger.debug("[ia-corr] %s", formatted)
 
 
 def _compute_impl(X, y, feature_columns, top_n_features) -> Dict[str, Any]:

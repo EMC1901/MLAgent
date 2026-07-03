@@ -59,3 +59,28 @@ class FinalOutputInputBuildException(BusinessException):
 class InterpretabilityArtifactSaveException(BusinessException):
     def __init__(self, message: str = "Failed to save interpretability artifacts."):
         super().__init__(message, "INTERPRETABILITY_ARTIFACT_SAVE_FAILED")
+
+
+class EvidenceNormalizationException(BusinessException):
+    def __init__(self, message: str = "Evidence normalization failed."):
+        super().__init__(message, "EVIDENCE_NORMALIZATION_FAILED")
+
+
+class HypothesisGenerationException(BusinessException):
+    def __init__(self, message: str = "Scientific hypothesis generation failed."):
+        super().__init__(message, "HYPOTHESIS_GENERATION_FAILED")
+
+
+class ConfidenceScoringException(BusinessException):
+    def __init__(self, message: str = "Confidence scoring failed."):
+        super().__init__(message, "CONFIDENCE_SCORING_FAILED")
+
+
+class LLMNarrativeException(BusinessException):
+    def __init__(self, message: str = "LLM narrative generation failed."):
+        super().__init__(message, "LLM_NARRATIVE_FAILED")
+
+
+class LLMScientificInsightException(BusinessException):
+    def __init__(self, message: str = "LLM scientific insight generation failed."):
+        super().__init__(message, "LLM_SCIENTIFIC_INSIGHT_FAILED")

@@ -1,7 +1,12 @@
 import logging
-from sqlmodel import Session
+import uuid
+from contextlib import contextmanager
 from datetime import datetime
+from typing import Iterator
 
+from sqlmodel import Session
+
+from app.shared.database.connection import engine
 from app.modules.task_specification.repository import TaskSpecificationRepository
 from app.modules.task_interpretation.repository import TaskInterpretationRepository
 from app.modules.dataset_profile.repository import DatasetProfileRepository
@@ -59,107 +64,27 @@ class WorkflowPlanningService:
         self.plan_repo = WorkflowPlanRepository()
         self.llm_adapter = WorkflowPlanningLLMAdapter()
 
-    def create_plan(
-        self, session: Session, task_id: str, request: WorkflowPlanCreateRequest
-    ) -> WorkflowPlanResponse:
-        context = build_workflow_planning_context(session, task_id)
+    @staticmethod
+    @contextmanager
+    def _new_session() -> Iterator[Session]:
+        """Yield a fresh DB session for post-LLM writes.
 
-        system_prompt, user_message = build_prompt(context)
+        The request-scoped session is closed before the long-running LLM call
+        to avoid idle-in-transaction connection drops.  Use this context
+        manager for all DB writes that happen after the LLM returns.
+        """
+        with Session(engine) as s:
+            yield s
 
-        llm_request_fallback = {
-            "provider": self.llm_adapter.llm_client.provider,
-            "model": self.llm_adapter.llm_client.model,
-            "system_prompt": system_prompt,
-            "user_message": user_message,
-        }
-
-        try:
-            llm_result = self.llm_adapter.generate(system_prompt, user_message)
-        except WorkflowPlanningLLMCallException:
-            failed_plan = WorkflowPlan(
-                id=f"plan_{__import__('uuid').uuid4().hex[:8]}",
-                task_id=task_id,
-                interpretation_id=context.get("interpretation_id"),
-                dataset_profile_id=context.get("dataset_profile_id"),
-                status=WorkflowPlanStatus.FAILED,
-                planning_mode="llm_guided",
-                llm_request_json=llm_request_fallback,
-                error_message="LLM call failed.",
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-            )
-            self.plan_repo.create(session, failed_plan)
-            raise
-
-        request_info = llm_result["request_info"]
-        raw_response = llm_result["raw_response"]
-
-        llm_request_json = {
-            "provider": request_info["provider"],
-            "model": request_info["model"],
-            "system_prompt": system_prompt,
-            "user_message": user_message,
-        }
-        llm_response_json = {"raw": raw_response}
-
-        try:
-            parsed_plan = parse_llm_response(raw_response)
-        except WorkflowPlanParseException:
-            failed_plan = WorkflowPlan(
-                id=f"plan_{__import__('uuid').uuid4().hex[:8]}",
-                task_id=task_id,
-                interpretation_id=context.get("interpretation_id"),
-                dataset_profile_id=context.get("dataset_profile_id"),
-                status=WorkflowPlanStatus.FAILED,
-                planning_mode="llm_guided",
-                llm_request_json=llm_request_json,
-                llm_response_json=llm_response_json,
-                error_message="LLM output parse error.",
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-            )
-            self.plan_repo.create(session, failed_plan)
-            raise
-
-        validation_result = validate_workflow_plan(parsed_plan)
-        if not validation_result["is_valid"]:
-            failed_plan = WorkflowPlan(
-                id=f"plan_{__import__('uuid').uuid4().hex[:8]}",
-                task_id=task_id,
-                interpretation_id=context.get("interpretation_id"),
-                dataset_profile_id=context.get("dataset_profile_id"),
-                status=WorkflowPlanStatus.FAILED,
-                planning_mode="llm_guided",
-                llm_request_json=llm_request_json,
-                llm_response_json=llm_response_json,
-                error_message="; ".join(validation_result["errors"]),
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-            )
-            self.plan_repo.create(session, failed_plan)
-            raise WorkflowPlanValidationException("; ".join(validation_result["errors"]))
-
-        warnings = parsed_plan.get("planning_warnings", [])
-        assumptions = parsed_plan.get("planning_assumptions", [])
-        status = WorkflowPlanStatus.PLANNED_WITH_WARNING if (warnings or assumptions) else WorkflowPlanStatus.PLANNED
-
-        plan_dict = build_workflow_plan(
-            task_id=task_id,
-            interpretation_id=context["interpretation_id"],
-            dataset_profile_id=context["dataset_profile_id"],
-            validated_plan=parsed_plan,
-            llm_request=llm_request_json,
-            llm_response=llm_response_json,
-            status=status,
-        )
-
-        plan_model = WorkflowPlan(
+    def _build_plan_model(self, plan_dict: dict, planning_mode: str) -> WorkflowPlan:
+        """Construct a WorkflowPlan ORM model from a built plan dict."""
+        return WorkflowPlan(
             id=plan_dict["workflow_plan_id"],
             task_id=plan_dict["task_id"],
             interpretation_id=plan_dict["interpretation_id"],
             dataset_profile_id=plan_dict["dataset_profile_id"],
             status=plan_dict["status"],
-            planning_mode=plan_dict["planning_mode"],
+            planning_mode=planning_mode,
             task_type=(plan_dict.get("task_summary") or {}).get("task_type"),
             input_modality=(plan_dict.get("task_summary") or {}).get("input_modality"),
             primary_metric=(plan_dict.get("evaluation_strategy") or {}).get("primary_metric"),
@@ -169,8 +94,8 @@ class WorkflowPlanningService:
             interpretability_enabled=(plan_dict.get("interpretability_strategy") or {}).get("enabled", False),
             confidence_score=plan_dict["confidence_score"],
             plan_json=plan_dict,
-            llm_request_json=llm_request_json,
-            llm_response_json=llm_response_json,
+            llm_request_json=plan_dict.get("llm_request"),
+            llm_response_json=plan_dict.get("llm_response"),
             fe_registry_snapshot_version=plan_dict.get("fe_registry_snapshot_version"),
             feature_strategy_json=plan_dict.get("feature_strategy"),
             model_strategy_json=plan_dict.get("model_strategy"),
@@ -181,7 +106,111 @@ class WorkflowPlanningService:
             updated_at=datetime.fromisoformat(plan_dict["updated_at"]),
         )
 
-        created = self.plan_repo.create(session, plan_model)
+    def _save_failed_plan(
+        self,
+        task_id: str,
+        context: dict,
+        planning_mode: str,
+        llm_request_json: dict | None,
+        llm_response_json: dict | None,
+        error_message: str,
+    ):
+        """Persist a failed plan record using a fresh session."""
+        with self._new_session() as ws:
+            failed_plan = WorkflowPlan(
+                id=f"plan_{uuid.uuid4().hex[:8]}",
+                task_id=task_id,
+                interpretation_id=context.get("interpretation_id"),
+                dataset_profile_id=context.get("dataset_profile_id"),
+                status=WorkflowPlanStatus.FAILED,
+                planning_mode=planning_mode,
+                llm_request_json=llm_request_json,
+                llm_response_json=llm_response_json,
+                error_message=error_message,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            self.plan_repo.create(ws, failed_plan)
+
+    def create_plan(
+        self, session: Session, task_id: str, request: WorkflowPlanCreateRequest
+    ) -> WorkflowPlanResponse:
+        # ── Phase 1: read everything from the request-scoped session ──
+        context = build_workflow_planning_context(session, task_id)
+        system_prompt, user_message = build_prompt(context)
+        llm_request_fallback = {
+            "provider": self.llm_adapter.llm_client.provider,
+            "model": self.llm_adapter.llm_client.model,
+            "system_prompt": system_prompt,
+            "user_message": user_message,
+        }
+
+        # ── Phase 2: release DB session before long-running LLM call ──
+        session.close()
+
+        # ── Phase 3: LLM call (no DB session held) ──
+        logger.info("Workflow planning LLM call starting for task %s", task_id)
+        try:
+            llm_result = self.llm_adapter.generate(system_prompt, user_message)
+        except WorkflowPlanningLLMCallException:
+            logger.error("Workflow planning LLM call failed for task %s", task_id)
+            self._save_failed_plan(
+                task_id, context, "llm_guided",
+                llm_request_fallback, None, "LLM call failed.",
+            )
+            raise
+
+        request_info = llm_result["request_info"]
+        raw_response = llm_result["raw_response"]
+        logger.info("Workflow planning LLM call completed for task %s", task_id)
+
+        llm_request_json = {
+            "provider": request_info["provider"],
+            "model": request_info["model"],
+            "system_prompt": system_prompt,
+            "user_message": user_message,
+        }
+        llm_response_json = {"raw": raw_response}
+
+        # ── Phase 4: parse, validate, persist with a fresh session ──
+        try:
+            parsed_plan = parse_llm_response(raw_response)
+        except WorkflowPlanParseException:
+            self._save_failed_plan(
+                task_id, context, "llm_guided",
+                llm_request_json, llm_response_json, "LLM output parse error.",
+            )
+            raise
+
+        validation_result = validate_workflow_plan(parsed_plan)
+        if not validation_result["is_valid"]:
+            self._save_failed_plan(
+                task_id, context, "llm_guided",
+                llm_request_json, llm_response_json,
+                "; ".join(validation_result["errors"]),
+            )
+            raise WorkflowPlanValidationException("; ".join(validation_result["errors"]))
+
+        warnings = parsed_plan.get("planning_warnings", [])
+        assumptions = parsed_plan.get("planning_assumptions", [])
+        plan_status = WorkflowPlanStatus.PLANNED_WITH_WARNING if (warnings or assumptions) else WorkflowPlanStatus.PLANNED
+
+        plan_dict = build_workflow_plan(
+            task_id=task_id,
+            interpretation_id=context["interpretation_id"],
+            dataset_profile_id=context["dataset_profile_id"],
+            validated_plan=parsed_plan,
+            llm_request=llm_request_json,
+            llm_response=llm_response_json,
+            status=plan_status,
+        )
+
+        plan_model = self._build_plan_model(plan_dict, planning_mode="llm_guided")
+
+        with self._new_session() as ws:
+            created = self.plan_repo.create(ws, plan_model)
+
+        logger.info("Workflow plan %s created for task %s", created.id, task_id)
         return self._to_response(created)
 
     def get_plan(self, session: Session, plan_id: str) -> WorkflowPlanResponse:
@@ -282,7 +311,7 @@ class WorkflowPlanningService:
         interpretation_id = interp.id if interp else None
         dataset_profile_id = profile.id if profile else None
 
-        plan_id = f"plan_{__import__('uuid').uuid4().hex[:8]}"
+        plan_id = f"plan_{uuid.uuid4().hex[:8]}"
         now = datetime.now()
 
         plan_json = {
@@ -340,19 +369,11 @@ class WorkflowPlanningService:
     def rerun_with_iteration_guidance(
         self, session: Session, task_id: str, iteration_guidance: dict,
     ) -> WorkflowPlanResponse:
-        """Full WP LLM re-run with iteration feedback injected into the prompt.
-
-        Used when Iteration Decision identifies root causes in workflow_planning
-        or feature_engineering — stages that require the WP LLM to translate
-        natural-language guidance into structured strategy changes.
-        """
         logger.info("Rerunning WP LLM with iteration_guidance for task %s", task_id)
 
+        # ── Phase 1: read everything from the request-scoped session ──
         context = build_workflow_planning_context(session, task_id)
-
-        # Inject iteration_guidance into the prompt
         system_prompt, user_message = build_prompt(context, iteration_guidance=iteration_guidance)
-
         llm_request_fallback = {
             "provider": self.llm_adapter.llm_client.provider,
             "model": self.llm_adapter.llm_client.model,
@@ -360,22 +381,18 @@ class WorkflowPlanningService:
             "user_message": user_message,
         }
 
+        # ── Phase 2: release DB session before long-running LLM call ──
+        session.close()
+
+        # ── Phase 3: LLM call (no DB session held) ──
         try:
             llm_result = self.llm_adapter.generate(system_prompt, user_message)
         except WorkflowPlanningLLMCallException:
-            failed_plan = WorkflowPlan(
-                id=f"plan_{__import__('uuid').uuid4().hex[:8]}",
-                task_id=task_id,
-                interpretation_id=context.get("interpretation_id"),
-                dataset_profile_id=context.get("dataset_profile_id"),
-                status=WorkflowPlanStatus.FAILED,
-                planning_mode="iteration_rerun",
-                llm_request_json=llm_request_fallback,
-                error_message="LLM call failed during iteration rerun.",
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
+            self._save_failed_plan(
+                task_id, context, "iteration_rerun",
+                llm_request_fallback, None,
+                "LLM call failed during iteration rerun.",
             )
-            self.plan_repo.create(session, failed_plan)
             raise
 
         request_info = llm_result["request_info"]
@@ -389,46 +406,29 @@ class WorkflowPlanningService:
         }
         llm_response_json = {"raw": raw_response}
 
+        # ── Phase 4: parse, validate, persist with a fresh session ──
         try:
             parsed_plan = parse_llm_response(raw_response)
         except WorkflowPlanParseException:
-            failed_plan = WorkflowPlan(
-                id=f"plan_{__import__('uuid').uuid4().hex[:8]}",
-                task_id=task_id,
-                interpretation_id=context.get("interpretation_id"),
-                dataset_profile_id=context.get("dataset_profile_id"),
-                status=WorkflowPlanStatus.FAILED,
-                planning_mode="iteration_rerun",
-                llm_request_json=llm_request_json,
-                llm_response_json=llm_response_json,
-                error_message="LLM output parse error during iteration rerun.",
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
+            self._save_failed_plan(
+                task_id, context, "iteration_rerun",
+                llm_request_json, llm_response_json,
+                "LLM output parse error during iteration rerun.",
             )
-            self.plan_repo.create(session, failed_plan)
             raise
 
         validation_result = validate_workflow_plan(parsed_plan)
         if not validation_result["is_valid"]:
-            failed_plan = WorkflowPlan(
-                id=f"plan_{__import__('uuid').uuid4().hex[:8]}",
-                task_id=task_id,
-                interpretation_id=context.get("interpretation_id"),
-                dataset_profile_id=context.get("dataset_profile_id"),
-                status=WorkflowPlanStatus.FAILED,
-                planning_mode="iteration_rerun",
-                llm_request_json=llm_request_json,
-                llm_response_json=llm_response_json,
-                error_message="; ".join(validation_result["errors"]),
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
+            self._save_failed_plan(
+                task_id, context, "iteration_rerun",
+                llm_request_json, llm_response_json,
+                "; ".join(validation_result["errors"]),
             )
-            self.plan_repo.create(session, failed_plan)
             raise WorkflowPlanValidationException("; ".join(validation_result["errors"]))
 
         warnings = parsed_plan.get("planning_warnings", [])
         assumptions = parsed_plan.get("planning_assumptions", [])
-        status = WorkflowPlanStatus.PLANNED_WITH_WARNING if (warnings or assumptions) else WorkflowPlanStatus.PLANNED
+        plan_status = WorkflowPlanStatus.PLANNED_WITH_WARNING if (warnings or assumptions) else WorkflowPlanStatus.PLANNED
 
         plan_dict = build_workflow_plan(
             task_id=task_id,
@@ -437,38 +437,14 @@ class WorkflowPlanningService:
             validated_plan=parsed_plan,
             llm_request=llm_request_json,
             llm_response=llm_response_json,
-            status=status,
+            status=plan_status,
         )
 
-        plan_model = WorkflowPlan(
-            id=plan_dict["workflow_plan_id"],
-            task_id=plan_dict["task_id"],
-            interpretation_id=plan_dict["interpretation_id"],
-            dataset_profile_id=plan_dict["dataset_profile_id"],
-            status=plan_dict["status"],
-            planning_mode="iteration_rerun",
-            task_type=(plan_dict.get("task_summary") or {}).get("task_type"),
-            input_modality=(plan_dict.get("task_summary") or {}).get("input_modality"),
-            primary_metric=(plan_dict.get("evaluation_strategy") or {}).get("primary_metric"),
-            feature_type=(plan_dict.get("feature_strategy") or {}).get("feature_type"),
-            validation_strategy=(plan_dict.get("validation_strategy") or {}).get("split_strategy"),
-            hpo_enabled=(plan_dict.get("hpo_strategy") or {}).get("enabled", False),
-            interpretability_enabled=(plan_dict.get("interpretability_strategy") or {}).get("enabled", False),
-            confidence_score=plan_dict["confidence_score"],
-            plan_json=plan_dict,
-            fe_registry_snapshot_version=plan_dict.get("fe_registry_snapshot_version"),
-            feature_strategy_json=plan_dict.get("feature_strategy"),
-            model_strategy_json=plan_dict.get("model_strategy"),
-            preprocessing_intent_json=plan_dict.get("preprocessing_intent"),
-            workflow_rationale_json=plan_dict.get("workflow_rationale"),
-            llm_request_json=llm_request_json,
-            llm_response_json=llm_response_json,
-            error_message=None,
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
-        )
+        plan_model = self._build_plan_model(plan_dict, planning_mode="iteration_rerun")
 
-        created = self.plan_repo.create(session, plan_model)
+        with self._new_session() as ws:
+            created = self.plan_repo.create(ws, plan_model)
+
         logger.info("WP iteration rerun complete — plan %s for task %s", created.id, task_id)
         return self._to_response(created)
 

@@ -12,6 +12,7 @@ from app.modules.metric_evaluation.schemas import (
     MetricValidationResult,
     EvaluationArtifactManifest,
     ResultDiagnosisInput,
+    FinalHoldoutEvaluation,
 )
 from app.modules.metric_evaluation.enums import MetricDirection
 
@@ -66,6 +67,7 @@ def build_response(
     best_model_id: Optional[str],
     best_pipeline_spec_id: Optional[str],
     metric_summary: MetricSummary,
+    final_holdout_evaluation: Optional[FinalHoldoutEvaluation],
     trial_metric_results: List[TrialMetricResult],
     pipeline_metric_results: List[PipelineMetricResult],
     fold_metric_results: List[FoldMetricResult],
@@ -95,6 +97,7 @@ def build_response(
         best_model_id=best_model_id,
         best_pipeline_spec_id=best_pipeline_spec_id,
         metric_summary=metric_summary,
+        final_holdout_evaluation=final_holdout_evaluation,
         trial_metric_results=trial_metric_results,
         pipeline_metric_results=pipeline_metric_results,
         fold_metric_results=fold_metric_results,

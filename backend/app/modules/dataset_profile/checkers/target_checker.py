@@ -1,6 +1,15 @@
+import logging
 import pandas as pd
-import numpy as np
-from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+
+def _resolve_column(df: pd.DataFrame, target: str) -> str:
+    """Resolve target column with case-insensitive fallback."""
+    if target in df.columns:
+        return target
+    col_lower = {c.lower(): c for c in df.columns}
+    return col_lower.get(target.lower(), target)
 
 
 def check_target(
@@ -8,7 +17,22 @@ def check_target(
     target_column: str,
     task_type: str,
 ) -> dict:
-    if target_column not in df.columns:
+    logger.info(
+        "[DIAGNOSTIC] check_target — requested_column=%s | task_type=%s | actual_columns=%s",
+        target_column,
+        task_type,
+        list(df.columns),
+    )
+
+    resolved = _resolve_column(df, target_column)
+
+    logger.info(
+        "[DIAGNOSTIC] check_target — resolved_column=%s | found=%s",
+        resolved,
+        resolved in df.columns,
+    )
+
+    if resolved not in df.columns:
         return {
             "target_column": target_column,
             "task_type": task_type,
@@ -18,13 +42,13 @@ def check_target(
             "errors": [f"Target column '{target_column}' not found in dataset."],
         }
 
-    series = df[target_column]
+    series = df[resolved]
     missing_count = int(series.isna().sum())
     missing_ratio = missing_count / len(series) if len(series) > 0 else 0.0
     clean = series.dropna()
 
     base = {
-        "target_column": target_column,
+        "target_column": resolved,
         "task_type": task_type,
         "dtype": str(series.dtype),
         "missing_count": missing_count,
@@ -42,6 +66,13 @@ def check_target(
 
 def _profile_regression(series: pd.Series, base: dict) -> dict:
     numeric = pd.to_numeric(series, errors="coerce").dropna()
+
+    logger.info(
+        "[DIAGNOSTIC] _profile_regression — series_len=%s | numeric_len=%s | series_dtype=%s",
+        len(series),
+        len(numeric),
+        series.dtype,
+    )
 
     if len(numeric) == 0:
         base["errors"] = ["Target column contains no numeric values for regression."]

@@ -124,7 +124,7 @@ function buildHistogram(points: ResidualPoint[], binCount = 24): HistogramBin[] 
 function Legend({ hasTrain, hasTest, x, y, line = false }: { hasTrain: boolean; hasTest: boolean; x: number; y: number; line?: boolean }) {
   const items = [
     ...(hasTrain ? [{ color: TRAIN_COLOR, label: 'Training Set' }] : []),
-    ...(hasTest ? [{ color: TEST_COLOR, label: 'External Test Set' }] : []),
+    ...(hasTest ? [{ color: TEST_COLOR, label: 'Test Set' }] : []),
   ];
   const width = 176;
   const height = 22 + items.length * 26;

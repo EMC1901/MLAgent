@@ -106,6 +106,20 @@ def _make_external_split_summary(external_test_split: Optional[dict]) -> Optiona
         "test_size": external_test_split.get("test_size"),
     }
 
+DEFAULT_EXTERNAL_TEST_SIZE = 0.2
+
+
+def _apply_default_external_test(validation_plan: dict) -> dict:
+    plan = dict(validation_plan or {})
+    if not plan.get("external_test_enabled") and not plan.get("use_external_test"):
+        logger.info(
+            "validation_plan did not enable external test; applying default external_test_enabled=True."
+        )
+        plan["external_test_enabled"] = True
+    if plan.get("external_test_size") is None:
+        plan["external_test_size"] = plan.get("test_size") or DEFAULT_EXTERNAL_TEST_SIZE
+    return plan
+
 def _external_test_enabled(validation_plan: dict) -> bool:
     return bool(
         validation_plan
@@ -186,12 +200,26 @@ class PipelineExecutionService:
                 logger.info("[3b/12] No fold_pipeline_spec -proceeding without fold preprocessing")
 
             # Step 3c: Optionally isolate the final external test set before CV/HPO
-            validation_plan = dict(ei.validation_plan or {})
+            validation_plan = _apply_default_external_test(ei.validation_plan or {})
+            external_test_requested = _external_test_enabled(validation_plan)
+            logger.info(
+                "[3c/12] External test config - enabled=%s save_predictions=%s split_strategy=%s cv_strategy=%s external_test_size=%s use_external_test=%s",
+                external_test_requested,
+                request.save_predictions,
+                validation_plan.get("split_strategy"),
+                validation_plan.get("cv_strategy") or validation_plan.get("inner_split_strategy"),
+                validation_plan.get("external_test_size"),
+                validation_plan.get("use_external_test"),
+            )
+            if not external_test_requested:
+                logger.info(
+                    "[3c/12] External test is disabled; final train/test prediction artifacts will not be generated."
+                )
             external_test_split = None
             X_train_exec, y_train_exec = X, y
             X_external_test = y_external_test = external_test_indices = None
             external_test_result = None
-            if _external_test_enabled(validation_plan):
+            if external_test_requested:
                 logger.info("[3c/12] Creating external test split before CV/HPO ...")
                 external_test_split = create_external_test_split(X, y, validation_plan)
                 train_pool_idx = external_test_split["train_pool_indices"]
@@ -314,10 +342,12 @@ class PipelineExecutionService:
                             task_type=ei.task_type or "regression",
                             exec_dir=exec_dir,
                             fold_pipeline_spec=fold_pipeline_spec,
+                            train_indices=train_pool_idx,
                         )
                         logger.info(
-                            "[8/12] Final external test predictions saved: %s",
+                            "[8/12] Final external test predictions saved: external=%s train_test=%s",
                             external_test_result.get("prediction_artifact_path"),
+                            external_test_result.get("train_test_prediction_artifact_path"),
                         )
                     else:
                         warnings.append(
@@ -326,6 +356,13 @@ class PipelineExecutionService:
                 except Exception as e:
                     logger.error("Final external test prediction failed: %s", e)
                     warnings.append(f"Final external test prediction failed: {e}")
+            else:
+                logger.info(
+                    "[8/12] Skipping final external test predictions - external_test_split=%s save_predictions=%s completed_trials=%d",
+                    bool(external_test_split),
+                    request.save_predictions,
+                    sum(1 for t in trial_results if getattr(t, "status", None) == "completed"),
+                )
             metric_input = build_metric_evaluation_input(
                 pipeline_execution_id=pe_id,
                 pipeline_generation_id=pg.id,
@@ -385,6 +422,10 @@ class PipelineExecutionService:
                 "metric_evaluation_input_path": metric_input_path,
                 "external_test_prediction_path": (
                     external_test_result.get("prediction_artifact_path")
+                    if external_test_result else None
+                ),
+                "final_train_test_prediction_path": (
+                    external_test_result.get("train_test_prediction_artifact_path")
                     if external_test_result else None
                 ),
                 "external_test_metadata": {

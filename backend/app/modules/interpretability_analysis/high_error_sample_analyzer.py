@@ -15,7 +15,17 @@ def analyze_high_error_samples(
     feature_columns: List[str],
     shap_values: Optional[np.ndarray] = None,
     max_samples: int = 10,
+    shap_feature_columns: Optional[List[str]] = None,
 ) -> List[HighErrorSampleAnalysis]:
+    """Analyze samples with the highest prediction errors.
+
+    Args:
+        feature_columns: Ranked feature columns for extreme-value pattern detection.
+        shap_feature_columns: Full original feature columns matching shap_values
+            column order (used for SHAP factor naming). Defaults to feature_columns.
+    """
+    if shap_feature_columns is None:
+        shap_feature_columns = feature_columns
     items: List[HighErrorSampleAnalysis] = []
 
     if y_true is None or y_pred is None or len(y_true) != len(y_pred):
@@ -60,9 +70,9 @@ def analyze_high_error_samples(
             sample_shap = np.abs(shap_values[idx])
             if len(sample_shap) > 0:
                 top_shap_idx = int(np.argmax(sample_shap))
-                if top_shap_idx < len(feature_columns):
+                if top_shap_idx < len(shap_feature_columns):
                     factors.append(
-                        f"Feature '{feature_columns[top_shap_idx]}' has unusually high SHAP contribution for this sample."
+                        f"Feature '{shap_feature_columns[top_shap_idx]}' has unusually high SHAP contribution for this sample."
                     )
 
         pattern_parts = []

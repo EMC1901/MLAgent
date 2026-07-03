@@ -13,6 +13,7 @@ from app.modules.metric_evaluation.schemas import (
     MetricEvaluationCreateRequest,
     MetricEvaluationResponse,
     MetricEvaluationSummaryResponse,
+    FinalHoldoutEvaluation,
 )
 from app.modules.metric_evaluation.context_builder import build_metric_evaluation_context
 from app.modules.metric_evaluation.metric_input_loader import load_metric_evaluation_input
@@ -21,6 +22,7 @@ from app.modules.metric_evaluation.prediction_artifact_loader import (
     build_prediction_frame_map,
 )
 from app.modules.metric_evaluation.fold_metric_evaluator import evaluate_fold_metrics
+from app.modules.metric_evaluation.metric_calculator import calculate_metric
 from app.modules.metric_evaluation.trial_metric_aggregator import aggregate_trial_metrics
 from app.modules.metric_evaluation.pipeline_metric_aggregator import aggregate_pipeline_metrics
 from app.modules.metric_evaluation.model_ranker import rank_models_and_trials
@@ -47,6 +49,104 @@ from app.modules.metric_evaluation.schemas import EvaluationArtifactManifest
 from app.modules.metric_evaluation.exceptions import MetricEvaluationNotFoundException
 from app.modules.metric_evaluation.enums import MetricEvaluationStatus
 
+
+def _build_final_holdout_evaluation(pe, task_type: str) -> Optional[FinalHoldoutEvaluation]:
+    if "regress" not in (task_type or "").lower():
+        return None
+
+    path = _final_holdout_prediction_path(pe)
+    if not path:
+        return FinalHoldoutEvaluation(
+            available=False,
+            notes=["Final external test prediction artifact is not available."],
+        )
+
+    try:
+        import os
+        import pandas as pd
+        import numpy as np
+
+        if not os.path.exists(path):
+            return FinalHoldoutEvaluation(
+                available=False,
+                prediction_artifact_path=path,
+                notes=["Final external test prediction artifact path does not exist."],
+            )
+
+        df = pd.read_parquet(path) if str(path).endswith(".parquet") else pd.read_csv(path)
+        if "is_final_external_test" in df.columns:
+            df = df[df["is_final_external_test"].astype(bool)]
+        if "split" in df.columns:
+            df = df[df["split"].astype(str).str.lower().eq("test")]
+
+        y_true_col = _find_prediction_column(df, ["y_true", "actual", "target", "ground_truth", "label"])
+        y_pred_col = _find_prediction_column(df, ["y_pred", "predicted", "prediction", "predicted_value"])
+        if not y_true_col or not y_pred_col:
+            return FinalHoldoutEvaluation(
+                available=False,
+                prediction_artifact_path=path,
+                notes=["Final holdout artifact is missing y_true/y_pred columns."],
+            )
+
+        valid = df[[y_true_col, y_pred_col]].copy()
+        valid.columns = ["y_true", "y_pred"]
+        valid = valid.apply(pd.to_numeric, errors="coerce").dropna()
+        if valid.empty:
+            return FinalHoldoutEvaluation(
+                available=False,
+                prediction_artifact_path=path,
+                notes=["Final holdout artifact has no numeric test rows."],
+            )
+
+        y_true = valid["y_true"].to_numpy(dtype=float)
+        y_pred = valid["y_pred"].to_numpy(dtype=float)
+        first = df.iloc[0].to_dict() if not df.empty else {}
+        return FinalHoldoutEvaluation(
+            available=True,
+            split="test",
+            prediction_artifact_path=path,
+            model_id=str(first.get("model_id")) if first.get("model_id") is not None else None,
+            trial_id=str(first.get("trial_id")) if first.get("trial_id") is not None else None,
+            n_test_samples=int(len(valid)),
+            r2_test=round(float(calculate_metric(y_true, y_pred, "R2")), 6),
+            rmse_test=round(float(calculate_metric(y_true, y_pred, "RMSE")), 6),
+            mae_test=round(float(calculate_metric(y_true, y_pred, "MAE")), 6),
+            notes=[],
+        )
+    except Exception as exc:
+        logger.warning("Failed to build final holdout evaluation: %s", exc)
+        return FinalHoldoutEvaluation(
+            available=False,
+            prediction_artifact_path=path,
+            notes=[f"Failed to compute final holdout metrics: {exc}"],
+        )
+
+
+def _final_holdout_prediction_path(pe) -> Optional[str]:
+    execution_json = getattr(pe, "execution_json", None) or {}
+    manifest = execution_json.get("training_artifact_manifest") or {}
+    path = manifest.get("external_test_prediction_path")
+    if path:
+        return path
+    path = manifest.get("final_train_test_prediction_path")
+    if path:
+        return path
+    metadata = manifest.get("external_test_metadata") or {}
+    if isinstance(metadata, dict):
+        result = metadata.get("result") or {}
+        if isinstance(result, dict):
+            return result.get("prediction_artifact_path") or result.get("train_test_prediction_artifact_path")
+    return None
+
+
+def _find_prediction_column(df, candidates: list[str]) -> Optional[str]:
+    if df is None:
+        return None
+    lookup = {str(col).lower(): col for col in df.columns}
+    for candidate in candidates:
+        if candidate.lower() in lookup:
+            return lookup[candidate.lower()]
+    return None
 
 class MetricEvaluationService:
 
@@ -178,6 +278,7 @@ class MetricEvaluationService:
 
             # Build metric summary
             metric_summary = build_metric_summary(trial_results, primary_metric, metric_direction)
+            final_holdout_evaluation = _build_final_holdout_evaluation(pe, task_type)
 
             # Count stats
             n_ev = sum(1 for t in trial_results if t.status == "evaluated")
@@ -206,6 +307,10 @@ class MetricEvaluationService:
                 "best_trial_id": best_trial_id,
                 "best_model_id": best_model_id,
                 "metric_summary": metric_summary.model_dump(),
+                "final_holdout_evaluation": (
+                    final_holdout_evaluation.model_dump()
+                    if final_holdout_evaluation else None
+                ),
             })
             fm_path = save_fold_metrics(eval_dir, [f.model_dump() for f in fold_results])
             tm_path = save_trial_metrics(eval_dir, [t.model_dump() for t in trial_results])
@@ -279,6 +384,7 @@ class MetricEvaluationService:
                 best_model_id=best_model_id,
                 best_pipeline_spec_id=best_pipeline_spec_id,
                 metric_summary=metric_summary,
+                final_holdout_evaluation=final_holdout_evaluation,
                 trial_metric_results=trial_results,
                 pipeline_metric_results=pipeline_results,
                 fold_metric_results=fold_results,

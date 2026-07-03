@@ -1,5 +1,25 @@
 from typing import Optional
 
+KNOWN_LOADERS = ["matbench", "file"]
+
+
+def _normalize_loader(raw_loader: str) -> str:
+    """Extract a known loader name from LLM-generated descriptive text.
+
+    LLMs may return descriptive strings like
+    ``"matbench (Python package, e.g., matbench_expt_gap)"`` instead of the
+    short identifier ``"matbench"``.  This helper matches the raw string
+    against the known loader names (case-insensitive) and returns the
+    canonical name, or the original value when nothing matches.
+    """
+    if not raw_loader:
+        return raw_loader
+    raw_lower = raw_loader.lower()
+    for name in KNOWN_LOADERS:
+        if name in raw_lower:
+            return name
+    return raw_loader
+
 
 def resolve_source(
     dataset_intent: dict,
@@ -28,7 +48,7 @@ def resolve_source(
         return {
             "source_type": "public_benchmark",
             "dataset_reference": dataset_intent.get("dataset_reference"),
-            "loader_name": loading_hint.get("possible_loader", "matbench"),
+            "loader_name": _normalize_loader(loading_hint.get("possible_loader", "matbench")),
             "is_supported": True,
             "requires_file_upload": False,
             "messages": [],
@@ -38,7 +58,7 @@ def resolve_source(
         return {
             "source_type": hint_source_type,
             "dataset_reference": dataset_intent.get("dataset_reference"),
-            "loader_name": loading_hint.get("possible_loader"),
+            "loader_name": _normalize_loader(loading_hint.get("possible_loader") or ""),
             "is_supported": hint_source_type in ("public_benchmark", "uploaded_file"),
             "requires_file_upload": hint_source_type == "uploaded_file",
             "messages": (

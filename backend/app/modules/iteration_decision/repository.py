@@ -4,6 +4,7 @@ from typing import Optional, List
 from sqlmodel import Session, select
 from sqlalchemy.exc import OperationalError
 from app.modules.iteration_decision.model import IterationDecision
+from app.modules.iteration_decision.enums import DecisionStatus
 
 def _diag(msg, *args):
     formatted = msg % args if args else msg
@@ -62,7 +63,9 @@ class IterationDecisionRepository:
         stmt = (
             select(IterationDecision)
             .where(IterationDecision.task_id == task_id)
+            .where(IterationDecision.decision.isnot(None))
             .where(IterationDecision.reasoning_json.isnot(None))
+            .where(IterationDecision.status != DecisionStatus.DECIDING)
             .order_by(IterationDecision.created_at.desc())
             .limit(1)
         )
@@ -72,6 +75,17 @@ class IterationDecisionRepository:
         stmt = (
             select(IterationDecision)
             .where(IterationDecision.task_id == task_id)
+            .order_by(IterationDecision.created_at.desc())
+        )
+        return list(session.exec(stmt).all())
+
+    def list_completed_by_task_id(self, session: Session, task_id: str) -> List[IterationDecision]:
+        stmt = (
+            select(IterationDecision)
+            .where(IterationDecision.task_id == task_id)
+            .where(IterationDecision.decision.isnot(None))
+            .where(IterationDecision.reasoning_json.isnot(None))
+            .where(IterationDecision.status != DecisionStatus.DECIDING)
             .order_by(IterationDecision.created_at.desc())
         )
         return list(session.exec(stmt).all())

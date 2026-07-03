@@ -9,8 +9,14 @@ import os
 import time
 from typing import Optional
 
+import pandas as pd
+
 from app.modules.pipeline_execution.model_factory import create_model
-from app.modules.pipeline_execution.prediction_writer import save_predictions
+from app.modules.pipeline_execution.prediction_writer import (
+    build_prediction_dataframe,
+    save_prediction_dataframe,
+    save_predictions,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +31,9 @@ def run_final_external_test(
     task_type: str,
     exec_dir: str,
     fold_pipeline_spec=None,
+    train_indices=None,
 ) -> dict:
-    """Refit the selected trial on train pool and predict external test data."""
+    """Refit the selected trial and persist final train/test predictions."""
     started = time.time()
     trial_id = _trial_attr(best_trial, "trial_id")
     pipeline_spec_id = _trial_attr(best_trial, "pipeline_spec_id")
@@ -63,32 +70,35 @@ def run_final_external_test(
     )
     model = create_model(model_id, task_type, params)
     model.fit(X_fit, y_train_pool)
-    y_pred = model.predict(X_eval)
+    y_pred_train = model.predict(X_fit)
+    y_pred_test = model.predict(X_eval)
 
-    y_pred_proba = None
+    y_pred_proba_train = None
+    y_pred_proba_test = None
     class_labels = None
     if task_type == "classification" and hasattr(model, "predict_proba"):
         try:
-            y_pred_proba = model.predict_proba(X_eval)
+            y_pred_proba_train = model.predict_proba(X_fit)
+            y_pred_proba_test = model.predict_proba(X_eval)
             if hasattr(model, "classes_"):
                 class_labels = model.classes_.tolist()
         except Exception:
             pass
 
     pred_dir = os.path.join(exec_dir, "predictions")
+    test_sample_indices = _sample_indices(test_indices, X_test)
+    train_sample_indices = _sample_indices(train_indices, X_train_pool)
     pred_path = save_predictions(
         y_true=y_test,
-        y_pred=y_pred,
-        sample_indices=(
-            test_indices.tolist() if hasattr(test_indices, "tolist") else list(test_indices)
-        ),
+        y_pred=y_pred_test,
+        sample_indices=test_sample_indices,
         trial_id=trial_id,
         pipeline_spec_id=pipeline_spec_id,
         fold_index=-1,
         model_id=model_id,
         output_dir=pred_dir,
         task_type=task_type,
-        y_pred_proba=y_pred_proba,
+        y_pred_proba=y_pred_proba_test,
         class_labels=class_labels,
         split="test",
         filename="final_external_test_predictions.parquet",
@@ -98,10 +108,53 @@ def run_final_external_test(
         },
     )
 
+    train_frame = build_prediction_dataframe(
+        y_true=y_train_pool,
+        y_pred=y_pred_train,
+        sample_indices=train_sample_indices,
+        trial_id=trial_id,
+        pipeline_spec_id=pipeline_spec_id,
+        fold_index=-1,
+        model_id=model_id,
+        task_type=task_type,
+        y_pred_proba=y_pred_proba_train,
+        class_labels=class_labels,
+        split="train",
+        extra_columns={
+            "is_final_external_test": False,
+            "is_final_model_prediction": True,
+            "prediction_source": "final_refit_train",
+        },
+    )
+    test_frame = build_prediction_dataframe(
+        y_true=y_test,
+        y_pred=y_pred_test,
+        sample_indices=test_sample_indices,
+        trial_id=trial_id,
+        pipeline_spec_id=pipeline_spec_id,
+        fold_index=-1,
+        model_id=model_id,
+        task_type=task_type,
+        y_pred_proba=y_pred_proba_test,
+        class_labels=class_labels,
+        split="test",
+        extra_columns={
+            "is_final_external_test": True,
+            "is_final_model_prediction": True,
+            "prediction_source": "final_refit_test",
+        },
+    )
+    train_test_path = save_prediction_dataframe(
+        pd.concat([train_frame, test_frame], ignore_index=True, sort=False),
+        pred_dir,
+        "final_train_test_predictions.parquet",
+    )
+
     return {
         "enabled": True,
         "status": "completed",
         "prediction_artifact_path": pred_path,
+        "train_test_prediction_artifact_path": train_test_path,
         "trial_id": trial_id,
         "pipeline_spec_id": pipeline_spec_id,
         "model_id": model_id,
@@ -151,6 +204,15 @@ def _raw_metric_key(primary_metric: Optional[str]) -> Optional[str]:
     }
     key = aliases.get(key, key)
     return f"mean_{key}"
+
+
+def _sample_indices(indices, fallback_frame):
+    if indices is not None:
+        return indices.tolist() if hasattr(indices, "tolist") else list(indices)
+    if hasattr(fallback_frame, "index"):
+        frame_index = fallback_frame.index
+        return frame_index.tolist() if hasattr(frame_index, "tolist") else list(frame_index)
+    return list(range(len(fallback_frame)))
 
 
 def _trial_attr(trial, name: str):

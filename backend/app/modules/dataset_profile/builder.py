@@ -104,6 +104,13 @@ def build_dataset_profile(
             "is_imbalanced": target_result.get("is_imbalanced"),
         })
 
+    logger.info(
+        "[DIAGNOSTIC] Assembled target_profile — column=%s | task_type=%s | fields=%s",
+        target_profile.get("target_column"),
+        target_profile.get("task_type"),
+        {k: v for k, v in target_profile.items() if k not in ("class_distribution",)},
+    )
+
     data_quality = {
         "missing_values": quality_result.get("missing_values", {}),
         "duplicates": quality_result.get("duplicates", {}),
@@ -142,12 +149,37 @@ def build_dataset_profile(
         + target_result.get("warnings", [])
     )
 
+    # --- DIAGNOSTIC: log status determination rationale ---
+    status_reasons = []
+    if not is_loaded:
+        status_reasons.append("not_loaded")
+    if len(schema_errors) > 0:
+        status_reasons.append(f"schema_errors={schema_errors}")
+    if len(target_result.get("errors", [])) > 0:
+        status_reasons.append(f"target_errors={target_result.get('errors', [])}")
+    if len(quality_result.get("errors", [])) > 0:
+        status_reasons.append(f"quality_errors={quality_result.get('errors', [])}")
+
     if not is_loaded or len(schema_errors) > 0 or len(target_result.get("errors", [])) > 0:
         status = "failed"
+        logger.warning(
+            "Profile status=FAILED — profile_id=%s | reasons=%s | "
+            "expected_target_column=%s | task_type=%s",
+            profile_id,
+            status_reasons,
+            target_column,
+            context.get("expected_task_type"),
+        )
     elif all_warnings:
         status = "profiled_with_warning"
+        logger.info(
+            "Profile status=PROFILED_WITH_WARNING — profile_id=%s | warnings=%s",
+            profile_id,
+            all_warnings,
+        )
     else:
         status = "profiled"
+        logger.info("Profile status=PROFILED — profile_id=%s", profile_id)
 
     preview_rows = []
     if df is not None and not df.empty:

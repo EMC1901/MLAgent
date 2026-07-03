@@ -50,6 +50,9 @@ const MetricEvaluationPanel: React.FC<MetricEvaluationPanelProps> = ({ taskId, i
     } finally { setLoading(false); }
   };
 
+  const formatMetricValue = (value?: number | null) => (
+    value != null && Number.isFinite(value) ? value.toFixed(6) : 'N/A'
+  );
   const rankingColumns = [
     { title: 'Rank', dataIndex: 'rank', key: 'rank', render: (v: number) => <strong>#{v}</strong> },
     {
@@ -123,6 +126,34 @@ const MetricEvaluationPanel: React.FC<MetricEvaluationPanelProps> = ({ taskId, i
                   </Descriptions.Item>
                 </Descriptions>
               </>
+            )}
+          </Card>
+          <Card size="small" title="Final Holdout Evaluation">
+            {result.final_holdout_evaluation?.available ? (
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Row gutter={[12, 12]}>
+                  <Col span={8}>
+                    <Statistic title={'R\u00b2 Test'} value={formatMetricValue(result.final_holdout_evaluation.r2_test)} />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic title="RMSE Test" value={formatMetricValue(result.final_holdout_evaluation.rmse_test)} />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic title="MAE Test" value={formatMetricValue(result.final_holdout_evaluation.mae_test)} />
+                  </Col>
+                </Row>
+                <Descriptions column={2} size="small">
+                  <Descriptions.Item label="Test Samples">{result.final_holdout_evaluation.n_test_samples}</Descriptions.Item>
+                  <Descriptions.Item label="Split">{result.final_holdout_evaluation.split}</Descriptions.Item>
+                  <Descriptions.Item label="Model">{result.final_holdout_evaluation.model_id || 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label="Trial"><code>{result.final_holdout_evaluation.trial_id || 'N/A'}</code></Descriptions.Item>
+                  <Descriptions.Item label="Artifact" span={2}>
+                    <code style={{ fontSize: 11, wordBreak: 'break-all' }}>{result.final_holdout_evaluation.prediction_artifact_path || 'N/A'}</code>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Space>
+            ) : (
+              <EmptyState description={result.final_holdout_evaluation?.notes?.[0] || 'Final holdout evaluation is not available for this run.'} />
             )}
           </Card>
         </Space>

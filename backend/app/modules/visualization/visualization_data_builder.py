@@ -42,6 +42,7 @@ def build_visualization_data(
     fp: Optional[FeaturePreprocessing],
 ) -> VisualizationDataResponse:
     task_type = _resolve_task_type(me, pe)
+    _log_prediction_artifact_debug(task_id, pe)
     feature_analysis = _build_feature_analysis(ia, fp, dp)
     model_performance = _build_model_performance(ia, me, pe, task_type)
 
@@ -75,6 +76,43 @@ def _normalize_task_type(raw: str) -> str:
         return "regression"
     return lower
 
+
+def _log_prediction_artifact_debug(task_id: str, pe: Optional[PipelineExecution]) -> None:
+    if pe is None:
+        logger.info(
+            "Visualization prediction artifact debug: task_id=%s selected_pipeline_execution=None",
+            task_id,
+        )
+        return
+
+    execution_json = _safe_json(getattr(pe, "execution_json", None))
+    manifest = execution_json.get("training_artifact_manifest") or {}
+    artifact_manifest = execution_json.get("artifact_manifest") or {}
+    external_metadata = manifest.get("external_test_metadata") or {}
+    external_split = external_metadata.get("split") if isinstance(external_metadata, dict) else None
+    external_result = external_metadata.get("result") if isinstance(external_metadata, dict) else None
+    if not isinstance(external_result, dict):
+        external_result = {}
+    final_path = _final_train_test_prediction_path(pe)
+    external_path = _external_test_prediction_path(pe)
+    logger.info(
+        "Visualization prediction artifact debug: task_id=%s pe_id=%s pe_status=%s pe_created_at=%s pe_finished_at=%s execution_json_keys=%s manifest_keys=%s artifact_manifest_keys=%s external_test_metadata_present=%s external_test_result_status=%s external_test_size=%s final_train_test_path=%s final_train_test_exists=%s external_test_path=%s external_test_exists=%s",
+        task_id,
+        getattr(pe, "id", None),
+        getattr(pe, "status", None),
+        getattr(pe, "created_at", None),
+        getattr(pe, "finished_at", None),
+        sorted(execution_json.keys()),
+        sorted(manifest.keys()) if isinstance(manifest, dict) else [],
+        sorted(artifact_manifest.keys()) if isinstance(artifact_manifest, dict) else [],
+        bool(external_metadata),
+        external_result.get("status"),
+        external_split.get("external_test_size") if isinstance(external_split, dict) else None,
+        final_path,
+        os.path.exists(final_path) if final_path else None,
+        external_path,
+        os.path.exists(external_path) if external_path else None,
+    )
 
 def _safe_json(val: Any) -> dict:
     if val is None:
@@ -282,7 +320,7 @@ def _build_predicted_vs_actual(
     me: Optional[MetricEvaluation] = None,
     pe: Optional[PipelineExecution] = None,
 ) -> Optional[PredictedVsActualData]:
-    pred_df = _load_external_test_prediction_dataframe(pe)
+    pred_df = _load_regression_performance_prediction_dataframe(pe)
     if pred_df is not None:
         from_predictions = _predicted_vs_actual_from_predictions(pred_df, me, ia)
         if from_predictions is not None:
@@ -399,45 +437,56 @@ def _primary_metric_value_from_metric_evaluation(me: Optional[MetricEvaluation])
         return None
 
 
-def _build_primary_split_metrics(valid: pd.DataFrame, primary_metric: str) -> List[Dict[str, Any]]:
+def _build_regression_split_metrics(valid: pd.DataFrame, primary_metric: str) -> List[Dict[str, Any]]:
     split_metrics: List[Dict[str, Any]] = []
     if valid.empty:
         return split_metrics
+
+    metric_names = ["R2"]
+    if primary_metric and _metric_key(primary_metric) != "r2":
+        metric_names.append(primary_metric)
+
     for split, group in valid.groupby("split", sort=False):
-        metric_value = _calculate_regression_metric(
-            group["actual"].to_numpy(dtype=float),
-            group["predicted"].to_numpy(dtype=float),
-            primary_metric,
-        )
-        if metric_value is not None:
-            split_metrics.append({
-                "split": str(split or "test"),
-                "metric_name": primary_metric,
-                "metric_value": round(float(metric_value), 6),
-            })
+        for metric_name in metric_names:
+            metric_value = _calculate_regression_metric(
+                group["actual"].to_numpy(dtype=float),
+                group["predicted"].to_numpy(dtype=float),
+                metric_name,
+            )
+            if metric_value is not None:
+                split_metrics.append({
+                    "split": str(split or "test"),
+                    "metric_name": metric_name,
+                    "metric_value": round(float(metric_value), 6),
+                })
     return split_metrics
 
 
 def _best_display_primary_metric_value(
     split_metrics: List[Dict[str, Any]],
     fallback: Optional[float],
+    primary_metric: str,
 ) -> Optional[float]:
-    preferred = {"test", "validation", "valid", "val", "holdout"}
-    for metric in split_metrics:
+    wanted_metric = _metric_key(primary_metric)
+    preferred_splits = {"test", "validation", "valid", "val", "holdout"}
+    candidates = [
+        metric for metric in split_metrics
+        if _metric_key(str(metric.get("metric_name", ""))) == wanted_metric
+    ]
+    for metric in candidates:
         split = str(metric.get("split", "")).lower()
-        if split in preferred:
+        if split in preferred_splits:
             return float(metric["metric_value"])
-    if split_metrics:
-        return float(split_metrics[0]["metric_value"])
+    if candidates:
+        return float(candidates[0]["metric_value"])
     return fallback
-
 
 def _build_residual_plot(
     ia: Optional[InterpretabilityAnalysis],
     me: Optional[MetricEvaluation] = None,
     pe: Optional[PipelineExecution] = None,
 ) -> Optional[ResidualPlotData]:
-    pred_df = _load_external_test_prediction_dataframe(pe)
+    pred_df = _load_regression_performance_prediction_dataframe(pe)
     if pred_df is not None:
         from_predictions = _residual_plot_from_predictions(pred_df, me, ia)
         if from_predictions is not None:
@@ -580,7 +629,9 @@ def _predicted_vs_actual_from_predictions(
     actual_col, predicted_col = columns
     valid = pred_df[[actual_col, predicted_col]].copy()
     valid.columns = ["actual", "predicted"]
-    valid = valid.apply(pd.to_numeric, errors="coerce").dropna()
+    valid["split"] = pred_df["split"].astype(str).values if "split" in pred_df.columns else "test"
+    valid[["actual", "predicted"]] = valid[["actual", "predicted"]].apply(pd.to_numeric, errors="coerce")
+    valid = valid.dropna(subset=["actual", "predicted"])
     if valid.empty:
         return None
 
@@ -594,6 +645,7 @@ def _predicted_vs_actual_from_predictions(
             "actual": float(row.actual),
             "predicted": float(row.predicted),
             "residual": float(row.residual),
+            "split": str(row.split),
         }
         for row in sampled.itertuples(index=False)
     ]
@@ -604,13 +656,7 @@ def _predicted_vs_actual_from_predictions(
     rmse = _calculate_regression_metric(actual, predicted, "rmse") or 0.0
     mae = _calculate_regression_metric(actual, predicted, "mae") or 0.0
     primary_metric = _primary_metric_name(me)
-
-    split_frame = valid.copy()
-    if "split" in pred_df.columns:
-        split_frame["split"] = pred_df.loc[valid.index, "split"].astype(str).values
-    else:
-        split_frame["split"] = "test"
-    split_metrics = _build_primary_split_metrics(split_frame, primary_metric)
+    split_metrics = _build_regression_split_metrics(valid, primary_metric)
 
     return PredictedVsActualData(
         points=points,
@@ -624,10 +670,10 @@ def _predicted_vs_actual_from_predictions(
         primary_metric_value=_best_display_primary_metric_value(
             split_metrics,
             _primary_metric_value_from_metric_evaluation(me),
+            primary_metric,
         ),
         split_metrics=split_metrics,
     )
-
 
 def _residual_plot_from_predictions(
     pred_df: pd.DataFrame,
@@ -640,16 +686,23 @@ def _residual_plot_from_predictions(
     actual_col, predicted_col = columns
     valid = pred_df[[actual_col, predicted_col]].copy()
     valid.columns = ["actual", "predicted"]
-    valid = valid.apply(pd.to_numeric, errors="coerce").dropna()
+    valid["split"] = pred_df["split"].astype(str).values if "split" in pred_df.columns else "test"
+    valid[["actual", "predicted"]] = valid[["actual", "predicted"]].apply(pd.to_numeric, errors="coerce")
+    valid = valid.dropna(subset=["actual", "predicted"])
     if valid.empty:
         return None
 
     residuals = valid["actual"] - valid["predicted"]
+    valid["residual"] = residuals
     n = min(len(valid), MAX_SCATTER_POINTS)
     step = max(1, len(valid) // n)
-    sampled = valid.assign(residual=residuals).iloc[::step].head(n)
+    sampled = valid.iloc[::step].head(n)
     points = [
-        {"predicted": float(row.predicted), "residual": float(row.residual)}
+        {
+            "predicted": float(row.predicted),
+            "residual": float(row.residual),
+            "split": str(row.split),
+        }
         for row in sampled.itertuples(index=False)
     ]
 
@@ -660,7 +713,6 @@ def _residual_plot_from_predictions(
         r_squared=round(float(_calculate_regression_metric(actual, predicted, "r2") or 0.0), 6),
         rmse=round(float(_calculate_regression_metric(actual, predicted, "rmse") or 0.0), 6),
     )
-
 
 def _build_confusion_matrix(
     pe: Optional[PipelineExecution],
@@ -777,6 +829,47 @@ def _build_histogram_bins(values: np.ndarray, bins: int = 20) -> List[Dict[str, 
     ]
 
 
+def _load_regression_performance_prediction_dataframe(
+    pe: Optional[PipelineExecution],
+) -> Optional[pd.DataFrame]:
+    """Load final train/test predictions, falling back to external test only."""
+    pred_df = _load_final_train_test_prediction_dataframe(pe)
+    if pred_df is not None:
+        return pred_df
+    return _load_external_test_prediction_dataframe(pe)
+
+
+def _load_final_train_test_prediction_dataframe(
+    pe: Optional[PipelineExecution],
+) -> Optional[pd.DataFrame]:
+    """Load final refit train/test predictions for publication-style charts."""
+    path = _final_train_test_prediction_path(pe)
+    if not path:
+        logger.info("Final train/test prediction artifact path is not available for visualization.")
+        return None
+    if not os.path.exists(path):
+        logger.warning("Final train/test prediction artifact does not exist: %s", path)
+        return None
+
+    try:
+        df = _load_table(path)
+    except Exception as exc:
+        logger.warning("Failed to load final train/test prediction artifact %s: %s", path, exc)
+        return None
+
+    if "is_final_model_prediction" in df.columns:
+        df = df[df["is_final_model_prediction"].astype(bool)]
+    if "split" not in df.columns:
+        logger.warning("Final train/test prediction artifact is missing split column: %s", path)
+        return None
+    df = df[df["split"].astype(str).str.lower().isin({"train", "training", "test", "testing"})]
+
+    if df.empty:
+        logger.warning("Final train/test prediction artifact has no train/test rows: %s", path)
+        return None
+    return df
+
+
 def _load_external_test_prediction_dataframe(
     pe: Optional[PipelineExecution],
 ) -> Optional[pd.DataFrame]:
@@ -811,6 +904,28 @@ def _load_external_test_prediction_dataframe(
     return df
 
 
+def _final_train_test_prediction_path(pe: Optional[PipelineExecution]) -> Optional[str]:
+    if not pe or not pe.execution_json:
+        return None
+    execution_json = _safe_json(pe.execution_json)
+    manifest = execution_json.get("training_artifact_manifest") or {}
+    path = manifest.get("final_train_test_prediction_path") or manifest.get("train_test_prediction_path")
+    if path:
+        return path
+
+    artifact_manifest = execution_json.get("artifact_manifest") or {}
+    path = artifact_manifest.get("final_train_test_prediction_path") or artifact_manifest.get("train_test_prediction_path")
+    if path:
+        return path
+
+    metadata = manifest.get("external_test_metadata") or execution_json.get("external_test_metadata") or {}
+    if isinstance(metadata, dict):
+        result = metadata.get("result") or {}
+        if isinstance(result, dict):
+            return result.get("train_test_prediction_artifact_path")
+    return None
+
+
 def _external_test_prediction_path(pe: Optional[PipelineExecution]) -> Optional[str]:
     if not pe or not pe.execution_json:
         return None
@@ -822,7 +937,16 @@ def _external_test_prediction_path(pe: Optional[PipelineExecution]) -> Optional[
 
     # Backward/diagnostic fallback for partially materialized responses.
     artifact_manifest = execution_json.get("artifact_manifest") or {}
-    return artifact_manifest.get("external_test_prediction_path")
+    path = artifact_manifest.get("external_test_prediction_path")
+    if path:
+        return path
+
+    metadata = manifest.get("external_test_metadata") or execution_json.get("external_test_metadata") or {}
+    if isinstance(metadata, dict):
+        result = metadata.get("result") or {}
+        if isinstance(result, dict):
+            return result.get("prediction_artifact_path")
+    return None
 
 def _load_prediction_dataframe(
     pe: Optional[PipelineExecution],

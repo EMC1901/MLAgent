@@ -59,10 +59,15 @@ export const getLatestDatasetProfileByTaskId = async (
 
 export const rerunDatasetProfile = async (
   taskId: string,
+  uploadedFileId?: string,
 ): Promise<ApiResponse<DatasetProfileResponse>> => {
+  const body: Record<string, unknown> = {};
+  if (uploadedFileId) {
+    body.uploaded_file_id = uploadedFileId;
+  }
   const response = await api.post<ApiResponse<DatasetProfileResponse>>(
     `/api/dataset-profiles/${taskId}/rerun`,
-    {},
+    body,
   );
   return response.data;
 };

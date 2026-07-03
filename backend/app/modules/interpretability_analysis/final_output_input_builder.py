@@ -19,6 +19,7 @@ def build_final_output_input(
     global_feature_importance: List[Dict[str, Any]],
     shap_summary: Optional[Dict[str, Any]] = None,
     material_insight_summary: Optional[Dict[str, Any]] = None,
+    scientific_insight_summary: Optional[Dict[str, Any]] = None,
     interpretability_artifacts: Optional[Dict[str, str]] = None,
     workflow_trace_refs: Optional[Dict[str, str]] = None,
 ) -> FinalOutputInput:
@@ -56,6 +57,7 @@ def build_final_output_input(
         global_feature_importance=global_feature_importance,
         shap_summary=shap_summary,
         material_insight_summary=material_insight_summary,
+        scientific_insight_summary=scientific_insight_summary,
         interpretability_artifacts=interpretability_artifacts or {},
         workflow_trace_refs=workflow_trace_refs or {},
         ready_for_final_output=ready,

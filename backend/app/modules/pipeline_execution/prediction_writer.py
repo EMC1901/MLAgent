@@ -29,8 +29,39 @@ def save_predictions(
     Returns:
         Path to the saved prediction file.
     """
-    os.makedirs(output_dir, exist_ok=True)
+    df = build_prediction_dataframe(
+        y_true=y_true,
+        y_pred=y_pred,
+        sample_indices=sample_indices,
+        trial_id=trial_id,
+        pipeline_spec_id=pipeline_spec_id,
+        fold_index=fold_index,
+        model_id=model_id,
+        task_type=task_type,
+        y_pred_proba=y_pred_proba,
+        class_labels=class_labels,
+        split=split,
+        extra_columns=extra_columns,
+    )
+    filename = filename or f"{trial_id}_fold_{fold_index}.parquet"
+    return save_prediction_dataframe(df, output_dir, filename)
 
+
+def build_prediction_dataframe(
+    y_true,
+    y_pred,
+    sample_indices,
+    trial_id: str,
+    pipeline_spec_id: str,
+    fold_index: int,
+    model_id: str,
+    task_type: str = "regression",
+    y_pred_proba=None,
+    class_labels=None,
+    split: str = "validation",
+    extra_columns: dict = None,
+) -> pd.DataFrame:
+    """Build prediction rows without writing them to disk."""
     try:
         import numpy as np
         y_true_vals = np.array(y_true).flatten()
@@ -68,7 +99,12 @@ def save_predictions(
         if class_labels is not None:
             df["class_labels"] = str(list(class_labels))
 
-    filename = filename or f"{trial_id}_fold_{fold_index}.parquet"
+    return df
+
+
+def save_prediction_dataframe(df: pd.DataFrame, output_dir: str, filename: str) -> str:
+    """Save a prediction DataFrame as parquet and return the file path."""
+    os.makedirs(output_dir, exist_ok=True)
     filepath = os.path.join(output_dir, filename)
 
     try:

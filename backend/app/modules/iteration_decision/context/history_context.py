@@ -27,7 +27,7 @@ def gather_history_context(session: Session, task_id: str) -> Dict[str, Any]:
     try:
         from app.modules.iteration_decision.repository import IterationDecisionRepository
         id_repo = IterationDecisionRepository()
-        prev = id_repo.list_by_task_id(session, task_id)
+        prev = id_repo.list_completed_by_task_id(session, task_id)
         history["n_iterations_completed"] = len(prev)
         history["previous_decisions"] = [d.decision for d in prev if d.decision]
 

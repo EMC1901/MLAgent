@@ -31,6 +31,14 @@ def save_interpretability_artifacts(
     physics_constraints: Optional[Dict[str, Any]] = None,
     shap_interactions: Optional[List[Dict[str, Any]]] = None,
     shap_dependence: Optional[List[Dict[str, Any]]] = None,
+    scientific_insight_report: Optional[Dict[str, Any]] = None,
+    material_patterns: Optional[List[Dict[str, Any]]] = None,
+    material_pattern_validation: Optional[Dict[str, Any]] = None,
+    material_mechanisms: Optional[List[Dict[str, Any]]] = None,
+    debug_trace: Optional[Dict[str, Any]] = None,
+    debug_warnings: Optional[Dict[str, Any]] = None,
+    request_snapshot: Optional[Dict[str, Any]] = None,
+    input_snapshot: Optional[Dict[str, Any]] = None,
 ) -> ArtifactManifest:
     ia_dir = os.path.join(ARTIFACT_BASE_DIR, interpretability_analysis_id)
     shap_dir = os.path.join(ia_dir, "shap")
@@ -78,6 +86,22 @@ def save_interpretability_artifacts(
             manifest.llm_interpretability_summary_path = _write_json(
                 ia_dir, "llm_interpretability_summary.json", llm_interpretability_summary
             )
+        if scientific_insight_report:
+            manifest.scientific_insight_report_path = _write_json(
+                ia_dir, "scientific_insight_report.json", scientific_insight_report
+            )
+        if material_patterns:
+            manifest.material_patterns_path = _write_json(
+                ia_dir, "material_patterns.json", material_patterns
+            )
+        if material_pattern_validation:
+            manifest.material_pattern_validation_path = _write_json(
+                ia_dir, "material_pattern_validation.json", material_pattern_validation
+            )
+        if material_mechanisms:
+            manifest.material_mechanisms_path = _write_json(
+                ia_dir, "material_mechanisms.json", material_mechanisms
+            )
         if final_output_input:
             manifest.final_output_input_path = _write_json(
                 ia_dir, "final_output_input.json", final_output_input
@@ -110,6 +134,16 @@ def save_interpretability_artifacts(
             _write_json(
                 shap_dir, "shap_dependence.json", shap_dependence
             )
+
+        # ── Debug artifacts ──
+        if debug_trace:
+            _write_json(ia_dir, "debug_trace.json", debug_trace)
+        if debug_warnings:
+            _write_json(ia_dir, "warnings.json", debug_warnings)
+        if request_snapshot:
+            _write_json(ia_dir, "request_snapshot.json", request_snapshot)
+        if input_snapshot:
+            _write_json(ia_dir, "input_snapshot.json", input_snapshot)
 
         _write_json(ia_dir, "manifest.json", manifest.model_dump())
 

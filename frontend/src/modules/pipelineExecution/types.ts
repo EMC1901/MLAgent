@@ -88,6 +88,7 @@ export interface TrainingArtifactManifestDTO {
   split_metadata_path?: string | null;
   metric_evaluation_input_path?: string | null;
   external_test_prediction_path?: string | null;
+  final_train_test_prediction_path?: string | null;
   external_test_metadata?: Record<string, unknown> | null;
 }
 

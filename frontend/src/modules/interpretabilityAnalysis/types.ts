@@ -66,6 +66,40 @@ export interface MaterialPattern {
   possible_material_meaning: string;
   evidence_strength: string;
   caution: string;
+  supporting_evidence_ids?: string[];
+  claim_type?: string;
+  validation_status?: string;
+  falsifiable_prediction?: string;
+  suggested_validation?: string[];
+  scope?: string[];
+}
+
+export interface AcademicInsight {
+  claim_id?: string;
+  claim_type: string;
+  claim: string;
+  material_meaning?: string;
+  supporting_evidence_ids: string[];
+  evidence_chain?: { step: string; summary: string }[];
+  evidence_strength: string;
+  confidence: string;
+  validation_status: string;
+  falsifiable_prediction?: string;
+  suggested_validation?: string[];
+  counterexamples_or_risks?: string[];
+  scope_conditions?: string[];
+  allowed_wording?: string;
+}
+
+export interface RejectedClaim {
+  claim?: string;
+  reason?: string;
+  missing_evidence?: string[];
+}
+
+export interface MissingEvidenceItem {
+  needed_evidence?: string;
+  why_it_matters?: string;
 }
 
 export interface FeatureGroupInterpretation {
@@ -75,14 +109,21 @@ export interface FeatureGroupInterpretation {
 
 export interface MaterialInsightSummary {
   top_material_patterns: MaterialPattern[];
+  academic_insights?: AcademicInsight[];
+  rejected_claims?: RejectedClaim[];
+  missing_evidence?: MissingEvidenceItem[];
   feature_groups_interpretation: FeatureGroupInterpretation[];
   domain_hypotheses: string[];
   limitations: string[];
+  human_review_notes?: string[];
   confidence_level: string;
 }
 
 export interface LLMInterpretabilitySummary {
   top_material_patterns: MaterialPattern[];
+  academic_insights?: AcademicInsight[];
+  rejected_claims?: RejectedClaim[];
+  missing_evidence?: MissingEvidenceItem[];
   feature_groups_interpretation: FeatureGroupInterpretation[];
   domain_hypotheses: string[];
   limitations: string[];
@@ -109,6 +150,38 @@ export interface FinalOutputInput {
   ready_for_final_output: boolean;
 }
 
+export interface DebugWarning {
+  step: string;
+  code: string;
+  severity: string;  // warning | error
+  message: string;
+}
+
+export interface DebugTraceStep {
+  step: string;
+  step_name: string;
+  status: string;  // pending | running | completed | failed
+  started_at?: string;
+  finished_at?: string;
+  duration_seconds?: number;
+  input_summary?: Record<string, unknown>;
+  output_summary?: Record<string, unknown>;
+  warnings: DebugWarning[];
+  error_type?: string;
+  error_message?: string;
+  error_traceback?: string;
+  recoverable: boolean;
+}
+
+export interface DebugTrace {
+  run_id: string;
+  steps: DebugTraceStep[];
+  environment: Record<string, unknown>;
+  cache_hit: boolean;
+  cached_from_ia_id?: string;
+  total_duration_seconds?: number;
+}
+
 export interface InterpretabilityAnalysisResponse {
   interpretability_analysis_id?: string;
   task_id?: string;
@@ -133,6 +206,13 @@ export interface InterpretabilityAnalysisResponse {
   final_output_input?: FinalOutputInput;
   ready_for_final_output: boolean;
   warnings: string[];
+  debug_warnings: DebugWarning[];
+  debug_trace?: DebugTrace;
+  current_step?: string;
+  last_completed_step?: string;
+  duration_seconds?: number;
+  started_at?: string;
+  finished_at?: string;
   error_message?: string;
   created_at?: string;
   updated_at?: string;
@@ -144,3 +224,4 @@ export interface ApiResponse<T> {
   data: T;
   error_code?: string;
 }
+
