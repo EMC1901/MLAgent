@@ -2,8 +2,6 @@
 
 本文档面向编程开发新手，介绍如何在 Windows 电脑上下载、安装、部署并使用 MLAgent。
 
-本文采用的部署方式与当前开发电脑一致：
-
 - React 前端直接运行在 Windows 本机；
 - FastAPI 后端直接运行在 Windows 本机；
 - PostgreSQL 数据库运行在 Docker 容器中；
