@@ -2,6 +2,8 @@
 
 本文档面向编程开发新手，介绍如何在 Windows 电脑上下载、安装、部署并使用 MLAgent。
 
+项目的代码分层、核心模块和数据流说明见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+
 本文采用的部署方式与当前开发电脑一致：
 
 - React 前端直接运行在 Windows 本机；
@@ -1207,6 +1209,7 @@ MLAgent/
 │  ├─ .env                   本地后端配置，不上传 GitHub
 │  ├─ app/                   后端源码
 │  ├─ alembic/               数据库迁移文件
+│  ├─ scripts/               数据库兼容迁移等维护脚本
 │  ├─ tests/                 后端测试
 │  └─ requirements.txt       Python 依赖列表
 ├─ frontend/                 Windows 本地 React 前端
@@ -1217,7 +1220,8 @@ MLAgent/
 │  └─ package-lock.json      锁定依赖版本
 ├─ docker-compose.yml        本地开发 Compose 配置，本方案只启动 db
 ├─ docker-compose.prod.yml   生产容器配置，本地方案不使用
-└─ readme本地.md             本文档
+├─ docs/                     架构与开发文档
+└─ README.md                 本文档
 
 C:\app/
 ├─ uploads/                  上传的数据集

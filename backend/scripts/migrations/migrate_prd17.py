@@ -1,9 +1,9 @@
 """
 Add missing columns to existing database tables for PRD-17.
 
-Run once: python migrate_prd17.py
+Run once from the backend directory:
+    python -m scripts.migrations.migrate_prd17
 """
-import os
 import sys
 import psycopg2
 from app.shared.config.settings import settings

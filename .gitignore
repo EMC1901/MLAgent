@@ -8,6 +8,8 @@ __pycache__/
 dist/
 build/
 *.egg
+.mypy_cache/
+.ruff_cache/
 
 # Virtual Environment
 venv/
@@ -16,7 +18,8 @@ env/
 
 # Node
 node_modules/
-frontend/node_modules/
+*.tsbuildinfo
+.eslintcache
 
 # IDE
 .idea/
@@ -39,11 +42,14 @@ npm-debug.log*
 
 # Test
 .coverage
+coverage.xml
 htmlcov/
 .pytest_cache/
 
-# Docker data
+# Runtime and Docker data
 postgres_data/
+uploads/
+artifacts/
 
 # Private / not for upload
 .agents/

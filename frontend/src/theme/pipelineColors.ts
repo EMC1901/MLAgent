@@ -13,7 +13,6 @@ export const pipelineAccent: Record<string, string> = {
   interpretabilityAnalysis: '#4527a0',
   visualization: '#7b1fa2',
   finalOutput: '#283593',
-  workflowRefinement: '#00695c',
 };
 
 export const defaultAccent = '#1976d2';
